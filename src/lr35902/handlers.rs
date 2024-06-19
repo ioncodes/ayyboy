@@ -1,5 +1,4 @@
 use crate::lr35902::cpu::Cpu;
-use crate::lr35902::sm83::Opcode::Add;
 use crate::lr35902::sm83::{AddressingMode, Instruction, Operand};
 use crate::memory::mmu::Mmu;
 use bitflags::Flags;
