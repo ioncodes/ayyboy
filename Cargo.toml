@@ -1,0 +1,10 @@
+[package]
+name = "ayyboy"
+version = "0.1.0"
+edition = "2021"
+
+[profile.release]
+debug = true
+
+[dependencies]
+bitflags = "2.5.0"
