@@ -8,3 +8,5 @@ debug = true
 
 [dependencies]
 bitflags = "2.5.0"
+fern = "0.6.2"
+log = "0.4.21"

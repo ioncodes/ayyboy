@@ -1,6 +1,8 @@
 use crate::lr35902::handlers::Handlers;
 use crate::lr35902::sm83::{Opcode, Register, Sm83};
 use crate::memory::mmu::Mmu;
+use bitflags::bitflags;
+use log::trace;
 
 pub struct Cpu {
     sm83: Sm83,
@@ -19,16 +21,42 @@ impl Cpu {
 
     pub fn tick(&mut self, mmu: &mut Mmu) {
         let instruction = if let Ok(instruction) = self.sm83.decode(mmu, self.registers.pc) {
-            println!("[{:#04x}] {}", self.registers.pc, instruction);
             instruction
         } else {
-            panic!("Failed to decode instruction at address: {:#04x}\n{}", self.registers.pc, self);
+            panic!("Failed to decode instruction at address: ${:04x}\n{}", self.registers.pc, self);
         };
 
+        // Gotta cache $pc as it may be updated by a handler
+        let current_pc = self.registers.pc;
+
         let cycles = match instruction.opcode {
-            Opcode::Ld => Handlers::load(self, mmu, &instruction),
+            Opcode::Ld | Opcode::Ldh => Handlers::load(self, mmu, &instruction),
+            Opcode::Push => Handlers::push(self, mmu, &instruction),
+            Opcode::Pop => Handlers::pop(self, mmu, &instruction),
+            Opcode::Nop => Handlers::nop(self, mmu, &instruction),
+            Opcode::Cp => Handlers::compare(self, mmu, &instruction),
+            Opcode::Add => Handlers::add(self, mmu, &instruction),
+            Opcode::Sub => Handlers::sub(self, mmu, &instruction),
+            Opcode::Inc => Handlers::increment(self, mmu, &instruction),
+            Opcode::Dec => Handlers::decrement(self, mmu, &instruction),
+            Opcode::Xor => Handlers::xor(self, mmu, &instruction),
+            Opcode::And => Handlers::and(self, mmu, &instruction),
+            Opcode::Or => Handlers::or(self, mmu, &instruction),
+            Opcode::Jp | Opcode::Jr | Opcode::Call => Handlers::jump(self, mmu, &instruction),
+            Opcode::Ret => Handlers::ret(self, mmu, &instruction),
+            Opcode::Bit => Handlers::test_bit(self, mmu, &instruction),
+            Opcode::Rl | Opcode::Rla => Handlers::rotate_left(self, mmu, &instruction),
             _ => panic!("Unimplemented instruction: {}\n{}", instruction, self),
         };
+
+        trace!(
+            "[{:04x}] {:<20} [{}  (SP): ${:02x}  Cycles: {}]",
+            current_pc,
+            format!("{}", instruction),
+            self,
+            mmu.read(self.registers.sp),
+            self.cycles,
+        );
 
         if let Ok(cycles) = cycles {
             self.registers.pc += instruction.length as u16;
@@ -53,10 +81,10 @@ impl Cpu {
 
     pub fn read_register16(&self, register: &Register) -> u16 {
         match register {
-            Register::AF => u16::from_le_bytes([self.registers.a, self.registers.f]),
-            Register::BC => u16::from_le_bytes([self.registers.b, self.registers.c]),
-            Register::DE => u16::from_le_bytes([self.registers.d, self.registers.e]),
-            Register::HL => u16::from_le_bytes([self.registers.h, self.registers.l]),
+            Register::AF => (self.registers.a as u16) << 8 | self.registers.f.bits() as u16,
+            Register::BC => (self.registers.b as u16) << 8 | self.registers.c as u16,
+            Register::DE => (self.registers.d as u16) << 8 | self.registers.e as u16,
+            Register::HL => (self.registers.h as u16) << 8 | self.registers.l as u16,
             Register::SP => self.registers.sp,
             Register::PC => self.registers.pc,
             _ => panic!("Invalid register: {:?}", register),
@@ -77,28 +105,63 @@ impl Cpu {
     }
 
     pub fn write_register16(&mut self, register: &Register, value: u16) {
-        let [high, low] = value.to_le_bytes();
+        let lo = (value & 0xff) as u8;
+        let hi = (value >> 8) as u8;
+
         match register {
             Register::AF => {
-                self.registers.a = high;
-                self.registers.f = low;
+                self.registers.a = hi;
+                self.registers.f = Flags::from_bits_truncate(lo);
             }
             Register::BC => {
-                self.registers.b = high;
-                self.registers.c = low;
+                self.registers.b = hi;
+                self.registers.c = lo;
             }
             Register::DE => {
-                self.registers.d = high;
-                self.registers.e = low;
+                self.registers.d = hi;
+                self.registers.e = lo;
             }
             Register::HL => {
-                self.registers.h = high;
-                self.registers.l = low;
+                self.registers.h = hi;
+                self.registers.l = lo;
             }
             Register::SP => self.registers.sp = value,
             Register::PC => self.registers.pc = value,
             _ => panic!("Invalid register: {:?}", register),
         }
+    }
+
+    pub fn update_flag(&mut self, flag: Flags, value: bool) {
+        if value {
+            self.set_flag(flag);
+        } else {
+            self.clear_flag(flag);
+        }
+    }
+
+    pub fn read_flag(&self, flag: Flags) -> bool {
+        self.registers.f.contains(flag)
+    }
+
+    #[inline]
+    pub fn set_flag(&mut self, flag: Flags) {
+        self.registers.f |= flag;
+    }
+
+    #[inline]
+    pub fn clear_flag(&mut self, flag: Flags) {
+        self.registers.f &= !flag;
+    }
+
+    pub fn push_stack(&mut self, mmu: &mut Mmu, value: u16) {
+        self.registers.sp -= 2;
+        mmu.write16(self.registers.sp, value);
+    }
+
+    pub fn pop_stack(&mut self, mmu: &Mmu) -> u16 {
+        let value = mmu.read16(self.registers.sp);
+        self.registers.sp += 2;
+        value
     }
 }
 
@@ -121,9 +184,18 @@ impl std::fmt::Display for Cpu {
     }
 }
 
+bitflags! {
+    pub struct Flags: u8 {
+        const ZERO       = 0b1000_0000;
+        const SUBTRACT   = 0b0100_0000;
+        const HALF_CARRY = 0b0010_0000;
+        const CARRY      = 0b0001_0000;
+    }
+}
+
 struct Registers {
     a: u8,
-    f: u8,
+    f: Flags,
     b: u8,
     c: u8,
     d: u8,
@@ -138,7 +210,7 @@ impl Default for Registers {
     fn default() -> Registers {
         Registers {
             a: 0,
-            f: 0,
+            f: Flags::empty(),
             b: 0,
             c: 0,
             d: 0,
