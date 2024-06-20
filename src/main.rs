@@ -11,6 +11,8 @@ mod video;
 fn main() {
     // Setup logger
     const LOG_PATH: &str = "trace.log";
+    std::fs::remove_file(LOG_PATH).unwrap_or_default();
+
     let file = OpenOptions::new()
         .write(true)
         .append(false)
@@ -20,6 +22,7 @@ fn main() {
     let _dispatch = Dispatch::new()
         .level(LevelFilter::Trace)
         .chain(file)
+        //.chain(std::io::stdout())
         .format(move |out, message, record| out.finish(format_args!("[{}] {}", record.level(), message)))
         .apply()
         .unwrap();

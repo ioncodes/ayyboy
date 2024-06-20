@@ -36,6 +36,7 @@ impl Handlers {
                 let addr = 0xff00 + *imm as u16;
                 mmu.write(addr, src as u8);
             }
+            Operand::Imm16(imm, mode) if mode.contains(AddressingMode::Indirect) => mmu.write16(*imm, src as u16),
             _ => return Err("Unimplemented destination"),
         };
 
@@ -204,7 +205,7 @@ impl Handlers {
                     return if Handlers::check_condition(cpu, cond) {
                         let addr = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false) as u16;
                         let pc = cpu.read_register16(&Register::PC);
-                        cpu.push_stack(mmu, pc);
+                        cpu.push_stack(mmu, pc + instruction.length as u16);
                         cpu.write_register16(&Register::PC, addr);
                         Ok(instruction.cycles.0)
                     } else {

@@ -3,6 +3,7 @@ use crate::lr35902::sm83::{Opcode, Register, Sm83};
 use crate::memory::mmu::Mmu;
 use bitflags::bitflags;
 use log::trace;
+use std::thread::current;
 
 pub struct Cpu {
     sm83: Sm83,
@@ -26,8 +27,8 @@ impl Cpu {
             panic!("Failed to decode instruction at address: ${:04x}\n{}", self.registers.pc, self);
         };
 
-        // Gotta cache $pc as it may be updated by a handler
         let current_pc = self.registers.pc;
+        self.registers.pc += instruction.length as u16;
 
         let cycles = match instruction.opcode {
             Opcode::Ld | Opcode::Ldh => Handlers::load(self, mmu, &instruction),
@@ -59,7 +60,6 @@ impl Cpu {
         );
 
         if let Ok(cycles) = cycles {
-            self.registers.pc += instruction.length as u16;
             self.cycles += cycles;
         } else {
             panic!("Failed to execute instruction: {}\n{}", instruction, self);
@@ -162,6 +162,10 @@ impl Cpu {
         let value = mmu.read16(self.registers.sp);
         self.registers.sp += 2;
         value
+    }
+
+    pub fn current_cycles(&self) -> usize {
+        self.cycles
     }
 }
 
