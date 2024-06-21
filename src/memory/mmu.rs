@@ -23,27 +23,18 @@ impl Mmu {
     }
 
     pub fn read(&self, addr: u16) -> u8 {
-        if self.bootrom_mapped && addr < BOOTROM_SIZE {
-            return self.bootrom[addr as usize];
-        }
-
-        if addr < 0x8000 {
-            self.cartridge.read(addr)
-        } else {
-            self.memory[addr as usize]
+        match addr {
+            0x0000..=BOOTROM_SIZE if self.bootrom_mapped => self.bootrom[addr as usize],
+            0x0000..=0x7fff => self.cartridge.read(addr),
+            _ => self.memory[addr as usize],
         }
     }
 
     pub fn write(&mut self, addr: u16, data: u8) {
-        if self.bootrom_mapped && addr < BOOTROM_SIZE {
-            self.bootrom[addr as usize] = data;
-            return;
-        }
-
-        if addr < 0x8000 {
-            self.cartridge.write(addr, data);
-        } else {
-            self.memory[addr as usize] = data;
+        match addr {
+            0x0000..=BOOTROM_SIZE if self.bootrom_mapped => self.bootrom[addr as usize] = data,
+            0x0000..=0x7fff => self.cartridge.write(addr, data),
+            _ => self.memory[addr as usize] = data,
         }
     }
 

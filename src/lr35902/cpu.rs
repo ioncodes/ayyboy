@@ -50,6 +50,12 @@ impl Cpu {
             _ => panic!("Unimplemented instruction: {}\n{}", instruction, self),
         };
 
+        if let Ok(cycles) = cycles {
+            self.cycles += cycles;
+        } else {
+            panic!("Failed to execute instruction: {}\n{}", instruction, self);
+        }
+
         trace!(
             "[{:04x}] {:<20} [{}  (SP): ${:02x}  Cycles: {}]",
             current_pc,
@@ -58,12 +64,6 @@ impl Cpu {
             mmu.read(self.registers.sp),
             self.cycles,
         );
-
-        if let Ok(cycles) = cycles {
-            self.cycles += cycles;
-        } else {
-            panic!("Failed to execute instruction: {}\n{}", instruction, self);
-        }
     }
 
     pub fn read_register(&self, register: &Register) -> u8 {
