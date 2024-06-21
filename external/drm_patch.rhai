@@ -1,0 +1,1 @@
+cpu.set_register(REG_F, cpu.get_register(REG_F) | (1 << 7));

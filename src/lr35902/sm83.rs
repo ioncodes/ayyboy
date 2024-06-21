@@ -1,5 +1,6 @@
 use crate::memory::mmu::Mmu;
 use bitflags::bitflags;
+use rhai::{CustomType, TypeBuilder};
 use std::cmp::PartialEq;
 
 type FDecode = fn(&Mmu, u16, Opcode) -> Instruction;
@@ -116,6 +117,7 @@ macro_rules! define_decoder {
     }};
 }
 
+#[derive(Clone, CustomType)]
 pub struct Sm83 {
     decoder_lut: Vec<(String, Opcode, FDecode)>,
     decoder_lut_prefixed: Vec<(String, Opcode, FDecode)>,
@@ -271,7 +273,6 @@ impl Sm83 {
 
         // ldh (imm8), A
         lut.push(define_decoder!("11100000", Opcode::Ldh, |mmu, pc, opcode| {
-            println!("{:04x} {:02x}", pc, mmu.read(pc + 1));
             Instruction {
                 opcode,
                 lhs: Some(Operand::Imm8(mmu.read(pc + 1), AddressingMode::Indirect)),

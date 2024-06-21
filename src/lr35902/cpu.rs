@@ -3,8 +3,8 @@ use crate::lr35902::sm83::{Opcode, Register, Sm83};
 use crate::memory::mmu::Mmu;
 use bitflags::bitflags;
 use log::trace;
-use std::thread::current;
 
+#[derive(Clone)]
 pub struct Cpu {
     sm83: Sm83,
     registers: Registers,
@@ -69,6 +69,7 @@ impl Cpu {
     pub fn read_register(&self, register: &Register) -> u8 {
         match register {
             Register::A => self.registers.a,
+            Register::F => self.registers.f.bits(),
             Register::B => self.registers.b,
             Register::C => self.registers.c,
             Register::D => self.registers.d,
@@ -94,6 +95,7 @@ impl Cpu {
     pub fn write_register(&mut self, register: &Register, data: u8) {
         match register {
             Register::A => self.registers.a = data,
+            Register::F => self.registers.f = Flags::from_bits_truncate(data),
             Register::B => self.registers.b = data,
             Register::C => self.registers.c = data,
             Register::D => self.registers.d = data,
@@ -189,6 +191,7 @@ impl std::fmt::Display for Cpu {
 }
 
 bitflags! {
+    #[derive(Clone)]
     pub struct Flags: u8 {
         const ZERO       = 0b1000_0000;
         const SUBTRACT   = 0b0100_0000;
@@ -197,6 +200,7 @@ bitflags! {
     }
 }
 
+#[derive(Clone)]
 struct Registers {
     a: u8,
     f: Flags,

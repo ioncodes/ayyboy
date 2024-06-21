@@ -1,5 +1,6 @@
 use crate::memory::mapper::Mapper;
 
+#[derive(Clone)]
 pub struct Rom {
     memory: Vec<u8>,
 }

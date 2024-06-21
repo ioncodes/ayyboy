@@ -8,5 +8,7 @@ debug = true
 
 [dependencies]
 bitflags = "2.5.0"
+dyn-clone = "1.0.17"
 fern = "0.6.2"
 log = "0.4.21"
+rhai = "1.18.0"

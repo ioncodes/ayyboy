@@ -1,12 +1,15 @@
-use crate::gameboy::GameBoy;
-use fern::Dispatch;
-use log::LevelFilter;
-use std::fs::OpenOptions;
+#![feature(let_chains)]
 
 mod gameboy;
 mod lr35902;
 mod memory;
+mod rhai_engine;
 mod video;
+
+use crate::gameboy::GameBoy;
+use fern::Dispatch;
+use log::LevelFilter;
+use std::fs::OpenOptions;
 
 fn main() {
     // Setup logger
@@ -31,7 +34,9 @@ fn main() {
     let bootrom = include_bytes!("../external/dmg_boot.bin").to_vec();
     let cartridge = include_bytes!("../external/Asterix (USA) (Proto 1).gb").to_vec();
 
-    let mut gb = GameBoy::new(bootrom, cartridge);
+    let mut gb = GameBoy::with_rhai(bootrom, vec![0u8; cartridge.len()], "external/drm_patch.rhai".into());
+    gb.install_breakpoints(vec![0xe9]);
+
     loop {
         gb.tick();
     }

@@ -1,6 +1,8 @@
+use dyn_clone::DynClone;
+
 pub mod rom;
 
-pub trait Mapper {
+pub trait Mapper: DynClone {
     fn read(&self, addr: u16) -> u8;
     fn write(&mut self, addr: u16, data: u8);
 
@@ -17,3 +19,5 @@ pub trait Mapper {
         self.write(addr + 1, hi);
     }
 }
+
+dyn_clone::clone_trait_object!(Mapper);

@@ -5,6 +5,7 @@ use crate::memory::mapper::Mapper;
 // thus entering cartridge entrypoint at $100
 const BOOTROM_SIZE: u16 = 0xff;
 
+#[derive(Clone)]
 pub struct Mmu {
     cartridge: Box<dyn Mapper>,
     memory: [u8; 0xffff],

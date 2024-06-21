@@ -1,3 +1,3 @@
 pub mod cpu;
 mod handlers;
-mod sm83;
+pub mod sm83;
