@@ -24,7 +24,7 @@ fn main() {
         .unwrap();
     let _dispatch = Dispatch::new()
         .level(LevelFilter::Trace)
-        .chain(file)
+        //.chain(file)
         //.chain(std::io::stdout())
         .format(move |out, message, record| out.finish(format_args!("[{}] {}", record.level(), message)))
         .apply()
@@ -34,8 +34,10 @@ fn main() {
     let bootrom = include_bytes!("../external/dmg_boot.bin").to_vec();
     let cartridge = include_bytes!("../external/Asterix (USA) (Proto 1).gb").to_vec();
 
-    let mut gb = GameBoy::with_rhai(bootrom, vec![0u8; cartridge.len()], "external/drm_patch.rhai".into());
-    gb.install_breakpoints(vec![0xe9]);
+    // let mut gb = GameBoy::with_rhai(bootrom, vec![0u8; cartridge.len()], "external/drm_patch.rhai".into());
+    // gb.install_breakpoints(vec![0xe9]);
+
+    let mut gb = GameBoy::new(bootrom, cartridge);
 
     loop {
         gb.tick();

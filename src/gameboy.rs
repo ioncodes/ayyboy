@@ -41,6 +41,10 @@ impl<'a> GameBoy<'a> {
             self.try_rhai_script();
             self.cpu.tick(&mut self.mmu);
 
+            if self.cpu.read_register16(&Register::PC) == 0x100 {
+                println!("{:02x?}", self.ppu.render_background(&self.mmu));
+            }
+
             // Each scanline takes exactly 456 dots, or 114 cycles.
             // Mode 2 also takes a constant amount of time (20 cycles) HBlank's length varies wildly,
             // and will often be nearly as long as or longer than the drawing phase.
