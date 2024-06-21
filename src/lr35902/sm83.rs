@@ -2,10 +2,11 @@ use crate::memory::mmu::Mmu;
 use bitflags::bitflags;
 use rhai::{CustomType, TypeBuilder};
 use std::cmp::PartialEq;
+use std::collections::HashMap;
 
 type FDecode = fn(&Mmu, u16, Opcode) -> Instruction;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Register {
     A,
     B,
@@ -24,7 +25,7 @@ pub enum Register {
 }
 
 bitflags! {
-    #[derive(PartialEq, Debug)]
+    #[derive(PartialEq, Debug, Clone)]
     pub struct AddressingMode: u8 {
         const Direct    = 0b0001;
         const Indirect  = 0b0010;
@@ -33,7 +34,7 @@ bitflags! {
     }
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Condition {
     None,
     NZ,
@@ -42,7 +43,7 @@ pub enum Condition {
     C,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Operand {
     Reg8(Register, AddressingMode),
     Reg16(Register, AddressingMode),
@@ -102,7 +103,7 @@ pub enum Opcode {
     Rlca,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Instruction {
     pub opcode: Opcode,
     pub lhs: Option<Operand>,
@@ -121,6 +122,8 @@ macro_rules! define_decoder {
 pub struct Sm83 {
     decoder_lut: Vec<(String, Opcode, FDecode)>,
     decoder_lut_prefixed: Vec<(String, Opcode, FDecode)>,
+    cached_lut: HashMap<u8, Instruction>,
+    cached_lut_prefixed: HashMap<u8, Instruction>,
 }
 
 //noinspection DuplicatedCode
@@ -135,19 +138,42 @@ impl Sm83 {
         Sm83 {
             decoder_lut,
             decoder_lut_prefixed,
+            cached_lut: HashMap::new(),
+            cached_lut_prefixed: HashMap::new(),
         }
     }
 
-    pub fn decode(&self, mmu: &mut Mmu, current_pc: u16) -> Result<Instruction, &str> {
-        let mut opcode = mmu.read(current_pc);
+    pub fn decode(&mut self, mmu: &mut Mmu, current_pc: u16) -> Result<Instruction, &str> {
+        let mut opcode_byte = mmu.read(current_pc);
         let mut prefix = false;
 
-        if opcode == 0xcb {
-            opcode = mmu.read(current_pc + 1);
+        if opcode_byte == 0xcb {
+            opcode_byte = mmu.read(current_pc + 1);
             prefix = true;
         }
 
-        let opcode_str = format!("{:08b}", opcode);
+        let cached_lut = if prefix { &self.cached_lut_prefixed } else { &self.cached_lut };
+        if let Some(instruction) = cached_lut.get(&opcode_byte) {
+            let mut instruction = instruction.clone();
+
+            instruction.lhs = match instruction.lhs {
+                Some(Operand::Imm8(_, mode)) => Some(Operand::Imm8(mmu.read(current_pc + 1), mode)),
+                Some(Operand::Imm16(_, mode)) => Some(Operand::Imm16(mmu.read16(current_pc + 1), mode)),
+                Some(Operand::Offset(_)) => Some(Operand::Offset(mmu.read(current_pc + 1) as i8)),
+                _ => instruction.lhs,
+            };
+
+            instruction.rhs = match instruction.rhs {
+                Some(Operand::Imm8(_, mode)) => Some(Operand::Imm8(mmu.read(current_pc + 1), mode)),
+                Some(Operand::Imm16(_, mode)) => Some(Operand::Imm16(mmu.read16(current_pc + 1), mode)),
+                Some(Operand::Offset(_)) => Some(Operand::Offset(mmu.read(current_pc + 1) as i8)),
+                _ => instruction.rhs,
+            };
+
+            return Ok(instruction);
+        }
+
+        let opcode_str = format!("{:08b}", opcode_byte);
         let lut = if prefix { &self.decoder_lut_prefixed } else { &self.decoder_lut };
 
         for (pattern, opcode, decoder_fn) in lut {
@@ -164,7 +190,13 @@ impl Sm83 {
             }
 
             if matched {
-                return Ok(decoder_fn(mmu, current_pc, opcode.clone()));
+                let instruction = decoder_fn(mmu, current_pc, *opcode);
+                if prefix {
+                    self.cached_lut_prefixed.insert(opcode_byte, instruction.clone());
+                } else {
+                    self.cached_lut.insert(opcode_byte, instruction.clone());
+                }
+                return Ok(instruction);
             }
         }
 
