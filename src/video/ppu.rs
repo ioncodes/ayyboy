@@ -3,6 +3,9 @@ use crate::memory::mmu::Mmu;
 const SCREEN_WIDTH: usize = 160;
 const SCREEN_HEIGHT: usize = 144;
 
+const BACKGROUND_WIDTH: usize = 256;
+const BACKGROUND_HEIGHT: usize = 256;
+
 const CONTROL_REGISTER: u16 = 0xff40;
 const STATUS_REGISTER: u16 = 0xff41;
 const SCROLL_Y_REGISTER: u16 = 0xff42;
