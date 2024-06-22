@@ -647,10 +647,17 @@ impl Sm83 {
         lut.push(define_decoder!("11xx0101", Opcode::Push, |mmu, pc, opcode| {
             let opcode_byte = mmu.read(pc);
             let source = (opcode_byte & 0b0011_0000) >> 4;
+            let mut lhs = Sm83::lookup_register_16(source);
+
+            // The register pattern for SP is 11,
+            // but it's actually AF in the case of push instruction
+            if lhs == Register::SP {
+                lhs = Register::AF;
+            }
 
             Instruction {
                 opcode,
-                lhs: Some(Operand::Reg16(Sm83::lookup_register_16(source), AddressingMode::Direct)),
+                lhs: Some(Operand::Reg16(lhs, AddressingMode::Direct)),
                 rhs: None,
                 length: 1,
                 cycles: (16, None),

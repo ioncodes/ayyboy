@@ -234,7 +234,8 @@ impl Handlers {
                     return if Handlers::check_condition(cpu, cond) {
                         let addr = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false) as u16;
                         let pc = cpu.read_register16(&Register::PC);
-                        cpu.push_stack(mmu, pc + instruction.length as u16);
+                        // We already increased the PC by 3, so we need to push the current PC + 3
+                        cpu.push_stack(mmu, pc);
                         cpu.write_register16(&Register::PC, addr);
                         Ok(instruction.cycles.0)
                     } else {
