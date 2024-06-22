@@ -151,10 +151,10 @@ impl Handlers {
     }
 
     pub fn rotate_left(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, &'static str> {
-        let reg = if instruction.opcode == Opcode::Rla {
-            &Register::A
+        let (reg, is_rla) = if instruction.opcode == Opcode::Rla {
+            (&Register::A, true)
         } else if let Operand::Reg8(reg, _) = instruction.lhs.as_ref().unwrap() {
-            reg
+            (reg, false)
         } else {
             return Err("Invalid rotate_left instruction");
         };
@@ -164,7 +164,7 @@ impl Handlers {
         let result = (value << 1) | carry;
         cpu.write_register(reg, result);
 
-        cpu.update_flag(Flags::ZERO, result == 0);
+        cpu.update_flag(Flags::ZERO, if !is_rla { result == 0 } else { false });
         cpu.update_flag(Flags::SUBTRACT, false);
         cpu.update_flag(Flags::HALF_CARRY, false);
         cpu.update_flag(Flags::CARRY, value & 0x80 != 0);
