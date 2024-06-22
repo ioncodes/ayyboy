@@ -47,7 +47,7 @@ mod tests {
             }
 
             if let Ok(instruction) = sm83.decode(&mut mmu, cpu.read_register16(&Register::PC)) {
-                println!("{}", instruction);
+                println!("{} | {:?}", instruction, instruction);
             } else {
                 panic!("Failed to decode instruction");
             };

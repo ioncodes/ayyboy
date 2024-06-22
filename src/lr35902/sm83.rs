@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 type FDecode = fn(&Mmu, u16, Opcode) -> Instruction;
 
-#[derive(Debug, Clone)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Register {
     A,
     B,
@@ -602,10 +602,17 @@ impl Sm83 {
         lut.push(define_decoder!("11xx0001", Opcode::Pop, |mmu, pc, opcode| {
             let opcode_byte = mmu.read(pc);
             let destination = (opcode_byte & 0b0011_0000) >> 4;
+            let mut lhs = Sm83::lookup_register_16(destination);
+
+            // The register pattern for SP is 11,
+            // but it's actually AF in the case of pop instruction
+            if lhs == Register::SP {
+                lhs = Register::AF;
+            }
 
             Instruction {
                 opcode,
-                lhs: Some(Operand::Reg16(Sm83::lookup_register_16(destination), AddressingMode::Direct)),
+                lhs: Some(Operand::Reg16(lhs, AddressingMode::Direct)),
                 rhs: None,
                 length: 1,
                 cycles: (12, None),

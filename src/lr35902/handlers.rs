@@ -319,9 +319,9 @@ impl Handlers {
             Operand::Reg16(reg, mode) => {
                 if mode.contains(AddressingMode::Indirect) {
                     let addr = cpu.read_register16(reg);
-                    let value = mmu.read16(addr);
+                    let value = mmu.read(addr);
                     let result = value.wrapping_add(1);
-                    mmu.write16(addr, result);
+                    mmu.write(addr, result);
 
                     cpu.update_flag(Flags::ZERO, result == 0);
                     cpu.update_flag(Flags::SUBTRACT, false);
@@ -357,9 +357,9 @@ impl Handlers {
             Operand::Reg16(reg, mode) => {
                 if mode.contains(AddressingMode::Indirect) {
                     let addr = cpu.read_register16(reg);
-                    let value = mmu.read16(addr);
+                    let value = mmu.read(addr);
                     let result = value.wrapping_sub(1);
-                    mmu.write16(addr, result);
+                    mmu.write(addr, result);
 
                     cpu.update_flag(Flags::ZERO, result == 0);
                     cpu.update_flag(Flags::SUBTRACT, true);
