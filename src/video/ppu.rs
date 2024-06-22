@@ -1,7 +1,7 @@
 use crate::memory::mmu::Mmu;
 
-const BACKGROUND_WIDTH: usize = 256;
-const BACKGROUND_HEIGHT: usize = 256;
+pub const BACKGROUND_WIDTH: usize = 256;
+pub const BACKGROUND_HEIGHT: usize = 256;
 
 const TILE_ADDRESS: u16 = 0x8000;
 const BACKGROUND_0_ADDRESS: u16 = 0x9800;
@@ -54,15 +54,15 @@ impl Ppu {
         mmu.write(SCANLINE_Y_REGISTER, 0x90); // FIXME: stub for trace
     }
 
-    pub fn render_background_map(&self, mmu: &Mmu) -> Vec<Tile> {
-        let mut background_map: Vec<Tile> = Vec::new();
+    pub fn render_tilemap(&self, mmu: &Mmu) -> Vec<Tile> {
+        let mut tilemap: Vec<Tile> = Vec::new();
 
         for tile_nr in 0..384 {
             let tile_address = TILE_ADDRESS + (tile_nr as u16 * 16);
             let tile = Tile::from_addr(mmu, tile_address);
-            background_map.push(tile);
+            tilemap.push(tile);
         }
 
-        background_map
+        tilemap
     }
 }

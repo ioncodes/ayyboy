@@ -10,6 +10,7 @@ mod tests;
 mod video;
 
 use crate::gameboy::GameBoy;
+use crate::video::ppu::{BACKGROUND_HEIGHT, BACKGROUND_WIDTH};
 use crate::video::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use fern::Dispatch;
 use log::LevelFilter;
@@ -53,7 +54,7 @@ fn main() {
     let video_subsystem = sdl_context.video().unwrap();
 
     let window = video_subsystem
-        .window("ayyboy", SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32)
+        .window("ayyboy", BACKGROUND_WIDTH as u32, BACKGROUND_HEIGHT as u32)
         .position_centered()
         .build()
         .unwrap();

@@ -50,7 +50,7 @@ impl<'a> GameBoy<'a> {
                     print!("{:02x} ", self.mmu.read(0x8000 + i));
                 }
 
-                return Some(self.ppu.render_background_map(&self.mmu));
+                return Some(self.ppu.render_tilemap(&self.mmu));
             }
 
             // Each scanline takes exactly 456 dots, or 114 cycles.
