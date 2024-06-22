@@ -29,13 +29,8 @@ impl Handlers {
             Operand::Reg16(reg, mode) => {
                 if mode.contains(AddressingMode::Indirect) {
                     let addr = cpu.read_register16(&reg);
+                    Handlers::process_additional_address_mode(cpu, reg, addr, mode);
                     mmu.write16(addr, src as u16);
-
-                    if mode.contains(AddressingMode::Increment) {
-                        cpu.write_register16(&reg, addr.wrapping_add(1));
-                    } else if mode.contains(AddressingMode::Decrement) {
-                        cpu.write_register16(&reg, addr.wrapping_sub(1));
-                    }
                 } else {
                     cpu.write_register16(&reg, src as u16);
                 }
@@ -381,11 +376,12 @@ impl Handlers {
         Ok(instruction.cycles.0)
     }
 
-    fn resolve_operand(cpu: &Cpu, mmu: &Mmu, operand: &Operand, is_ldh: bool) -> usize {
+    fn resolve_operand(cpu: &mut Cpu, mmu: &Mmu, operand: &Operand, is_ldh: bool) -> usize {
         match operand {
             Operand::Reg16(reg, mode) if mode.contains(AddressingMode::Direct) => cpu.read_register16(&reg) as usize,
             Operand::Reg16(reg, mode) if mode.contains(AddressingMode::Indirect) => {
                 let addr = cpu.read_register16(&reg);
+                Handlers::process_additional_address_mode(cpu, reg, addr, mode);
                 mmu.read16(addr) as usize
             }
             Operand::Reg8(reg, mode) if mode.contains(AddressingMode::Direct) => cpu.read_register(&reg) as usize,
@@ -404,6 +400,14 @@ impl Handlers {
             Operand::Bit(bit) => *bit as usize,
             Operand::Offset(offset) => *offset as usize,
             _ => panic!("Unimplemented operand: {:?}", operand),
+        }
+    }
+
+    fn process_additional_address_mode(cpu: &mut Cpu, reg: &Register, addr: u16, mode: &AddressingMode) {
+        if mode.contains(AddressingMode::Increment) {
+            cpu.write_register16(&reg, addr.wrapping_add(1));
+        } else if mode.contains(AddressingMode::Decrement) {
+            cpu.write_register16(&reg, addr.wrapping_sub(1));
         }
     }
 
