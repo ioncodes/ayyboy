@@ -2,7 +2,7 @@ use crate::lr35902::cpu::Cpu;
 use crate::lr35902::sm83::Register;
 use crate::memory::mmu::Mmu;
 use crate::rhai_engine::RhaiEngine;
-use crate::video::ppu::Ppu;
+use crate::video::ppu::{Ppu, Tile};
 use std::path::PathBuf;
 
 pub struct GameBoy<'a> {
@@ -36,7 +36,7 @@ impl<'a> GameBoy<'a> {
         gb
     }
 
-    pub fn tick(&mut self) {
+    pub fn tick(&mut self) -> Option<Vec<Tile>> {
         loop {
             self.try_rhai_script();
             self.cpu.tick(&mut self.mmu);
@@ -49,6 +49,8 @@ impl<'a> GameBoy<'a> {
                     }
                     print!("{:02x} ", self.mmu.read(0x8000 + i));
                 }
+
+                return Some(self.ppu.render_background_map(&self.mmu));
             }
 
             // Each scanline takes exactly 456 dots, or 114 cycles.
@@ -61,6 +63,8 @@ impl<'a> GameBoy<'a> {
 
         self.ppu.tick(&mut self.mmu); // "does a scanline"
         self.cycles = self.cpu.current_cycles();
+
+        None
     }
 
     pub fn install_breakpoints(&mut self, breakpoints: Vec<u16>) {
