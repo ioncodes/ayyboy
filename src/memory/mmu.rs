@@ -51,4 +51,8 @@ impl Mmu {
         self.write(addr, lo);
         self.write(addr + 1, hi);
     }
+
+    pub fn unmap_bootrom(&mut self) {
+        self.bootrom_mapped = false;
+    }
 }

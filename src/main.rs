@@ -1,9 +1,12 @@
 #![feature(let_chains)]
+#![feature(custom_test_frameworks)]
+#![test_runner(datatest::runner)]
 
 mod gameboy;
 mod lr35902;
 mod memory;
 mod rhai_engine;
+mod tests;
 mod video;
 
 use crate::gameboy::GameBoy;
@@ -31,8 +34,8 @@ fn main() {
         .unwrap();
 
     // Load the bootrom and cartridge, execute emulator
-    let bootrom = include_bytes!("../external/dmg_boot.bin").to_vec();
-    let cartridge = include_bytes!("../external/Asterix (USA) (Proto 1).gb").to_vec();
+    let bootrom = include_bytes!("../external/roms/dmg_boot.bin").to_vec();
+    let cartridge = include_bytes!("../external/roms/Asterix (USA) (Proto 1).gb").to_vec();
 
     // let mut gb = GameBoy::with_rhai(bootrom, vec![0u8; cartridge.len()], "external/drm_patch.rhai".into());
     // gb.install_breakpoints(vec![0xe9]);
