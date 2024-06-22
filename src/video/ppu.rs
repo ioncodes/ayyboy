@@ -29,17 +29,4 @@ impl Ppu {
         // mmu.write(SCANLINE_Y_REGISTER, ly.wrapping_add(1));
         mmu.write(SCANLINE_Y_REGISTER, 0x90); // FIXME: stub for trace
     }
-
-    pub fn render_background(&self, mmu: &Mmu) -> Vec<u8> {
-        let mut tile_numbers = vec![0u8; 32 * 32];
-
-        for y in 0..32 {
-            for x in 0..32 {
-                let addr = TILE_ADDRESS + (y * 32 + x) as u16;
-                tile_numbers.push(mmu.read(addr));
-            }
-        }
-
-        tile_numbers
-    }
 }

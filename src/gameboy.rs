@@ -42,13 +42,12 @@ impl<'a> GameBoy<'a> {
             self.cpu.tick(&mut self.mmu);
 
             if self.cpu.read_register16(&Register::PC) == 0x100 {
-                let lmao = self.ppu.render_background(&self.mmu);
-                for i in 0..lmao.len() {
+                for i in 0..0x2000 {
                     if i % 16 == 0 {
                         println!();
                         print!("{:02x}: ", 0x8000 + i);
                     }
-                    print!("{:02x} ", lmao[i]);
+                    print!("{:02x} ", self.mmu.read(0x8000 + i));
                 }
             }
 
