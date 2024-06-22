@@ -17,7 +17,15 @@ impl Handlers {
         let src = Handlers::resolve_operand(cpu, mmu, src, is_ldh_instruction);
 
         match instruction.lhs.as_ref().unwrap() {
-            Operand::Reg8(reg, _) => cpu.write_register(&reg, src as u8),
+            Operand::Reg8(reg, mode) => {
+                if mode.contains(AddressingMode::Indirect) {
+                    // ld (c), a
+                    let addr = cpu.read_register(reg);
+                    mmu.write(0xff00 + addr as u16, src as u8);
+                } else {
+                    cpu.write_register(&reg, src as u8);
+                }
+            }
             Operand::Reg16(reg, mode) => {
                 if mode.contains(AddressingMode::Indirect) {
                     let addr = cpu.read_register16(&reg);
@@ -285,6 +293,7 @@ impl Handlers {
 
                 cpu.update_flag(Flags::ZERO, result == 0);
                 cpu.update_flag(Flags::SUBTRACT, false);
+                cpu.update_flag(Flags::HALF_CARRY, (value & 0x0f) == 0x0f);
             }
             Operand::Reg16(reg, mode) => {
                 if mode.contains(AddressingMode::Indirect) {
@@ -292,6 +301,10 @@ impl Handlers {
                     let value = mmu.read16(addr);
                     let result = value.wrapping_add(1);
                     mmu.write16(addr, result);
+
+                    cpu.update_flag(Flags::ZERO, result == 0);
+                    cpu.update_flag(Flags::SUBTRACT, false);
+                    cpu.update_flag(Flags::HALF_CARRY, (value & 0x0f) == 0x0f);
                 } else {
                     let value = cpu.read_register16(reg);
                     let result = value.wrapping_add(1);
@@ -318,6 +331,7 @@ impl Handlers {
 
                 cpu.update_flag(Flags::ZERO, result == 0);
                 cpu.update_flag(Flags::SUBTRACT, true);
+                cpu.update_flag(Flags::HALF_CARRY, (value & 0x0f) == 0);
             }
             Operand::Reg16(reg, mode) => {
                 if mode.contains(AddressingMode::Indirect) {
@@ -325,6 +339,10 @@ impl Handlers {
                     let value = mmu.read16(addr);
                     let result = value.wrapping_sub(1);
                     mmu.write16(addr, result);
+
+                    cpu.update_flag(Flags::ZERO, result == 0);
+                    cpu.update_flag(Flags::SUBTRACT, true);
+                    cpu.update_flag(Flags::HALF_CARRY, (value & 0x0f) == 0);
                 } else {
                     let value = cpu.read_register16(reg);
                     let result = value.wrapping_sub(1);
@@ -345,9 +363,15 @@ impl Handlers {
                 mmu.read16(addr) as usize
             }
             Operand::Reg8(reg, mode) if mode.contains(AddressingMode::Direct) => cpu.read_register(&reg) as usize,
+            Operand::Reg8(reg, mode) if mode.contains(AddressingMode::Indirect) => {
+                // ld a, (c)
+                let addr = cpu.read_register(&reg);
+                mmu.read(0xff00 + addr as u16) as usize
+            }
             Operand::Imm16(imm, mode) if mode.contains(AddressingMode::Direct) => *imm as usize,
             Operand::Imm8(imm, mode) if mode.contains(AddressingMode::Direct) => *imm as usize,
             Operand::Imm8(imm, mode) if mode.contains(AddressingMode::Indirect) && is_ldh => {
+                // ldh a, (imm)
                 let addr = 0xff00 + *imm as u16;
                 mmu.read(addr) as usize
             }

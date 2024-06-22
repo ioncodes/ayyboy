@@ -18,6 +18,7 @@ mod tests {
         for test in tests.as_array().unwrap() {
             let mut mmu = Mmu::new(vec![], vec![0u8; 0xffff]);
             mmu.unmap_bootrom();
+            mmu.resize_memory(0xffff * 4);
             let mut sm83 = Sm83::new();
             let mut cpu = Cpu::new();
 

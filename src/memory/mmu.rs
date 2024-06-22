@@ -8,7 +8,7 @@ const BOOTROM_SIZE: u16 = 0xff;
 #[derive(Clone)]
 pub struct Mmu {
     cartridge: Box<dyn Mapper>,
-    memory: [u8; 0xffff],
+    memory: Vec<u8>,
     bootrom_mapped: bool,
     bootrom: Vec<u8>,
 }
@@ -17,7 +17,7 @@ impl Mmu {
     pub fn new(bootrom: Vec<u8>, cartridge: Vec<u8>) -> Mmu {
         Mmu {
             cartridge: Box::new(Rom::new(cartridge)),
-            memory: [0; 0xffff],
+            memory: Vec::<u8>::with_capacity(0xffff),
             bootrom_mapped: true,
             bootrom,
         }
@@ -54,5 +54,9 @@ impl Mmu {
 
     pub fn unmap_bootrom(&mut self) {
         self.bootrom_mapped = false;
+    }
+
+    pub fn resize_memory(&mut self, size: usize) {
+        self.memory.resize(size, 0);
     }
 }
