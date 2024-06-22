@@ -60,11 +60,16 @@ impl Handlers {
             return Err("Invalid xor instruction");
         }
 
-        let x = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false) as u8;
-        let y = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false) as u8;
+        let x = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false) as u8;
+        let y = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false) as u8;
 
         let result = x ^ y;
         cpu.write_register(&Register::A, result);
+
+        cpu.update_flag(Flags::ZERO, result == 0);
+        cpu.update_flag(Flags::SUBTRACT, false);
+        cpu.update_flag(Flags::HALF_CARRY, false);
+        cpu.update_flag(Flags::CARRY, false);
 
         Ok(instruction.cycles.0)
     }
@@ -74,11 +79,16 @@ impl Handlers {
             return Err("Invalid add instruction");
         }
 
-        let x = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false) as u8;
-        let y = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false) as u8;
+        let x = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false) as u8;
+        let y = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false) as u8;
 
         let result = x.wrapping_add(y);
         cpu.write_register(&Register::A, result);
+
+        cpu.update_flag(Flags::ZERO, result == 0);
+        cpu.update_flag(Flags::SUBTRACT, false);
+        cpu.update_flag(Flags::HALF_CARRY, (x & 0x0f) + (y & 0x0f) > 0x0f);
+        cpu.update_flag(Flags::CARRY, result < x);
 
         Ok(instruction.cycles.0)
     }
@@ -88,11 +98,16 @@ impl Handlers {
             return Err("Invalid sub instruction");
         }
 
-        let x = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false) as u8;
-        let y = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false) as u8;
+        let x = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false) as u8;
+        let y = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false) as u8;
 
         let result = x.wrapping_sub(y);
         cpu.write_register(&Register::A, result);
+
+        cpu.update_flag(Flags::ZERO, result == 0);
+        cpu.update_flag(Flags::SUBTRACT, true);
+        cpu.update_flag(Flags::HALF_CARRY, (x & 0x0f) < (y & 0x0f));
+        cpu.update_flag(Flags::CARRY, result > x);
 
         Ok(instruction.cycles.0)
     }
@@ -102,11 +117,16 @@ impl Handlers {
             return Err("Invalid and instruction");
         }
 
-        let x = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false) as u8;
-        let y = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false) as u8;
+        let x = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false) as u8;
+        let y = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false) as u8;
 
         let result = x & y;
         cpu.write_register(&Register::A, result);
+
+        cpu.update_flag(Flags::ZERO, result == 0);
+        cpu.update_flag(Flags::SUBTRACT, false);
+        cpu.update_flag(Flags::HALF_CARRY, true);
+        cpu.update_flag(Flags::CARRY, false);
 
         Ok(instruction.cycles.0)
     }
@@ -116,11 +136,16 @@ impl Handlers {
             return Err("Invalid or instruction");
         }
 
-        let x = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false) as u8;
-        let y = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false) as u8;
+        let x = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false) as u8;
+        let y = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false) as u8;
 
         let result = x | y;
         cpu.write_register(&Register::A, result);
+
+        cpu.update_flag(Flags::ZERO, result == 0);
+        cpu.update_flag(Flags::SUBTRACT, false);
+        cpu.update_flag(Flags::HALF_CARRY, false);
+        cpu.update_flag(Flags::CARRY, false);
 
         Ok(instruction.cycles.0)
     }
@@ -152,13 +177,14 @@ impl Handlers {
             return Err("Invalid cp instruction");
         }
 
-        let x = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false) as u8;
-        let y = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false) as u8;
+        let x = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false) as u8;
+        let y = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false) as u8;
 
         let result = x.wrapping_sub(y);
         cpu.update_flag(Flags::ZERO, result == 0);
         cpu.update_flag(Flags::SUBTRACT, true);
-        // TODO: H, C?
+        cpu.update_flag(Flags::HALF_CARRY, (x & 0x0f) < (y & 0x0f));
+        cpu.update_flag(Flags::CARRY, result > x);
 
         Ok(instruction.cycles.0)
     }
