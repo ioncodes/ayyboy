@@ -27,7 +27,15 @@ impl Cpu {
             panic!("Failed to decode instruction at address: ${:04x}\n{}", self.registers.pc, self);
         };
 
-        let current_pc = self.registers.pc;
+        trace!(
+            "[{:04x}] {:<20} [{}  (SP): ${:02x}  Cycles: {}]",
+            self.registers.pc,
+            format!("{}", instruction),
+            self,
+            mmu.read(self.registers.sp),
+            self.cycles,
+        );
+
         self.registers.pc += instruction.length as u16;
 
         let cycles = match instruction.opcode {
@@ -55,15 +63,6 @@ impl Cpu {
         } else {
             panic!("Failed to execute instruction: {}\n{}", instruction, self);
         }
-
-        trace!(
-            "[{:04x}] {:<20} [{}  (SP): ${:02x}  Cycles: {}]",
-            current_pc,
-            format!("{}", instruction),
-            self,
-            mmu.read(self.registers.sp),
-            self.cycles,
-        );
     }
 
     pub fn read_register(&self, register: &Register) -> u8 {

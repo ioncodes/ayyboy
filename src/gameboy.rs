@@ -42,7 +42,14 @@ impl<'a> GameBoy<'a> {
             self.cpu.tick(&mut self.mmu);
 
             if self.cpu.read_register16(&Register::PC) == 0x100 {
-                println!("{:02x?}", self.ppu.render_background(&self.mmu));
+                let lmao = self.ppu.render_background(&self.mmu);
+                for i in 0..lmao.len() {
+                    if i % 16 == 0 {
+                        println!();
+                        print!("{:02x}: ", 0x8000 + i);
+                    }
+                    print!("{:02x} ", lmao[i]);
+                }
             }
 
             // Each scanline takes exactly 456 dots, or 114 cycles.
@@ -61,13 +68,13 @@ impl<'a> GameBoy<'a> {
         self.cpu_breakpoints = breakpoints;
     }
 
-    pub fn is_breakpoint_hit(&self) -> bool {
+    fn is_breakpoint_hit(&self) -> bool {
         self.cpu_breakpoints
             .iter()
             .any(|bp| *bp == self.cpu.read_register16(&Register::PC))
     }
 
-    pub fn try_rhai_script(&mut self) {
+    fn try_rhai_script(&mut self) {
         if self.rhai.is_none() || !self.is_breakpoint_hit() {
             return;
         }

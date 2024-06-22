@@ -16,7 +16,7 @@ use std::fs::OpenOptions;
 
 fn main() {
     // Setup logger
-    const LOG_PATH: &str = "trace.log";
+    const LOG_PATH: &str = "./external/ayyboy_trace.log";
     std::fs::remove_file(LOG_PATH).unwrap_or_default();
 
     let file = OpenOptions::new()
@@ -27,7 +27,7 @@ fn main() {
         .unwrap();
     let _dispatch = Dispatch::new()
         .level(LevelFilter::Trace)
-        //.chain(file)
+        .chain(file)
         //.chain(std::io::stdout())
         .format(move |out, message, record| out.finish(format_args!("[{}] {}", record.level(), message)))
         .apply()
@@ -35,10 +35,10 @@ fn main() {
 
     // Load the bootrom and cartridge, execute emulator
     let bootrom = include_bytes!("../external/roms/dmg_boot.bin").to_vec();
-    let cartridge = include_bytes!("../external/roms/Asterix (USA) (Proto 1).gb").to_vec();
+    let cartridge = include_bytes!("../external/roms/Alleyway (World).gb").to_vec();
 
     // let mut gb = GameBoy::with_rhai(bootrom, vec![0u8; cartridge.len()], "external/drm_patch.rhai".into());
-    // gb.install_breakpoints(vec![0xe9]);
+    // gb.install_breakpoints(vec![0xe9, 0xfa]);
 
     let mut gb = GameBoy::new(bootrom, cartridge);
 
