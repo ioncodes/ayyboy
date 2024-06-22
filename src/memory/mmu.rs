@@ -17,7 +17,7 @@ impl Mmu {
     pub fn new(bootrom: Vec<u8>, cartridge: Vec<u8>) -> Mmu {
         Mmu {
             cartridge: Box::new(Rom::new(cartridge)),
-            memory: Vec::<u8>::with_capacity(0xffff),
+            memory: vec![0; 0xffff],
             bootrom_mapped: true,
             bootrom,
         }
