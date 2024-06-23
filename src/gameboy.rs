@@ -2,7 +2,7 @@ use crate::lr35902::cpu::Cpu;
 use crate::lr35902::sm83::Register;
 use crate::memory::mmu::Mmu;
 use crate::rhai_engine::RhaiEngine;
-use crate::video::ppu::Ppu;
+use crate::video::ppu::{Ppu, BACKGROUND_0_ADDRESS, BACKGROUND_MAP_SIZE};
 use crate::video::tile::Tile;
 use sdl2::render::Texture;
 use std::path::PathBuf;
@@ -40,6 +40,20 @@ impl<'a> GameBoy<'a> {
 
     pub fn tick(&mut self) {
         loop {
+            if self.cpu.read_register16(&Register::PC) == 0x100 {
+                // dump BACKGROUND_0
+                for idx in 0..BACKGROUND_MAP_SIZE {
+                    if idx % 16 == 0 {
+                        print!("{:04x}: ", BACKGROUND_0_ADDRESS + idx as u16);
+                    }
+                    let tile_nr = self.mmu.read(BACKGROUND_0_ADDRESS + idx as u16);
+                    print!("{:02x} ", tile_nr);
+                    if idx % 16 == 15 {
+                        println!();
+                    }
+                }
+            }
+
             self.try_rhai_script();
             self.cpu.tick(&mut self.mmu);
 
@@ -61,6 +75,10 @@ impl<'a> GameBoy<'a> {
 
     pub fn render_tilemap(&mut self) -> Vec<Tile> {
         self.ppu.render_tilemap(&self.mmu)
+    }
+
+    pub fn render_backgroundmap(&mut self) -> Vec<Tile> {
+        self.ppu.render_backgroundmap(&self.mmu)
     }
 
     pub fn install_breakpoints(&mut self, breakpoints: Vec<u16>) {

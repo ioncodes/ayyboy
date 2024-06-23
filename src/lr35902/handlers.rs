@@ -30,7 +30,7 @@ impl Handlers {
                 if mode.contains(AddressingMode::Indirect) {
                     let addr = cpu.read_register16(&reg);
                     Handlers::process_additional_address_mode(cpu, reg, addr, mode);
-                    mmu.write16(addr, src as u16);
+                    mmu.write(addr, src as u8);
                 } else {
                     cpu.write_register16(&reg, src as u16);
                 }

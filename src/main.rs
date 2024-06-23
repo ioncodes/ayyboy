@@ -73,7 +73,8 @@ async fn main() {
             gb.tick();
 
             if gb.ready_to_render() {
-                tx.send(gb.render_tilemap()).unwrap();
+                // TODO: THis was render_tilemap
+                tx.send(gb.render_backgroundmap()).unwrap();
             }
         }
     });
