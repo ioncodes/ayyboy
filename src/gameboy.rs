@@ -40,20 +40,6 @@ impl<'a> GameBoy<'a> {
 
     pub fn tick(&mut self) {
         loop {
-            if self.cpu.read_register16(&Register::PC) == 0x100 {
-                // dump BACKGROUND_0
-                for idx in 0..BACKGROUND_MAP_SIZE {
-                    if idx % 16 == 0 {
-                        print!("{:04x}: ", BACKGROUND_0_ADDRESS + idx as u16);
-                    }
-                    let tile_nr = self.mmu.read(BACKGROUND_0_ADDRESS + idx as u16);
-                    print!("{:02x} ", tile_nr);
-                    if idx % 16 == 15 {
-                        println!();
-                    }
-                }
-            }
-
             self.try_rhai_script();
             self.cpu.tick(&mut self.mmu);
 

@@ -24,6 +24,7 @@ use sdl2::video::Window;
 use sdl2::EventPump;
 use std::borrow::BorrowMut;
 use std::fs::OpenOptions;
+use std::time::Duration;
 use tokio::sync::watch;
 
 #[tokio::main]
@@ -96,10 +97,10 @@ async fn main() {
         }
 
         let tilemap = rx.borrow().clone();
-        update_tilemap_texture(&tilemap, &mut tilemap_texture);
+        update_texture(&tilemap, 32, &mut tilemap_texture); // 16 for tilemap, 32 for backgroundmap
         canvas.present();
 
-        //std::thread::sleep(Duration::new(0, 1000));
+        //std::thread::sleep(Duration::new(0, 1000000000 / 60));
     }
 
     fn setup_renderer() -> (Canvas<Window>, EventPump) {
@@ -132,15 +133,15 @@ async fn main() {
             .unwrap();
     }
 
-    fn update_tilemap_texture(tilemap: &Vec<Tile>, tilemap_texture: &mut Texture) {
+    fn update_texture(tilemap: &Vec<Tile>, pitch: usize, tilemap_texture: &mut Texture) {
         for (i, tile) in tilemap.iter().enumerate() {
             for y in 0..8 {
                 for x in 0..8 {
-                    let color: Color = tile.pixels[y][x].clone().into();
+                    let color: Color = tile.pixels[y][x].into();
                     let rgb = [color.r, color.g, color.b];
 
-                    let x = (x + (i % 16) * 8) as i32;
-                    let y = (y + (i / 16) * 8) as i32;
+                    let x = (x + (i % pitch) * 8) as i32;
+                    let y = (y + (i / pitch) * 8) as i32;
 
                     tilemap_texture.update(Rect::new(x, y, 1, 1), &rgb, 3 * 8).unwrap();
                 }
