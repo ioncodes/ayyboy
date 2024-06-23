@@ -22,7 +22,6 @@ use sdl2::rect::Rect;
 use sdl2::render::{Canvas, Texture, TextureAccess};
 use sdl2::video::Window;
 use sdl2::EventPump;
-use std::borrow::BorrowMut;
 use std::fs::OpenOptions;
 use std::time::Duration;
 use tokio::sync::watch;
@@ -100,51 +99,51 @@ async fn main() {
         update_texture(&tilemap, 32, &mut tilemap_texture); // 16 for tilemap, 32 for backgroundmap
         canvas.present();
 
-        //std::thread::sleep(Duration::new(0, 1000000000 / 60));
+        std::thread::sleep(Duration::new(0, 1_000_000_000 / 60));
     }
+}
 
-    fn setup_renderer() -> (Canvas<Window>, EventPump) {
-        let sdl_context = sdl2::init().unwrap();
-        let video_subsystem = sdl_context.video().unwrap();
+fn setup_renderer() -> (Canvas<Window>, EventPump) {
+    let sdl_context = sdl2::init().unwrap();
+    let video_subsystem = sdl_context.video().unwrap();
 
-        let window = video_subsystem
-            .window("ayyboy", BACKGROUND_WIDTH as u32, BACKGROUND_HEIGHT as u32)
-            .position_centered()
-            .build()
-            .unwrap();
+    let window = video_subsystem
+        .window("ayyboy", BACKGROUND_WIDTH as u32, BACKGROUND_HEIGHT as u32)
+        .position_centered()
+        .build()
+        .unwrap();
 
-        let mut canvas = window.into_canvas().build().unwrap();
-        let mut event_pump = sdl_context.event_pump().unwrap();
+    let canvas = window.into_canvas().build().unwrap();
+    let event_pump = sdl_context.event_pump().unwrap();
 
-        (canvas, event_pump)
-    }
+    (canvas, event_pump)
+}
 
-    fn reset_tilemap_color(tilemap_texture: &mut Texture) {
-        let white_rgb: Color = Palette::White.into();
-        tilemap_texture
-            .with_lock(None, |buffer: &mut [u8], pitch: usize| {
-                for y in 0..BACKGROUND_HEIGHT {
-                    for x in 0..BACKGROUND_WIDTH {
-                        let offset = y * pitch + x * 3;
-                        buffer[offset..offset + 3].copy_from_slice(&[white_rgb.r, white_rgb.g, white_rgb.b]);
-                    }
+fn reset_tilemap_color(tilemap_texture: &mut Texture) {
+    let white_rgb: Color = Palette::White.into();
+    tilemap_texture
+        .with_lock(None, |buffer: &mut [u8], pitch: usize| {
+            for y in 0..BACKGROUND_HEIGHT {
+                for x in 0..BACKGROUND_WIDTH {
+                    let offset = y * pitch + x * 3;
+                    buffer[offset..offset + 3].copy_from_slice(&[white_rgb.r, white_rgb.g, white_rgb.b]);
                 }
-            })
-            .unwrap();
-    }
+            }
+        })
+        .unwrap();
+}
 
-    fn update_texture(tilemap: &Vec<Tile>, pitch: usize, tilemap_texture: &mut Texture) {
-        for (i, tile) in tilemap.iter().enumerate() {
-            for y in 0..8 {
-                for x in 0..8 {
-                    let color: Color = tile.pixels[y][x].into();
-                    let rgb = [color.r, color.g, color.b];
+fn update_texture(tilemap: &Vec<Tile>, pitch: usize, tilemap_texture: &mut Texture) {
+    for (i, tile) in tilemap.iter().enumerate() {
+        for y in 0..8 {
+            for x in 0..8 {
+                let color: Color = tile.pixels[y][x].into();
+                let rgb = [color.r, color.g, color.b];
 
-                    let x = (x + (i % pitch) * 8) as i32;
-                    let y = (y + (i / pitch) * 8) as i32;
+                let x = (x + (i % pitch) * 8) as i32;
+                let y = (y + (i / pitch) * 8) as i32;
 
-                    tilemap_texture.update(Rect::new(x, y, 1, 1), &rgb, 3 * 8).unwrap();
-                }
+                tilemap_texture.update(Rect::new(x, y, 1, 1), &rgb, 3 * 8).unwrap();
             }
         }
     }

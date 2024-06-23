@@ -2,9 +2,8 @@ use crate::lr35902::cpu::Cpu;
 use crate::lr35902::sm83::Register;
 use crate::memory::mmu::Mmu;
 use crate::rhai_engine::RhaiEngine;
-use crate::video::ppu::{Ppu, BACKGROUND_0_ADDRESS, BACKGROUND_MAP_SIZE};
+use crate::video::ppu::Ppu;
 use crate::video::tile::Tile;
-use sdl2::render::Texture;
 use std::path::PathBuf;
 
 pub struct GameBoy<'a> {
