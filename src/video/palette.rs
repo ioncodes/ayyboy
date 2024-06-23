@@ -14,48 +14,20 @@ impl Palette {
     pub fn from(value: u8, mmu: &Mmu) -> Palette {
         let bgp_shade = mmu.read(BG_PALETTE_REGISTER);
 
-        // let shade = match value {
-        //     0b00 => bgp_shade & 0b0000_0011,
-        //     0b01 => bgp_shade & 0b0000_1100 >> 2,
-        //     0b10 => bgp_shade & 0b0011_0000 >> 4,
-        //     0b11 => bgp_shade & 0b1100_0000 >> 6,
-        //     _ => panic!("Invalid color value: {}", value),
-        // };
-        //
-        // match shade {
-        //     0 => Palette::White,
-        //     1 => Palette::LightGray,
-        //     2 => Palette::DarkGray,
-        //     3 => Palette::Black,
-        //     _ => panic!("Invalid shade value: {}", shade),
-        // }
-
-        //
-        // let shade3 = bgp_shade & 0b1100_0000 >> 6;
-        // let shade2 = bgp_shade & 0b0011_0000 >> 4;
-        // let shade1 = bgp_shade & 0b0000_1100 >> 2;
-        // let shade0 = bgp_shade & 0b0000_0011;
-        //
-        // let shade = match value {
-        //     0b00 => shade0,
-        //     0b01 => shade1,
-        //     0b10 => shade2,
-        //     0b11 => shade3,
-        //     _ => panic!("Invalid color value: {}", value),
-        // };
-        //
-        // match shade {
-        //     0 => Palette::White,
-        //     1 => Palette::LightGray,
-        //     2 => Palette::DarkGray,
-        //     3 => Palette::Black,
-        //     _ => panic!("Invalid shade value: {}", shade),
-        // }
-        //
-        match value {
-            0 => Palette::White,
-            1 => Palette::Black,
+        let shade = match value {
+            0b00 => bgp_shade & 0b0000_0011,
+            0b01 => (bgp_shade & 0b0000_1100) >> 2,
+            0b10 => (bgp_shade & 0b0011_0000) >> 4,
+            0b11 => (bgp_shade & 0b1100_0000) >> 6,
             _ => panic!("Invalid color value: {}", value),
+        };
+
+        match shade {
+            0b00 => Palette::White,
+            0b01 => Palette::LightGray,
+            0b10 => Palette::DarkGray,
+            0b11 => Palette::Black,
+            _ => panic!("Invalid shade value: {}", shade),
         }
     }
 }

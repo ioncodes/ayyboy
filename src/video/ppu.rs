@@ -1,13 +1,10 @@
 use crate::memory::mmu::Mmu;
 use crate::video::tile::Tile;
-use sdl2::pixels::Color;
-use sdl2::rect::Rect;
-use sdl2::render::Texture;
 
 pub const BACKGROUND_WIDTH: usize = 256;
 pub const BACKGROUND_HEIGHT: usize = 256;
 
-const TILE_ADDRESS: u16 = 0x8000;
+const TILEMAP_ADDRESS: u16 = 0x8000;
 const BACKGROUND_0_ADDRESS: u16 = 0x9800;
 const BACKGROUND_1_ADDRESS: u16 = 0x9c00;
 
@@ -37,8 +34,8 @@ impl Ppu {
         let mut tiles: Vec<Tile> = Vec::new();
 
         for tile_nr in 0..384 {
-            let tile_address = TILE_ADDRESS + (tile_nr as u16 * 16);
-            let tile = Tile::from_addr(mmu, tile_address);
+            let addr = TILEMAP_ADDRESS + (tile_nr as u16 * 16);
+            let tile = Tile::from_addr(mmu, addr);
             tiles.push(tile);
         }
 

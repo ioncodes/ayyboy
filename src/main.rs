@@ -78,7 +78,7 @@ async fn main() {
         }
     });
 
-    reset_tilemap_color(&tilemap, &mut tilemap_texture);
+    reset_tilemap_color(&mut tilemap_texture);
 
     'running: loop {
         canvas.copy(&tilemap_texture, None, None).unwrap();
@@ -117,7 +117,7 @@ async fn main() {
         (canvas, event_pump)
     }
 
-    fn reset_tilemap_color(tilemap: &Vec<Tile>, tilemap_texture: &mut Texture) {
+    fn reset_tilemap_color(tilemap_texture: &mut Texture) {
         let white_rgb: Color = Palette::White.into();
         tilemap_texture
             .with_lock(None, |buffer: &mut [u8], pitch: usize| {
