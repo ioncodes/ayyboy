@@ -2,7 +2,9 @@ use crate::lr35902::cpu::Cpu;
 use crate::lr35902::sm83::Register;
 use crate::memory::mmu::Mmu;
 use crate::rhai_engine::RhaiEngine;
-use crate::video::ppu::{Ppu, Tile};
+use crate::video::ppu::Ppu;
+use crate::video::tile::Tile;
+use sdl2::render::Texture;
 use std::path::PathBuf;
 
 pub struct GameBoy<'a> {
@@ -36,22 +38,10 @@ impl<'a> GameBoy<'a> {
         gb
     }
 
-    pub fn tick(&mut self) -> Option<Vec<Tile>> {
+    pub fn tick(&mut self) {
         loop {
             self.try_rhai_script();
             self.cpu.tick(&mut self.mmu);
-
-            if self.cpu.read_register16(&Register::PC) == 0x100 {
-                for i in 0..0x2000 {
-                    if i % 16 == 0 {
-                        println!();
-                        print!("{:02x}: ", 0x8000 + i);
-                    }
-                    print!("{:02x} ", self.mmu.read(0x8000 + i));
-                }
-
-                return Some(self.ppu.render_tilemap(&self.mmu));
-            }
 
             // Each scanline takes exactly 456 dots, or 114 cycles.
             // Mode 2 also takes a constant amount of time (20 cycles) HBlank's length varies wildly,
@@ -63,8 +53,14 @@ impl<'a> GameBoy<'a> {
 
         self.ppu.tick(&mut self.mmu); // "does a scanline"
         self.cycles = self.cpu.current_cycles();
+    }
 
-        None
+    pub fn ready_to_render(&self) -> bool {
+        self.ppu.is_vblank(&self.mmu)
+    }
+
+    pub fn render_tilemap(&mut self) -> Vec<Tile> {
+        self.ppu.render_tilemap(&self.mmu)
     }
 
     pub fn install_breakpoints(&mut self, breakpoints: Vec<u16>) {
