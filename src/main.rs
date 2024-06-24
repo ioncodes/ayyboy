@@ -13,6 +13,7 @@ use crate::gameboy::GameBoy;
 use crate::video::palette::Palette;
 use crate::video::ppu::{BACKGROUND_HEIGHT, BACKGROUND_WIDTH};
 use crate::video::tile::Tile;
+use crate::video::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use fern::Dispatch;
 use log::LevelFilter;
 use sdl2::event::Event;
@@ -48,10 +49,7 @@ async fn main() {
 
     // Load the bootrom and cartridge, execute emulator
     let bootrom = include_bytes!("../external/roms/dmg_boot.bin").to_vec();
-    let cartridge = include_bytes!("../external/roms/Alleyway (World).gb").to_vec();
-
-    // let mut gb = GameBoy::with_rhai(bootrom, vec![0u8; cartridge.len()], "external/drm_patch.rhai".into());
-    // gb.install_breakpoints(vec![0xe9, 0xfa]);
+    let cartridge = include_bytes!("../external/roms/dmg-acid2.gb").to_vec();
 
     let (mut canvas, mut event_pump) = setup_renderer();
 
@@ -59,27 +57,36 @@ async fn main() {
         .create_texture(
             PixelFormatEnum::RGB24,
             TextureAccess::Streaming,
-            BACKGROUND_WIDTH as u32,
-            BACKGROUND_HEIGHT as u32,
+            // BACKGROUND_WIDTH as u32,
+            // BACKGROUND_HEIGHT as u32,
+            SCREEN_WIDTH as u32,
+            SCREEN_HEIGHT as u32,
         )
         .unwrap();
 
-    let tilemap: Vec<Tile> = Vec::new();
-    let (tx, rx) = watch::channel(tilemap.clone());
+    //let tilemap: Vec<Tile> = Vec::new();
+    //let (tx, rx) = watch::channel(tilemap.clone());
+
+    let (tx, rx) = watch::channel([[Palette::default(); SCREEN_WIDTH]; SCREEN_HEIGHT]);
 
     tokio::spawn(async move {
         let mut gb = GameBoy::new(bootrom, cartridge);
+        // let mut gb = GameBoy::with_rhai(bootrom, vec![0u8; cartridge.len()], "external/drm_patch.rhai".into());
+        // gb.install_breakpoints(vec![0xe9, 0xfa]);
+
         loop {
             gb.tick();
 
             if gb.ready_to_render() {
                 // TODO: THis was render_tilemap
-                tx.send(gb.render_backgroundmap()).unwrap();
+                //tx.send(gb.render_tilemap()).unwrap();
+                //tx.send(gb.render_backgroundmap()).unwrap();
+                tx.send(gb.render_background()).unwrap();
             }
         }
     });
 
-    reset_tilemap_color(&mut tilemap_texture);
+    //reset_tilemap_color(&mut tilemap_texture);
 
     'running: loop {
         canvas.copy(&tilemap_texture, None, None).unwrap();
@@ -96,7 +103,8 @@ async fn main() {
         }
 
         let tilemap = rx.borrow().clone();
-        update_texture(&tilemap, 32, &mut tilemap_texture); // 16 for tilemap, 32 for backgroundmap
+        //(&tilemap, 32, &mut tilemap_texture); // 16 for tilemap, 32 for backgroundmap
+        update_texture_ex(&tilemap, &mut tilemap_texture);
         canvas.present();
 
         std::thread::sleep(Duration::new(0, 1_000_000_000 / 60));
@@ -108,7 +116,8 @@ fn setup_renderer() -> (Canvas<Window>, EventPump) {
     let video_subsystem = sdl_context.video().unwrap();
 
     let window = video_subsystem
-        .window("ayyboy", BACKGROUND_WIDTH as u32, BACKGROUND_HEIGHT as u32)
+        //.window("ayyboy", BACKGROUND_WIDTH as u32, BACKGROUND_HEIGHT as u32)
+        .window("ayyboy", SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32)
         .position_centered()
         .build()
         .unwrap();
@@ -147,4 +156,18 @@ fn update_texture(tilemap: &Vec<Tile>, pitch: usize, tilemap_texture: &mut Textu
             }
         }
     }
+}
+
+fn update_texture_ex(palette_data: &[[Palette; SCREEN_WIDTH]; SCREEN_HEIGHT], texture: &mut Texture) {
+    texture
+        .with_lock(None, |buffer: &mut [u8], pitch: usize| {
+            for y in 0..SCREEN_HEIGHT {
+                for x in 0..SCREEN_WIDTH {
+                    let color: Color = palette_data[y][x].into();
+                    let offset = y * pitch + x * 3;
+                    buffer[offset..offset + 3].copy_from_slice(&[color.r, color.g, color.b]);
+                }
+            }
+        })
+        .unwrap();
 }

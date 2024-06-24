@@ -1,5 +1,7 @@
 use crate::memory::mmu::Mmu;
+use crate::video::palette::Palette;
 use crate::video::tile::Tile;
+use crate::video::{SCREEN_HEIGHT, SCREEN_WIDTH};
 
 pub const BACKGROUND_WIDTH: usize = 256;
 pub const BACKGROUND_HEIGHT: usize = 256;
@@ -43,7 +45,7 @@ impl Ppu {
         tiles
     }
 
-    pub fn render_backgroundmap(&mut self, mmu: &Mmu) -> Vec<Tile> {
+    pub fn render_backgroundmap(&self, mmu: &Mmu) -> Vec<Tile> {
         let mut tiles: Vec<Tile> = Vec::new();
 
         for idx in 0..BACKGROUND_MAP_SIZE {
@@ -54,6 +56,27 @@ impl Ppu {
         }
 
         tiles
+    }
+
+    pub fn render_background(&self, mmu: &Mmu) -> [[Palette; SCREEN_WIDTH]; SCREEN_HEIGHT] {
+        let mut background: [[Palette; SCREEN_WIDTH]; SCREEN_HEIGHT] = [[Palette::White; SCREEN_WIDTH]; SCREEN_HEIGHT];
+        let bg_map = self.render_backgroundmap(mmu);
+        let scroll_y = mmu.read(SCROLL_Y_REGISTER);
+        let scroll_x = mmu.read(SCROLL_X_REGISTER);
+
+        for y in 0..SCREEN_HEIGHT {
+            for x in 0..SCREEN_WIDTH {
+                let tile_x = (x + scroll_x as usize) % BACKGROUND_WIDTH;
+                let tile_y = (y + scroll_y as usize) % BACKGROUND_HEIGHT;
+                let tile_nr = (tile_y / 8) * 32 + (tile_x / 8);
+                let tile = &bg_map[tile_nr];
+                let pixel_x = tile_x % 8;
+                let pixel_y = tile_y % 8;
+                background[y][x] = tile.pixels[pixel_y][pixel_x];
+            }
+        }
+
+        background
     }
 
     pub fn is_vblank(&self, mmu: &Mmu) -> bool {

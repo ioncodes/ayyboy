@@ -2,8 +2,10 @@ use crate::lr35902::cpu::Cpu;
 use crate::lr35902::sm83::Register;
 use crate::memory::mmu::Mmu;
 use crate::rhai_engine::RhaiEngine;
+use crate::video::palette::Palette;
 use crate::video::ppu::Ppu;
 use crate::video::tile::Tile;
+use crate::video::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use std::path::PathBuf;
 
 pub struct GameBoy<'a> {
@@ -64,6 +66,10 @@ impl<'a> GameBoy<'a> {
 
     pub fn render_backgroundmap(&mut self) -> Vec<Tile> {
         self.ppu.render_backgroundmap(&self.mmu)
+    }
+
+    pub fn render_background(&mut self) -> [[Palette; SCREEN_WIDTH]; SCREEN_HEIGHT] {
+        self.ppu.render_background(&self.mmu)
     }
 
     pub fn install_breakpoints(&mut self, breakpoints: Vec<u16>) {
