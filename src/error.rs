@@ -5,6 +5,10 @@ use snafu::prelude::*;
 pub enum AyyError {
     #[snafu(display("Failed to decode instruction ({:02x}) at address: ${:04x}", opcode, address))]
     DecoderFailure { opcode: u8, address: u16 },
+    #[snafu(display("Unknown condition bits: {:08b}", data))]
+    UnknownConditionBits { data: u8 },
+    #[snafu(display("Unknown register bits: {:08b}", data))]
+    UnknownRegisterBits { data: u8 },
     #[snafu(display("Unimplemented instruction: {}", instruction))]
     UnimplementedInstruction { instruction: String, cpu: String },
     #[snafu(display("Invalid instruction handler implementation: {}", instruction))]
