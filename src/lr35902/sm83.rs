@@ -402,6 +402,17 @@ impl Sm83 {
             }
         }));
 
+        // halt
+        lut.push(define_decoder!("01110110", Opcode::Halt, |_, _, opcode| {
+            Instruction {
+                opcode,
+                lhs: None,
+                rhs: None,
+                length: 1,
+                cycles: (4, None),
+            }
+        }));
+
         // reti
         lut.push(define_decoder!("11011001", Opcode::Reti, |_, _, opcode| {
             Instruction {
@@ -410,6 +421,28 @@ impl Sm83 {
                 rhs: None,
                 length: 1,
                 cycles: (16, None),
+            }
+        }));
+
+        // di
+        lut.push(define_decoder!("11110011", Opcode::Di, |_, _, opcode| {
+            Instruction {
+                opcode,
+                lhs: None,
+                rhs: None,
+                length: 1,
+                cycles: (4, None),
+            }
+        }));
+
+        // ei
+        lut.push(define_decoder!("11111011", Opcode::Ei, |_, _, opcode| {
+            Instruction {
+                opcode,
+                lhs: None,
+                rhs: None,
+                length: 1,
+                cycles: (4, None),
             }
         }));
 
