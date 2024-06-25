@@ -52,11 +52,11 @@ impl<'a> GameBoy<'a> {
             // This mode takes up the remainder of the scanline after the Drawing Mode finishes,
             // more or less “padding” the duration of the scanline to a total of 456 T-Cycles.
             // The PPU effectively pauses during this mode.
-            self.ppu.tick(&mut self.mmu); // "does a scanline"
+            let ly_reset = self.ppu.tick(&mut self.mmu); // "does a scanline"
             self.cpu.reset_cycles();
 
             // Do we have a frame to render?
-            if self.ppu.is_vblank(&self.mmu) {
+            if ly_reset {
                 break;
             }
         }

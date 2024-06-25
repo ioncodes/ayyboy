@@ -10,26 +10,23 @@ mod tests;
 mod video;
 
 use crate::gameboy::GameBoy;
-use crate::lr35902::T_CYCLES_PER_SECOND;
 use crate::video::palette::{Color, Palette};
-use crate::video::ppu::{BACKGROUND_HEIGHT, BACKGROUND_WIDTH};
-use crate::video::tile::Tile;
 use crate::video::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use fern::Dispatch;
-use log::{debug, LevelFilter};
+use log::LevelFilter;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::PixelFormatEnum;
-use sdl2::rect::Rect;
 use sdl2::render::{Canvas, Texture, TextureAccess};
 use sdl2::video::Window;
 use sdl2::EventPump;
 use std::fs::OpenOptions;
-use std::time::Duration;
-use tokio::sync::watch;
+use std::time::{Duration, Instant};
 
-#[tokio::main]
-async fn main() {
+const TARGET_FPS: f64 = 59.73;
+const TARGET_FRAME_DURATION: Duration = Duration::from_nanos((1_000_000_000.0 / TARGET_FPS) as u64);
+
+fn main() {
     #[cfg(debug_assertions)]
     setup_logging();
 
@@ -43,32 +40,16 @@ async fn main() {
         .create_texture(
             PixelFormatEnum::RGB24,
             TextureAccess::Streaming,
-            // BACKGROUND_WIDTH as u32,
-            // BACKGROUND_HEIGHT as u32,
             SCREEN_WIDTH as u32,
             SCREEN_HEIGHT as u32,
         )
         .unwrap();
 
-    //let tilemap: Vec<Tile> = Vec::new();
-    //let (tx, rx) = watch::channel(tilemap.clone());
-
-    let (tx, mut rx) = watch::channel([[Palette::default(); SCREEN_WIDTH]; SCREEN_HEIGHT]);
-
-    std::thread::spawn(move || {
-        let mut gb = GameBoy::new(bootrom, cartridge);
-        // let mut gb = GameBoy::with_rhai(bootrom, vec![0u8; cartridge.len()], "external/drm_patch.rhai".into());
-        // gb.install_breakpoints(vec![0xe9, 0xfa]);
-
-        loop {
-            gb.run_frame();
-            tx.send(gb.render_background()).unwrap();
-        }
-    });
-
-    //reset_tilemap_color(&mut tilemap_texture);
+    let mut gb = GameBoy::new(bootrom, cartridge);
 
     'running: loop {
+        let throttle_timer = Instant::now();
+
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit { .. }
@@ -80,15 +61,15 @@ async fn main() {
             }
         }
 
-        if let Ok(()) = rx.changed().await {
-            //(&tilemap, 32, &mut tilemap_texture); // 16 for tilemap, 32 for backgroundmap
-            update_texture_ex(&rx.borrow_and_update(), &mut tilemap_texture);
-            canvas.copy(&tilemap_texture, None, None).unwrap();
-        }
-
+        gb.run_frame();
+        update_texture(&gb.render_background(), &mut tilemap_texture);
+        canvas.copy(&tilemap_texture, None, None).unwrap();
         canvas.present();
 
-        //std::thread::sleep(Duration::new(0, 1_000_000_000 / 60));
+        let frame_duration = throttle_timer.elapsed();
+        if frame_duration < TARGET_FRAME_DURATION {
+            spin_sleep::sleep(TARGET_FRAME_DURATION - frame_duration);
+        }
     }
 
     unsafe {
@@ -121,7 +102,6 @@ fn setup_renderer() -> (Canvas<Window>, EventPump) {
     let video_subsystem = sdl_context.video().unwrap();
 
     let window = video_subsystem
-        //.window("ayyboy", BACKGROUND_WIDTH as u32, BACKGROUND_HEIGHT as u32)
         .window("ayyboy", SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32)
         .position_centered()
         .build()
@@ -133,37 +113,7 @@ fn setup_renderer() -> (Canvas<Window>, EventPump) {
     (canvas, event_pump)
 }
 
-fn reset_tilemap_color(tilemap_texture: &mut Texture) {
-    let white_color: [u8; 3] = Palette::White.into();
-
-    tilemap_texture
-        .with_lock(None, |buffer: &mut [u8], pitch: usize| {
-            for y in 0..BACKGROUND_HEIGHT {
-                for x in 0..BACKGROUND_WIDTH {
-                    let offset = y * pitch + x * 3;
-                    buffer[offset..offset + 3].copy_from_slice(&white_color);
-                }
-            }
-        })
-        .unwrap();
-}
-
-fn update_texture(tilemap: &Vec<Tile>, pitch: usize, tilemap_texture: &mut Texture) {
-    for (i, tile) in tilemap.iter().enumerate() {
-        for y in 0..8 {
-            for x in 0..8 {
-                let color: Color = tile.pixels[y][x].into();
-
-                let x = (x + (i % pitch) * 8) as i32;
-                let y = (y + (i / pitch) * 8) as i32;
-
-                tilemap_texture.update(Rect::new(x, y, 1, 1), &color, 3 * 8).unwrap();
-            }
-        }
-    }
-}
-
-fn update_texture_ex(palette_data: &[[Palette; SCREEN_WIDTH]; SCREEN_HEIGHT], texture: &mut Texture) {
+fn update_texture(palette_data: &[[Palette; SCREEN_WIDTH]; SCREEN_HEIGHT], texture: &mut Texture) {
     texture
         .with_lock(None, |buffer: &mut [u8], pitch: usize| {
             for y in 0..SCREEN_HEIGHT {

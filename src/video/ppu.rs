@@ -27,13 +27,15 @@ impl Ppu {
         Ppu {}
     }
 
-    pub fn tick(&mut self, mmu: &mut Mmu) {
+    pub fn tick(&mut self, mmu: &mut Mmu) -> bool {
         let scanline = mmu.read(SCANLINE_Y_REGISTER);
         let scanline = scanline.wrapping_add(1);
         if scanline >= 154 {
             mmu.write(SCANLINE_Y_REGISTER, 0);
+            true
         } else {
             mmu.write(SCANLINE_Y_REGISTER, scanline);
+            false
         }
 
         //mmu.write(SCANLINE_Y_REGISTER, 0x90); // stub for trace
