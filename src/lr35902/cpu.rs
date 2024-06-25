@@ -10,6 +10,7 @@ pub struct Cpu {
     sm83: Sm83,
     registers: Registers,
     cycles: usize,
+    ime: bool,
 }
 
 impl Cpu {
@@ -18,6 +19,7 @@ impl Cpu {
             sm83: Sm83::new(),
             registers: Registers::default(),
             cycles: 0,
+            ime: false,
         }
     }
 
@@ -38,6 +40,7 @@ impl Cpu {
             Opcode::Ld | Opcode::Ldh => Handlers::load(self, mmu, &instruction),
             Opcode::Push => Handlers::push(self, mmu, &instruction),
             Opcode::Pop => Handlers::pop(self, mmu, &instruction),
+            Opcode::Ei | Opcode::Di => Handlers::handle_interrupt(self, mmu, &instruction),
             Opcode::Nop => Handlers::nop(self, mmu, &instruction),
             Opcode::Cp => Handlers::compare(self, mmu, &instruction),
             Opcode::Add => Handlers::add(self, mmu, &instruction),
@@ -47,10 +50,13 @@ impl Cpu {
             Opcode::Xor => Handlers::xor(self, mmu, &instruction),
             Opcode::And => Handlers::and(self, mmu, &instruction),
             Opcode::Or => Handlers::or(self, mmu, &instruction),
+            Opcode::Halt => Handlers::halt(self, mmu, &instruction),
             Opcode::Jp | Opcode::Jr | Opcode::Call => Handlers::jump(self, mmu, &instruction),
             Opcode::Ret => Handlers::ret(self, mmu, &instruction),
             Opcode::Bit => Handlers::test_bit(self, mmu, &instruction),
             Opcode::Rl | Opcode::Rla => Handlers::rotate_left(self, mmu, &instruction),
+            Opcode::Res => Handlers::reset_bit(self, mmu, &instruction),
+            Opcode::Set => Handlers::set_bit(self, mmu, &instruction),
             _ => {
                 return Err(AyyError::UnimplementedInstruction {
                     instruction: format!("{}", instruction),
@@ -162,6 +168,14 @@ impl Cpu {
         let value = mmu.read16(self.registers.sp);
         self.registers.sp += 2;
         value
+    }
+
+    pub fn enable_interrupts(&mut self) {
+        self.ime = true;
+    }
+
+    pub fn disable_interrupts(&mut self) {
+        self.ime = false;
     }
 
     pub fn elapsed_cycles(&self) -> usize {

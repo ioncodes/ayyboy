@@ -3,6 +3,7 @@ use crate::error::AyyError::{InvalidHandler, UnresolvedTarget};
 use crate::lr35902::cpu::{Cpu, Flags};
 use crate::lr35902::sm83::{AddressingMode, Condition, Instruction, Opcode, Operand, Register};
 use crate::memory::mmu::Mmu;
+use crate::memory::{INTERRUPT_ENABLE_REGISTER, INTERRUPT_FLAGS_REGISTER};
 
 macro_rules! invalid_handler {
     ($instruction:expr) => {
@@ -184,6 +185,30 @@ impl Handlers {
         Ok(instruction.cycles.0)
     }
 
+    pub fn reset_bit(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
+        ensure!(lhs_rhs => instruction);
+
+        let register = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as u8;
+        let bit = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false)? as u8;
+
+        let result = register & !(1 << bit);
+        cpu.write_register(&Register::A, result);
+
+        Ok(instruction.cycles.0)
+    }
+
+    pub fn set_bit(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
+        ensure!(lhs_rhs => instruction);
+
+        let register = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as u8;
+        let bit = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false)? as u8;
+
+        let result = register | (1 << bit);
+        cpu.write_register(&Register::A, result);
+
+        Ok(instruction.cycles.0)
+    }
+
     pub fn compare(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         ensure!(lhs_rhs => instruction);
 
@@ -209,6 +234,24 @@ impl Handlers {
         cpu.update_flag(Flags::ZERO, result == 0);
         cpu.update_flag(Flags::SUBTRACT, false);
         cpu.update_flag(Flags::HALF_CARRY, true);
+
+        Ok(instruction.cycles.0)
+    }
+
+    pub fn halt(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
+        // HALT mode is exited when a flag in register IF is set and the corresponding flag in IE is also set,
+        // regardless of the value of IME. The only difference is that IME='1' will make the CPU jump to the
+        // interrupt vector (and clear the IF flag), while IME='0' will only make the CPU continue executing
+        // instructions, but the jump won't be performed (and the IF flag won't be cleared).
+
+        let interrupt_enable = mmu.read(INTERRUPT_ENABLE_REGISTER);
+        let interrupt_flags = mmu.read(INTERRUPT_FLAGS_REGISTER);
+
+        if interrupt_enable & interrupt_flags == 0 {
+            // We need to set the PC back to HALT to make sure we land here again
+            let addr_of_halt = cpu.read_register16(&Register::PC).wrapping_sub(instruction.length as u16);
+            cpu.write_register16(&Register::PC, addr_of_halt);
+        }
 
         Ok(instruction.cycles.0)
     }
@@ -373,6 +416,16 @@ impl Handlers {
                 }
             }
             _ => return invalid_handler!(instruction),
+        }
+
+        Ok(instruction.cycles.0)
+    }
+
+    pub fn handle_interrupt(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
+        if instruction.opcode == Opcode::Ei {
+            cpu.enable_interrupts();
+        } else {
+            cpu.disable_interrupts();
         }
 
         Ok(instruction.cycles.0)
