@@ -24,7 +24,12 @@ impl Cpu {
         let instruction = if let Ok(instruction) = self.sm83.decode(mmu, self.registers.pc) {
             instruction
         } else {
-            panic!("Failed to decode instruction at address: ${:04x}\n{}", self.registers.pc, self);
+            panic!(
+                "Failed to decode instruction ({:02x}) at address: ${:04x}\n{}",
+                mmu.read(self.registers.pc),
+                self.registers.pc,
+                self
+            );
         };
 
         trace!(

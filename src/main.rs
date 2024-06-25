@@ -27,11 +27,11 @@ fn main() {
     let mut renderer = Renderer::new();
     let mut gb = GameBoy::new(bootrom, cartridge);
 
-    'running: loop {
+    loop {
         let throttle_timer = Instant::now();
 
         if !renderer.handle_events() {
-            break 'running;
+            break;
         }
 
         gb.run_frame();

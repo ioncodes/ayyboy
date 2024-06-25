@@ -643,6 +643,27 @@ impl Sm83 {
             }
         }));
 
+        // jp cond, imm16 / jp imm16
+        lut.push(define_decoder!("110xx01x", Opcode::Jp, |mmu, pc, opcode| {
+            let opcode_byte = mmu.read(pc);
+
+            let condition = if (opcode_byte & 0b0000_0001) == 0 {
+                Sm83::lookup_condition_2bits((opcode_byte & 0b0001_1000) >> 3)
+            } else {
+                Condition::None
+            };
+
+            let cycles = if condition != Condition::None { (16, Some(12)) } else { (16, None) };
+
+            Instruction {
+                opcode,
+                lhs: Some(Operand::Conditional(condition)),
+                rhs: Some(Operand::Imm16(mmu.read16(pc + 1), AddressingMode::Direct)),
+                length: 3,
+                cycles,
+            }
+        }));
+
         // push r16
         lut.push(define_decoder!("11xx0101", Opcode::Push, |mmu, pc, opcode| {
             let opcode_byte = mmu.read(pc);
