@@ -1,3 +1,4 @@
+use crate::error::AyyError;
 use crate::lr35902::handlers::Handlers;
 use crate::lr35902::sm83::{Opcode, Register, Sm83};
 use crate::memory::mmu::Mmu;
@@ -20,17 +21,8 @@ impl Cpu {
         }
     }
 
-    pub fn tick(&mut self, mmu: &mut Mmu) {
-        let instruction = if let Ok(instruction) = self.sm83.decode(mmu, self.registers.pc) {
-            instruction
-        } else {
-            panic!(
-                "Failed to decode instruction ({:02x}) at address: ${:04x}\n{}",
-                mmu.read(self.registers.pc),
-                self.registers.pc,
-                self
-            );
-        };
+    pub fn tick(&mut self, mmu: &mut Mmu) -> Result<(), AyyError> {
+        let instruction = self.sm83.decode(mmu, self.registers.pc)?;
 
         trace!(
             "[{:04x}] {:<20} [{}  (SP): ${:02x}]",
@@ -59,14 +51,17 @@ impl Cpu {
             Opcode::Ret => Handlers::ret(self, mmu, &instruction),
             Opcode::Bit => Handlers::test_bit(self, mmu, &instruction),
             Opcode::Rl | Opcode::Rla => Handlers::rotate_left(self, mmu, &instruction),
-            _ => panic!("Unimplemented instruction: {}\n{}", instruction, self),
-        };
+            _ => {
+                return Err(AyyError::UnimplementedInstruction {
+                    instruction: format!("{}", instruction),
+                    cpu: format!("{}", self),
+                })
+            }
+        }?;
 
-        if let Ok(cycles) = cycles {
-            self.cycles += cycles;
-        } else {
-            panic!("Failed to execute instruction: {}\n{}", instruction, self);
-        }
+        self.cycles += cycles;
+
+        Ok(())
     }
 
     pub fn read_register(&self, register: &Register) -> u8 {

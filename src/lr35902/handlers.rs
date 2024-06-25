@@ -1,20 +1,47 @@
+use crate::error::AyyError;
+use crate::error::AyyError::{InvalidHandler, UnresolvedTarget};
 use crate::lr35902::cpu::{Cpu, Flags};
 use crate::lr35902::sm83::{AddressingMode, Condition, Instruction, Opcode, Operand, Register};
 use crate::memory::mmu::Mmu;
+
+macro_rules! invalid_handler {
+    ($instruction:expr) => {
+        Err(InvalidHandler {
+            instruction: $instruction.clone(),
+        })
+    };
+}
+
+macro_rules! ensure {
+    (lhs => $instr:expr) => {
+        #[cfg(debug_assertions)]
+        if $instr.lhs.is_none() {
+            return Err(InvalidHandler {
+                instruction: $instr.clone(),
+            });
+        }
+    };
+    (lhs_rhs => $instr:expr) => {
+        #[cfg(debug_assertions)]
+        if $instr.lhs.is_none() || $instr.rhs.is_none() {
+            return Err(InvalidHandler {
+                instruction: $instr.clone(),
+            });
+        }
+    };
+}
 
 pub struct Handlers {}
 
 #[allow(unused_variables)]
 impl Handlers {
-    pub fn load(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, &'static str> {
-        if instruction.rhs.is_none() || instruction.lhs.is_none() {
-            return Err("Invalid load instruction");
-        }
+    pub fn load(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
+        ensure!(lhs_rhs => instruction);
 
         // In case of LDH we need to make sure to add 0xff00 to dst/src
         let is_ldh_instruction = instruction.opcode == Opcode::Ldh;
         let src = instruction.rhs.as_ref().unwrap();
-        let src = Handlers::resolve_operand(cpu, mmu, src, is_ldh_instruction);
+        let src = Handlers::resolve_operand(cpu, mmu, src, is_ldh_instruction)?;
 
         match instruction.lhs.as_ref().unwrap() {
             Operand::Reg8(reg, mode) => {
@@ -40,23 +67,21 @@ impl Handlers {
                 mmu.write(addr, src as u8);
             }
             Operand::Imm16(imm, mode) if mode.contains(AddressingMode::Indirect) => mmu.write16(*imm, src as u16),
-            _ => return Err("Unimplemented destination"),
+            _ => return invalid_handler!(instruction),
         };
 
         Ok(instruction.cycles.0)
     }
 
-    pub fn nop(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, &'static str> {
+    pub fn nop(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         Ok(instruction.cycles.0)
     }
 
-    pub fn xor(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, &'static str> {
-        if instruction.rhs.is_none() || instruction.lhs.is_none() {
-            return Err("Invalid xor instruction");
-        }
+    pub fn xor(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
+        ensure!(lhs_rhs => instruction);
 
-        let x = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false) as u8;
-        let y = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false) as u8;
+        let x = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false)? as u8;
+        let y = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as u8;
 
         let result = x ^ y;
         cpu.write_register(&Register::A, result);
@@ -69,13 +94,11 @@ impl Handlers {
         Ok(instruction.cycles.0)
     }
 
-    pub fn add(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, &'static str> {
-        if instruction.rhs.is_none() || instruction.lhs.is_none() {
-            return Err("Invalid add instruction");
-        }
+    pub fn add(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
+        ensure!(lhs_rhs => instruction);
 
-        let x = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false) as u8;
-        let y = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false) as u8;
+        let x = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false)? as u8;
+        let y = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as u8;
 
         let result = x.wrapping_add(y);
         cpu.write_register(&Register::A, result);
@@ -88,13 +111,11 @@ impl Handlers {
         Ok(instruction.cycles.0)
     }
 
-    pub fn sub(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, &'static str> {
-        if instruction.rhs.is_none() || instruction.lhs.is_none() {
-            return Err("Invalid sub instruction");
-        }
+    pub fn sub(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
+        ensure!(lhs_rhs => instruction);
 
-        let x = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false) as u8;
-        let y = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false) as u8;
+        let x = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false)? as u8;
+        let y = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as u8;
 
         let result = x.wrapping_sub(y);
         cpu.write_register(&Register::A, result);
@@ -107,13 +128,11 @@ impl Handlers {
         Ok(instruction.cycles.0)
     }
 
-    pub fn and(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, &'static str> {
-        if instruction.rhs.is_none() || instruction.lhs.is_none() {
-            return Err("Invalid and instruction");
-        }
+    pub fn and(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
+        ensure!(lhs_rhs => instruction);
 
-        let x = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false) as u8;
-        let y = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false) as u8;
+        let x = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false)? as u8;
+        let y = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as u8;
 
         let result = x & y;
         cpu.write_register(&Register::A, result);
@@ -126,13 +145,11 @@ impl Handlers {
         Ok(instruction.cycles.0)
     }
 
-    pub fn or(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, &'static str> {
-        if instruction.rhs.is_none() || instruction.lhs.is_none() {
-            return Err("Invalid or instruction");
-        }
+    pub fn or(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
+        ensure!(lhs_rhs => instruction);
 
-        let x = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false) as u8;
-        let y = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false) as u8;
+        let x = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false)? as u8;
+        let y = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as u8;
 
         let result = x | y;
         cpu.write_register(&Register::A, result);
@@ -145,13 +162,13 @@ impl Handlers {
         Ok(instruction.cycles.0)
     }
 
-    pub fn rotate_left(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, &'static str> {
+    pub fn rotate_left(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         let (reg, is_rla) = if instruction.opcode == Opcode::Rla {
             (&Register::A, true)
-        } else if let Operand::Reg8(reg, _) = instruction.lhs.as_ref().unwrap() {
+        } else if let Some(Operand::Reg8(reg, _)) = instruction.lhs.as_ref() {
             (reg, false)
         } else {
-            return Err("Invalid rotate_left instruction");
+            return invalid_handler!(instruction);
         };
 
         let value = cpu.read_register(reg);
@@ -167,13 +184,11 @@ impl Handlers {
         Ok(instruction.cycles.0)
     }
 
-    pub fn compare(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, &'static str> {
-        if instruction.rhs.is_none() || instruction.lhs.is_none() {
-            return Err("Invalid cp instruction");
-        }
+    pub fn compare(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
+        ensure!(lhs_rhs => instruction);
 
-        let x = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false) as u8;
-        let y = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false) as u8;
+        let x = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false)? as u8;
+        let y = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as u8;
 
         let result = x.wrapping_sub(y);
         cpu.update_flag(Flags::ZERO, result == 0);
@@ -184,13 +199,11 @@ impl Handlers {
         Ok(instruction.cycles.0)
     }
 
-    pub fn test_bit(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, &'static str> {
-        if instruction.rhs.is_none() || instruction.lhs.is_none() {
-            return Err("Invalid test_bit instruction");
-        }
+    pub fn test_bit(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
+        ensure!(lhs_rhs => instruction);
 
-        let register = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false) as u8;
-        let bit = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false) as u8;
+        let register = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as u8;
+        let bit = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false)? as u8;
 
         let result = register & (1 << bit);
         cpu.update_flag(Flags::ZERO, result == 0);
@@ -200,16 +213,14 @@ impl Handlers {
         Ok(instruction.cycles.0)
     }
 
-    pub fn jump(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, &'static str> {
-        if instruction.rhs.is_none() || instruction.lhs.is_none() {
-            return Err("Invalid jump instruction");
-        }
+    pub fn jump(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
+        ensure!(lhs_rhs => instruction);
 
         match instruction.opcode {
             Opcode::Jp => {
                 if let Some(Operand::Conditional(cond)) = instruction.lhs.as_ref() {
                     return if Handlers::check_condition(cpu, cond) {
-                        let addr = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false) as u16;
+                        let addr = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as u16;
                         cpu.write_register16(&Register::PC, addr);
                         Ok(instruction.cycles.0)
                     } else {
@@ -220,7 +231,7 @@ impl Handlers {
             Opcode::Jr => {
                 if let Some(Operand::Conditional(cond)) = instruction.lhs.as_ref() {
                     return if Handlers::check_condition(cpu, cond) {
-                        let offset = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false) as i8;
+                        let offset = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as i8;
                         let pc = cpu.read_register16(&Register::PC);
                         cpu.write_register16(&Register::PC, pc.wrapping_add_signed(offset as i16));
                         Ok(instruction.cycles.0)
@@ -232,7 +243,7 @@ impl Handlers {
             Opcode::Call => {
                 if let Some(Operand::Conditional(cond)) = instruction.lhs.as_ref() {
                     return if Handlers::check_condition(cpu, cond) {
-                        let addr = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false) as u16;
+                        let addr = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as u16;
                         let pc = cpu.read_register16(&Register::PC);
                         // We already increased the PC by 3, so we need to push the current PC + 3
                         cpu.push_stack(mmu, pc);
@@ -243,16 +254,14 @@ impl Handlers {
                     };
                 }
             }
-            _ => panic!("Unimplemented jump instruction"),
+            _ => return invalid_handler!(instruction),
         }
 
-        Err("Invalid jump instruction")
+        invalid_handler!(instruction)
     }
 
-    pub fn ret(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, &'static str> {
-        if instruction.lhs.is_none() {
-            return Err("Invalid ret instruction");
-        }
+    pub fn ret(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
+        ensure!(lhs => instruction);
 
         if let Some(Operand::Conditional(cond)) = instruction.lhs.as_ref() {
             if Handlers::check_condition(cpu, cond) {
@@ -263,14 +272,12 @@ impl Handlers {
 
             Ok(instruction.cycles.1.unwrap())
         } else {
-            Err("Invalid ret instruction")
+            invalid_handler!(instruction)
         }
     }
 
-    pub fn push(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, &'static str> {
-        if instruction.lhs.is_none() {
-            return Err("Invalid push instruction");
-        }
+    pub fn push(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
+        ensure!(lhs => instruction);
 
         let operand = instruction.lhs.as_ref().unwrap();
         match operand {
@@ -278,16 +285,14 @@ impl Handlers {
                 let value = cpu.read_register16(reg);
                 cpu.push_stack(mmu, value);
             }
-            _ => return Err("Unimplemented operand"),
+            _ => return invalid_handler!(instruction),
         }
 
         Ok(instruction.cycles.0)
     }
 
-    pub fn pop(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, &'static str> {
-        if instruction.lhs.is_none() {
-            return Err("Invalid pop instruction");
-        }
+    pub fn pop(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
+        ensure!(lhs => instruction);
 
         let operand = instruction.lhs.as_ref().unwrap();
         match operand {
@@ -295,16 +300,14 @@ impl Handlers {
                 let value = cpu.pop_stack(mmu);
                 cpu.write_register16(reg, value);
             }
-            _ => return Err("Unimplemented operand"),
+            _ => return invalid_handler!(instruction),
         }
 
         Ok(instruction.cycles.0)
     }
 
-    pub fn increment(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, &'static str> {
-        if instruction.lhs.is_none() {
-            return Err("Invalid increment instruction");
-        }
+    pub fn increment(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
+        ensure!(lhs => instruction);
 
         let operand = instruction.lhs.as_ref().unwrap();
         match operand {
@@ -333,16 +336,14 @@ impl Handlers {
                     cpu.write_register16(reg, result);
                 }
             }
-            _ => return Err("Unimplemented operand"),
+            _ => return invalid_handler!(instruction),
         }
 
         Ok(instruction.cycles.0)
     }
 
-    pub fn decrement(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, &'static str> {
-        if instruction.lhs.is_none() {
-            return Err("Invalid decrement instruction");
-        }
+    pub fn decrement(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
+        ensure!(lhs => instruction);
 
         let operand = instruction.lhs.as_ref().unwrap();
         match operand {
@@ -371,36 +372,36 @@ impl Handlers {
                     cpu.write_register16(reg, result);
                 }
             }
-            _ => return Err("Unimplemented operand"),
+            _ => return invalid_handler!(instruction),
         }
 
         Ok(instruction.cycles.0)
     }
 
-    fn resolve_operand(cpu: &mut Cpu, mmu: &Mmu, operand: &Operand, is_ldh: bool) -> usize {
+    fn resolve_operand(cpu: &mut Cpu, mmu: &Mmu, operand: &Operand, is_ldh: bool) -> Result<usize, AyyError> {
         match operand {
-            Operand::Reg16(reg, mode) if mode.contains(AddressingMode::Direct) => cpu.read_register16(&reg) as usize,
+            Operand::Reg16(reg, mode) if mode.contains(AddressingMode::Direct) => Ok(cpu.read_register16(&reg) as usize),
             Operand::Reg16(reg, mode) if mode.contains(AddressingMode::Indirect) => {
                 let addr = cpu.read_register16(&reg);
                 Handlers::process_additional_address_mode(cpu, reg, addr, mode);
-                mmu.read16(addr) as usize
+                Ok(mmu.read16(addr) as usize)
             }
-            Operand::Reg8(reg, mode) if mode.contains(AddressingMode::Direct) => cpu.read_register(&reg) as usize,
+            Operand::Reg8(reg, mode) if mode.contains(AddressingMode::Direct) => Ok(cpu.read_register(&reg) as usize),
             Operand::Reg8(reg, mode) if mode.contains(AddressingMode::Indirect) => {
                 // ld a, (c)
                 let addr = cpu.read_register(&reg);
-                mmu.read(0xff00 + addr as u16) as usize
+                Ok(mmu.read(0xff00 + addr as u16) as usize)
             }
-            Operand::Imm16(imm, mode) if mode.contains(AddressingMode::Direct) => *imm as usize,
-            Operand::Imm8(imm, mode) if mode.contains(AddressingMode::Direct) => *imm as usize,
+            Operand::Imm16(imm, mode) if mode.contains(AddressingMode::Direct) => Ok(*imm as usize),
+            Operand::Imm8(imm, mode) if mode.contains(AddressingMode::Direct) => Ok(*imm as usize),
             Operand::Imm8(imm, mode) if mode.contains(AddressingMode::Indirect) && is_ldh => {
                 // ldh a, (imm)
                 let addr = 0xff00 + *imm as u16;
-                mmu.read(addr) as usize
+                Ok(mmu.read(addr) as usize)
             }
-            Operand::Bit(bit) => *bit as usize,
-            Operand::Offset(offset) => *offset as usize,
-            _ => panic!("Unimplemented operand: {:?}", operand),
+            Operand::Bit(bit) => Ok(*bit as usize),
+            Operand::Offset(offset) => Ok(*offset as usize),
+            _ => Err(UnresolvedTarget { target: operand.clone() }),
         }
     }
 

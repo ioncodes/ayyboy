@@ -2,6 +2,7 @@
 #![feature(custom_test_frameworks)]
 #![test_runner(datatest::runner)]
 
+mod error;
 mod gameboy;
 mod lr35902;
 mod memory;

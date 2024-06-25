@@ -41,7 +41,10 @@ impl<'a> GameBoy<'a> {
         loop {
             loop {
                 self.try_rhai_script();
-                self.cpu.tick(&mut self.mmu);
+                match self.cpu.tick(&mut self.mmu) {
+                    Ok(_) => {}
+                    Err(e) => panic!("{}", e),
+                }
 
                 if self.cpu.elapsed_cycles() >= 456 {
                     break;

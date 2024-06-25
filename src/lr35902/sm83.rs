@@ -1,3 +1,4 @@
+use crate::error::AyyError;
 use crate::memory::mmu::Mmu;
 use bitflags::bitflags;
 use rhai::{CustomType, TypeBuilder};
@@ -143,7 +144,7 @@ impl Sm83 {
         }
     }
 
-    pub fn decode(&mut self, mmu: &mut Mmu, current_pc: u16) -> Result<Instruction, &str> {
+    pub fn decode(&mut self, mmu: &mut Mmu, current_pc: u16) -> Result<Instruction, AyyError> {
         let mut opcode_byte = mmu.read(current_pc);
         let mut prefix = false;
 
@@ -200,7 +201,10 @@ impl Sm83 {
             }
         }
 
-        Err("Unable to decode instruction")
+        Err(AyyError::DecoderFailure {
+            opcode: mmu.read(current_pc),
+            address: current_pc,
+        })
     }
 
     fn lookup_register(data: u8) -> Register {
