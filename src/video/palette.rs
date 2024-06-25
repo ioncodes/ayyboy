@@ -1,6 +1,7 @@
 use crate::memory::mmu::Mmu;
 use crate::video::ppu::BG_PALETTE_REGISTER;
-use sdl2::pixels::Color;
+
+pub type Color = [u8; 3];
 
 #[derive(Debug, Clone, Copy)]
 pub enum Palette {
@@ -35,10 +36,10 @@ impl Palette {
 impl Into<Color> for Palette {
     fn into(self) -> Color {
         match self {
-            Palette::White => Color::RGB(0xe0, 0xf0, 0xe7),
-            Palette::LightGray => Color::RGB(0x8b, 0xa3, 0x94),
-            Palette::DarkGray => Color::RGB(0x55, 0x64, 0x5a),
-            Palette::Black => Color::RGB(0x34, 0x3d, 0x37),
+            Palette::White => [0xe0, 0xf0, 0xe7],
+            Palette::LightGray => [0x8b, 0xa3, 0x94],
+            Palette::DarkGray => [0x55, 0x64, 0x5a],
+            Palette::Black => [0x34, 0x3d, 0x37],
         }
     }
 }

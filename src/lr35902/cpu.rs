@@ -28,12 +28,11 @@ impl Cpu {
         };
 
         trace!(
-            "[{:04x}] {:<20} [{}  (SP): ${:02x}  Cycles: {}]",
+            "[{:04x}] {:<20} [{}  (SP): ${:02x}]",
             self.registers.pc,
             format!("{}", instruction),
             self,
-            mmu.read(self.registers.sp),
-            self.cycles,
+            mmu.read(self.registers.sp)
         );
 
         self.registers.pc += instruction.length as u16;
@@ -165,8 +164,12 @@ impl Cpu {
         value
     }
 
-    pub fn current_cycles(&self) -> usize {
+    pub fn elapsed_cycles(&self) -> usize {
         self.cycles
+    }
+
+    pub fn reset_cycles(&mut self) {
+        self.cycles = 0;
     }
 }
 

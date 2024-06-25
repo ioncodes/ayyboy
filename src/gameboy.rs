@@ -12,7 +12,6 @@ pub struct GameBoy<'a> {
     cpu: Cpu,
     mmu: Mmu,
     ppu: Ppu,
-    cycles: usize,
     cpu_breakpoints: Vec<u16>,
     rhai: Option<RhaiEngine<'a>>,
 }
@@ -27,7 +26,6 @@ impl<'a> GameBoy<'a> {
             cpu,
             mmu,
             ppu,
-            cycles: 0,
             cpu_breakpoints: Vec::new(),
             rhai: None,
         }
@@ -39,24 +37,43 @@ impl<'a> GameBoy<'a> {
         gb
     }
 
+    // pub fn tick(&mut self) {
+    //     loop {
+    //         self.try_rhai_script();
+    //         self.cpu.tick(&mut self.mmu);
+    //
+    //         if self.cpu.current_cycles() - self.cycles >= 456 {
+    //             break;
+    //         }
+    //     }
+    //
+    //     // H-Blank (Mode 0)
+    //     // This mode takes up the remainder of the scanline after the Drawing Mode finishes,
+    //     // more or less “padding” the duration of the scanline to a total of 456 T-Cycles.
+    //     // The PPU effectively pauses during this mode.
+    //     self.ppu.tick(&mut self.mmu); // "does a scanline"
+    //     self.cycles = self.cpu.current_cycles();
+    // }
+
     pub fn tick(&mut self) {
         loop {
             self.try_rhai_script();
             self.cpu.tick(&mut self.mmu);
 
-            // Each scanline takes exactly 456 dots, or 114 cycles.
-            // Mode 2 also takes a constant amount of time (20 cycles) HBlank's length varies wildly,
-            // and will often be nearly as long as or longer than the drawing phase.
-            if self.cpu.current_cycles() - self.cycles >= 114 {
+            if self.cpu.elapsed_cycles() >= 456 {
                 break;
             }
         }
 
+        // H-Blank (Mode 0)
+        // This mode takes up the remainder of the scanline after the Drawing Mode finishes,
+        // more or less “padding” the duration of the scanline to a total of 456 T-Cycles.
+        // The PPU effectively pauses during this mode.
         self.ppu.tick(&mut self.mmu); // "does a scanline"
-        self.cycles = self.cpu.current_cycles();
+        self.cpu.reset_cycles();
     }
 
-    pub fn ready_to_render(&self) -> bool {
+    pub fn ready_to_render(&mut self) -> bool {
         self.ppu.is_vblank(&self.mmu)
     }
 

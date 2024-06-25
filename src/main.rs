@@ -10,15 +10,16 @@ mod tests;
 mod video;
 
 use crate::gameboy::GameBoy;
-use crate::video::palette::Palette;
+use crate::lr35902::T_CYCLES_PER_SECOND;
+use crate::video::palette::{Color, Palette};
 use crate::video::ppu::{BACKGROUND_HEIGHT, BACKGROUND_WIDTH};
 use crate::video::tile::Tile;
 use crate::video::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use fern::Dispatch;
-use log::LevelFilter;
+use log::{debug, LevelFilter};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use sdl2::pixels::{Color, PixelFormatEnum};
+use sdl2::pixels::PixelFormatEnum;
 use sdl2::rect::Rect;
 use sdl2::render::{Canvas, Texture, TextureAccess};
 use sdl2::video::Window;
@@ -29,23 +30,8 @@ use tokio::sync::watch;
 
 #[tokio::main]
 async fn main() {
-    // Setup logger
-    const LOG_PATH: &str = "./external/ayyboy_trace.log";
-    std::fs::remove_file(LOG_PATH).unwrap_or_default();
-
-    let file = OpenOptions::new()
-        .write(true)
-        .append(false)
-        .create(true)
-        .open(LOG_PATH)
-        .unwrap();
-    let _dispatch = Dispatch::new()
-        .level(LevelFilter::Trace)
-        //.chain(file)
-        //.chain(std::io::stdout())
-        .format(move |out, message, record| out.finish(format_args!("[{}] {}", record.level(), message)))
-        .apply()
-        .unwrap();
+    #[cfg(debug_assertions)]
+    setup_logging();
 
     // Load the bootrom and cartridge, execute emulator
     let bootrom = include_bytes!("../external/roms/dmg_boot.bin").to_vec();
@@ -67,9 +53,9 @@ async fn main() {
     //let tilemap: Vec<Tile> = Vec::new();
     //let (tx, rx) = watch::channel(tilemap.clone());
 
-    let (tx, rx) = watch::channel([[Palette::default(); SCREEN_WIDTH]; SCREEN_HEIGHT]);
+    let (tx, mut rx) = watch::channel([[Palette::default(); SCREEN_WIDTH]; SCREEN_HEIGHT]);
 
-    tokio::spawn(async move {
+    std::thread::spawn(move || {
         let mut gb = GameBoy::new(bootrom, cartridge);
         // let mut gb = GameBoy::with_rhai(bootrom, vec![0u8; cartridge.len()], "external/drm_patch.rhai".into());
         // gb.install_breakpoints(vec![0xe9, 0xfa]);
@@ -89,8 +75,6 @@ async fn main() {
     //reset_tilemap_color(&mut tilemap_texture);
 
     'running: loop {
-        canvas.copy(&tilemap_texture, None, None).unwrap();
-
         for event in event_pump.poll_iter() {
             match event {
                 Event::Quit { .. }
@@ -102,13 +86,40 @@ async fn main() {
             }
         }
 
-        let tilemap = rx.borrow().clone();
-        //(&tilemap, 32, &mut tilemap_texture); // 16 for tilemap, 32 for backgroundmap
-        update_texture_ex(&tilemap, &mut tilemap_texture);
+        if let Ok(()) = rx.changed().await {
+            //(&tilemap, 32, &mut tilemap_texture); // 16 for tilemap, 32 for backgroundmap
+            update_texture_ex(&rx.borrow_and_update(), &mut tilemap_texture);
+            canvas.copy(&tilemap_texture, None, None).unwrap();
+        }
+
         canvas.present();
 
-        std::thread::sleep(Duration::new(0, 1_000_000_000 / 60));
+        //std::thread::sleep(Duration::new(0, 1_000_000_000 / 60));
     }
+
+    unsafe {
+        tilemap_texture.destroy();
+    }
+}
+
+fn setup_logging() {
+    // Setup logger
+    const LOG_PATH: &str = "./external/ayyboy_trace.log";
+    std::fs::remove_file(LOG_PATH).unwrap_or_default();
+
+    let file = OpenOptions::new()
+        .write(true)
+        .append(false)
+        .create(true)
+        .open(LOG_PATH)
+        .unwrap();
+    let _dispatch = Dispatch::new()
+        .level(LevelFilter::Trace)
+        .chain(file)
+        //.chain(std::io::stdout())
+        .format(move |out, message, record| out.finish(format_args!("[{}] {}", record.level(), message)))
+        .apply()
+        .unwrap();
 }
 
 fn setup_renderer() -> (Canvas<Window>, EventPump) {
@@ -129,13 +140,14 @@ fn setup_renderer() -> (Canvas<Window>, EventPump) {
 }
 
 fn reset_tilemap_color(tilemap_texture: &mut Texture) {
-    let white_rgb: Color = Palette::White.into();
+    let white_color: [u8; 3] = Palette::White.into();
+
     tilemap_texture
         .with_lock(None, |buffer: &mut [u8], pitch: usize| {
             for y in 0..BACKGROUND_HEIGHT {
                 for x in 0..BACKGROUND_WIDTH {
                     let offset = y * pitch + x * 3;
-                    buffer[offset..offset + 3].copy_from_slice(&[white_rgb.r, white_rgb.g, white_rgb.b]);
+                    buffer[offset..offset + 3].copy_from_slice(&white_color);
                 }
             }
         })
@@ -147,12 +159,11 @@ fn update_texture(tilemap: &Vec<Tile>, pitch: usize, tilemap_texture: &mut Textu
         for y in 0..8 {
             for x in 0..8 {
                 let color: Color = tile.pixels[y][x].into();
-                let rgb = [color.r, color.g, color.b];
 
                 let x = (x + (i % pitch) * 8) as i32;
                 let y = (y + (i / pitch) * 8) as i32;
 
-                tilemap_texture.update(Rect::new(x, y, 1, 1), &rgb, 3 * 8).unwrap();
+                tilemap_texture.update(Rect::new(x, y, 1, 1), &color, 3 * 8).unwrap();
             }
         }
     }
@@ -165,7 +176,7 @@ fn update_texture_ex(palette_data: &[[Palette; SCREEN_WIDTH]; SCREEN_HEIGHT], te
                 for x in 0..SCREEN_WIDTH {
                     let color: Color = palette_data[y][x].into();
                     let offset = y * pitch + x * 3;
-                    buffer[offset..offset + 3].copy_from_slice(&[color.r, color.g, color.b]);
+                    buffer[offset..offset + 3].copy_from_slice(&color);
                 }
             }
         })
