@@ -37,44 +37,29 @@ impl<'a> GameBoy<'a> {
         gb
     }
 
-    // pub fn tick(&mut self) {
-    //     loop {
-    //         self.try_rhai_script();
-    //         self.cpu.tick(&mut self.mmu);
-    //
-    //         if self.cpu.current_cycles() - self.cycles >= 456 {
-    //             break;
-    //         }
-    //     }
-    //
-    //     // H-Blank (Mode 0)
-    //     // This mode takes up the remainder of the scanline after the Drawing Mode finishes,
-    //     // more or less “padding” the duration of the scanline to a total of 456 T-Cycles.
-    //     // The PPU effectively pauses during this mode.
-    //     self.ppu.tick(&mut self.mmu); // "does a scanline"
-    //     self.cycles = self.cpu.current_cycles();
-    // }
-
-    pub fn tick(&mut self) {
+    pub fn run_frame(&mut self) {
         loop {
-            self.try_rhai_script();
-            self.cpu.tick(&mut self.mmu);
+            loop {
+                self.try_rhai_script();
+                self.cpu.tick(&mut self.mmu);
 
-            if self.cpu.elapsed_cycles() >= 456 {
+                if self.cpu.elapsed_cycles() >= 456 {
+                    break;
+                }
+            }
+
+            // H-Blank (Mode 0)
+            // This mode takes up the remainder of the scanline after the Drawing Mode finishes,
+            // more or less “padding” the duration of the scanline to a total of 456 T-Cycles.
+            // The PPU effectively pauses during this mode.
+            self.ppu.tick(&mut self.mmu); // "does a scanline"
+            self.cpu.reset_cycles();
+
+            // Do we have a frame to render?
+            if self.ppu.is_vblank(&self.mmu) {
                 break;
             }
         }
-
-        // H-Blank (Mode 0)
-        // This mode takes up the remainder of the scanline after the Drawing Mode finishes,
-        // more or less “padding” the duration of the scanline to a total of 456 T-Cycles.
-        // The PPU effectively pauses during this mode.
-        self.ppu.tick(&mut self.mmu); // "does a scanline"
-        self.cpu.reset_cycles();
-    }
-
-    pub fn ready_to_render(&mut self) -> bool {
-        self.ppu.is_vblank(&self.mmu)
     }
 
     pub fn render_tilemap(&mut self) -> Vec<Tile> {

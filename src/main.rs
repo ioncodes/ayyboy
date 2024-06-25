@@ -61,14 +61,8 @@ async fn main() {
         // gb.install_breakpoints(vec![0xe9, 0xfa]);
 
         loop {
-            gb.tick();
-
-            if gb.ready_to_render() {
-                // TODO: THis was render_tilemap
-                //tx.send(gb.render_tilemap()).unwrap();
-                //tx.send(gb.render_backgroundmap()).unwrap();
-                tx.send(gb.render_background()).unwrap();
-            }
+            gb.run_frame();
+            tx.send(gb.render_background()).unwrap();
         }
     });
 
