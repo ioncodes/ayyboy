@@ -2,9 +2,9 @@ use crate::error::AyyError;
 use crate::error::AyyError::{InvalidHandler, UnresolvedTarget};
 use crate::lr35902::cpu::{Cpu, Flags};
 use crate::lr35902::sm83::{AddressingMode, Condition, Instruction, Opcode, Operand, Register};
-use crate::memory::{INTERRUPT_ENABLE_REGISTER, INTERRUPT_FLAGS_REGISTER};
 use crate::memory::mmu::Mmu;
 use crate::memory::registers::{InterruptEnable, InterruptFlags};
+use crate::memory::{INTERRUPT_ENABLE_REGISTER, INTERRUPT_FLAGS_REGISTER};
 
 macro_rules! invalid_handler {
     ($instruction:expr) => {
@@ -360,6 +360,157 @@ impl Handlers {
             }
             _ => invalid_handler!(instruction),
         }
+    }
+
+    pub fn shift_left(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
+        ensure!(lhs => instruction);
+
+        match instruction {
+            Instruction {
+                opcode: Opcode::Sla,
+                lhs: Some(Operand::Reg8(reg, _)),
+                ..
+            } => {
+                let value = cpu.read_register(reg);
+                let result = value << 1;
+                cpu.write_register(reg, result);
+
+                cpu.update_flag(Flags::ZERO, result == 0);
+                cpu.update_flag(Flags::SUBTRACT, false);
+                cpu.update_flag(Flags::HALF_CARRY, false);
+                cpu.update_flag(Flags::CARRY, value & 0x80 != 0);
+
+                Ok(instruction.cycles.0)
+            }
+            Instruction {
+                opcode: Opcode::Sla,
+                lhs: Some(Operand::Reg16(Register::HL, AddressingMode::Indirect)),
+                ..
+            } => {
+                let addr = cpu.read_register16(&Register::HL);
+                let value = mmu.read(addr);
+                let result = value << 1;
+                mmu.write(addr, result);
+
+                cpu.update_flag(Flags::ZERO, result == 0);
+                cpu.update_flag(Flags::SUBTRACT, false);
+                cpu.update_flag(Flags::HALF_CARRY, false);
+                cpu.update_flag(Flags::CARRY, value & 0x80 != 0);
+
+                Ok(instruction.cycles.0)
+            }
+            _ => invalid_handler!(instruction),
+        }
+    }
+
+    pub fn shift_right(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
+        ensure!(lhs => instruction);
+
+        match instruction {
+            Instruction {
+                opcode: Opcode::Sra,
+                lhs: Some(Operand::Reg8(reg, _)),
+                ..
+            } => {
+                let value = cpu.read_register(reg);
+                let result = (value >> 1) | (value & 0x80);
+                cpu.write_register(reg, result);
+
+                cpu.update_flag(Flags::ZERO, result == 0);
+                cpu.update_flag(Flags::SUBTRACT, false);
+                cpu.update_flag(Flags::HALF_CARRY, false);
+                cpu.update_flag(Flags::CARRY, value & 0x01 != 0);
+
+                Ok(instruction.cycles.0)
+            }
+            Instruction {
+                opcode: Opcode::Sra,
+                lhs: Some(Operand::Reg16(Register::HL, AddressingMode::Indirect)),
+                ..
+            } => {
+                let addr = cpu.read_register16(&Register::HL);
+                let value = mmu.read(addr);
+                let result = (value >> 1) | (value & 0x80);
+                mmu.write(addr, result);
+
+                cpu.update_flag(Flags::ZERO, result == 0);
+                cpu.update_flag(Flags::SUBTRACT, false);
+                cpu.update_flag(Flags::HALF_CARRY, false);
+                cpu.update_flag(Flags::CARRY, value & 0x01 != 0);
+
+                Ok(instruction.cycles.0)
+            }
+            Instruction {
+                opcode: Opcode::Srl,
+                lhs: Some(Operand::Reg8(reg, _)),
+                ..
+            } => {
+                let value = cpu.read_register(reg);
+                let result = value >> 1;
+                cpu.write_register(reg, result);
+
+                cpu.update_flag(Flags::ZERO, result == 0);
+                cpu.update_flag(Flags::SUBTRACT, false);
+                cpu.update_flag(Flags::HALF_CARRY, false);
+                cpu.update_flag(Flags::CARRY, value & 0x01 != 0);
+
+                Ok(instruction.cycles.0)
+            }
+            Instruction {
+                opcode: Opcode::Srl,
+                lhs: Some(Operand::Reg16(Register::HL, AddressingMode::Indirect)),
+                ..
+            } => {
+                let addr = cpu.read_register16(&Register::HL);
+                let value = mmu.read(addr);
+                let result = value >> 1;
+                mmu.write(addr, result);
+
+                cpu.update_flag(Flags::ZERO, result == 0);
+                cpu.update_flag(Flags::SUBTRACT, false);
+                cpu.update_flag(Flags::HALF_CARRY, false);
+                cpu.update_flag(Flags::CARRY, value & 0x01 != 0);
+
+                Ok(instruction.cycles.0)
+            }
+            _ => invalid_handler!(instruction),
+        }
+    }
+
+    pub fn swap(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
+        ensure!(lhs => instruction);
+
+        let result = match instruction {
+            Instruction {
+                opcode: Opcode::Swap,
+                lhs: Some(Operand::Reg8(reg, _)),
+                ..
+            } => {
+                let value = cpu.read_register(reg);
+                let result = (value >> 4) | (value << 4);
+                cpu.write_register(reg, result);
+                result
+            }
+            Instruction {
+                opcode: Opcode::Swap,
+                lhs: Some(Operand::Reg16(Register::HL, AddressingMode::Indirect)),
+                ..
+            } => {
+                let addr = cpu.read_register16(&Register::HL);
+                let value = mmu.read(addr);
+                let result = (value >> 4) | (value << 4);
+                mmu.write(addr, result);
+                result
+            }
+            _ => return invalid_handler!(instruction),
+        };
+
+        cpu.update_flag(Flags::ZERO, result == 0);
+        cpu.update_flag(Flags::SUBTRACT, false);
+        cpu.update_flag(Flags::HALF_CARRY, false);
+        cpu.update_flag(Flags::CARRY, false);
+
+        Ok(instruction.cycles.0)
     }
 
     pub fn reset_bit(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {

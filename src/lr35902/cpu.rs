@@ -58,6 +58,9 @@ impl Cpu {
             Opcode::Bit => Handlers::test_bit(self, mmu, &instruction),
             Opcode::Rl | Opcode::Rla | Opcode::Rlc | Opcode::Rlca => Handlers::rotate_left(self, mmu, &instruction),
             Opcode::Rr | Opcode::Rra | Opcode::Rrc | Opcode::Rrca => Handlers::rotate_right(self, mmu, &instruction),
+            Opcode::Sla => Handlers::shift_left(self, mmu, &instruction),
+            Opcode::Sra | Opcode::Srl => Handlers::shift_right(self, mmu, &instruction),
+            Opcode::Swap => Handlers::swap(self, mmu, &instruction),
             Opcode::Res => Handlers::reset_bit(self, mmu, &instruction),
             Opcode::Set => Handlers::set_bit(self, mmu, &instruction),
             _ => {
