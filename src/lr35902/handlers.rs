@@ -211,25 +211,39 @@ impl Handlers {
     pub fn reset_bit(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         ensure!(lhs_rhs => instruction);
 
-        let register = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as u8;
-        let bit = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false)? as u8;
+        match instruction {
+            Instruction {
+                lhs: Some(Operand::Bit(bit)),
+                rhs: Some(Operand::Reg8(register, AddressingMode::Direct)),
+                ..
+            } => {
+                let value = cpu.read_register(register);
+                let result = value & !(1 << *bit);
+                cpu.write_register(register, result);
 
-        let result = register & !(1 << bit);
-        cpu.write_register(&Register::A, result);
-
-        Ok(instruction.cycles.0)
+                Ok(instruction.cycles.0)
+            }
+            _ => invalid_handler!(instruction),
+        }
     }
 
     pub fn set_bit(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         ensure!(lhs_rhs => instruction);
 
-        let register = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as u8;
-        let bit = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false)? as u8;
+        match instruction {
+            Instruction {
+                lhs: Some(Operand::Bit(bit)),
+                rhs: Some(Operand::Reg8(register, AddressingMode::Direct)),
+                ..
+            } => {
+                let value = cpu.read_register(register);
+                let result = value | (1 << *bit);
+                cpu.write_register(register, result);
 
-        let result = register | (1 << bit);
-        cpu.write_register(&Register::A, result);
-
-        Ok(instruction.cycles.0)
+                Ok(instruction.cycles.0)
+            }
+            _ => invalid_handler!(instruction),
+        }
     }
 
     pub fn compare(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {

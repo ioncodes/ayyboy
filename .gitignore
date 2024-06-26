@@ -1,3 +1,4 @@
 /target
 /.idea/*
 *trace*.log
+.DS_Store
