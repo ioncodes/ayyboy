@@ -45,6 +45,8 @@ impl Cpu {
             Opcode::Cp => Handlers::compare(self, mmu, &instruction),
             Opcode::Add => Handlers::add(self, mmu, &instruction),
             Opcode::Sub => Handlers::sub(self, mmu, &instruction),
+            Opcode::Adc => Handlers::add_with_carry(self, mmu, &instruction),
+            Opcode::Sbc => Handlers::sub_with_carry(self, mmu, &instruction),
             Opcode::Inc => Handlers::increment(self, mmu, &instruction),
             Opcode::Dec => Handlers::decrement(self, mmu, &instruction),
             Opcode::Xor => Handlers::xor(self, mmu, &instruction),
@@ -54,7 +56,8 @@ impl Cpu {
             Opcode::Jp | Opcode::Jr | Opcode::Call => Handlers::jump(self, mmu, &instruction),
             Opcode::Ret => Handlers::ret(self, mmu, &instruction),
             Opcode::Bit => Handlers::test_bit(self, mmu, &instruction),
-            Opcode::Rl | Opcode::Rla => Handlers::rotate_left(self, mmu, &instruction),
+            Opcode::Rl | Opcode::Rla | Opcode::Rlc | Opcode::Rlca => Handlers::rotate_left(self, mmu, &instruction),
+            Opcode::Rr | Opcode::Rra | Opcode::Rrc | Opcode::Rrca => Handlers::rotate_right(self, mmu, &instruction),
             Opcode::Res => Handlers::reset_bit(self, mmu, &instruction),
             Opcode::Set => Handlers::set_bit(self, mmu, &instruction),
             _ => {

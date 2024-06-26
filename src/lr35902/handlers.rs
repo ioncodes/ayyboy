@@ -3,6 +3,7 @@ use crate::error::AyyError::{InvalidHandler, UnresolvedTarget};
 use crate::lr35902::cpu::{Cpu, Flags};
 use crate::lr35902::sm83::{AddressingMode, Condition, Instruction, Opcode, Operand, Register};
 use crate::memory::mmu::Mmu;
+use crate::memory::registers::{InterruptEnable, InterruptFlags};
 use crate::memory::{INTERRUPT_ENABLE_REGISTER, INTERRUPT_FLAGS_REGISTER};
 
 macro_rules! invalid_handler {
@@ -185,6 +186,28 @@ impl Handlers {
         Ok(instruction.cycles.0)
     }
 
+    pub fn rotate_right(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
+        let (reg, is_rra) = if instruction.opcode == Opcode::Rra {
+            (&Register::A, true)
+        } else if let Some(Operand::Reg8(reg, _)) = instruction.lhs.as_ref() {
+            (reg, false)
+        } else {
+            return invalid_handler!(instruction);
+        };
+
+        let value = cpu.read_register(reg);
+        let carry = cpu.read_flag(Flags::CARRY) as u8;
+        let result = (value >> 1) | (carry << 7);
+        cpu.write_register(reg, result);
+
+        cpu.update_flag(Flags::ZERO, if !is_rra { result == 0 } else { false });
+        cpu.update_flag(Flags::SUBTRACT, false);
+        cpu.update_flag(Flags::HALF_CARRY, false);
+        cpu.update_flag(Flags::CARRY, value & 0x01 != 0);
+
+        Ok(instruction.cycles.0)
+    }
+
     pub fn reset_bit(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         ensure!(lhs_rhs => instruction);
 
@@ -244,10 +267,10 @@ impl Handlers {
         // interrupt vector (and clear the IF flag), while IME='0' will only make the CPU continue executing
         // instructions, but the jump won't be performed (and the IF flag won't be cleared).
 
-        let interrupt_enable = mmu.read(INTERRUPT_ENABLE_REGISTER);
-        let interrupt_flags = mmu.read(INTERRUPT_FLAGS_REGISTER);
+        let interrupt_enable = mmu.read_as::<InterruptEnable>(INTERRUPT_ENABLE_REGISTER);
+        let interrupt_flags = mmu.read_as::<InterruptFlags>(INTERRUPT_FLAGS_REGISTER);
 
-        if interrupt_enable & interrupt_flags == 0 {
+        if interrupt_enable.bits() & interrupt_flags.bits() == 0 {
             // We need to set the PC back to HALT to make sure we land here again
             let addr_of_halt = cpu.read_register16(&Register::PC).wrapping_sub(instruction.length as u16);
             cpu.write_register16(&Register::PC, addr_of_halt);
@@ -417,6 +440,42 @@ impl Handlers {
             }
             _ => return invalid_handler!(instruction),
         }
+
+        Ok(instruction.cycles.0)
+    }
+
+    pub fn add_with_carry(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
+        ensure!(lhs_rhs => instruction);
+
+        let x = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false)? as u8;
+        let y = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as u8;
+        let carry = cpu.read_flag(Flags::CARRY) as u8;
+
+        let result = x.wrapping_add(y).wrapping_add(carry);
+        cpu.write_register(&Register::A, result);
+
+        cpu.update_flag(Flags::ZERO, result == 0);
+        cpu.update_flag(Flags::SUBTRACT, false);
+        cpu.update_flag(Flags::HALF_CARRY, (x & 0x0f) + (y & 0x0f) + carry > 0x0f);
+        cpu.update_flag(Flags::CARRY, (x as u16) + (y as u16) + (carry as u16) > 0xff);
+
+        Ok(instruction.cycles.0)
+    }
+
+    pub fn sub_with_carry(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
+        ensure!(lhs_rhs => instruction);
+
+        let x = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false)? as u8;
+        let y = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as u8;
+        let carry = cpu.read_flag(Flags::CARRY) as u8;
+
+        let result = x.wrapping_sub(y).wrapping_sub(carry);
+        cpu.write_register(&Register::A, result);
+
+        cpu.update_flag(Flags::ZERO, result == 0);
+        cpu.update_flag(Flags::SUBTRACT, true);
+        cpu.update_flag(Flags::HALF_CARRY, (x & 0x0f) < (y & 0x0f) + carry);
+        cpu.update_flag(Flags::CARRY, (x as u16) < (y as u16) + (carry as u16));
 
         Ok(instruction.cycles.0)
     }

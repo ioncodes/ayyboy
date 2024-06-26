@@ -52,7 +52,10 @@ mod tests {
                 panic!("Failed to decode instruction");
             };
 
-            cpu.tick(&mut mmu);
+            match cpu.tick(&mut mmu) {
+                Ok(_) => {}
+                Err(e) => panic!("{}", e),
+            }
 
             assert_eq!(
                 cpu.read_register(&Register::A),

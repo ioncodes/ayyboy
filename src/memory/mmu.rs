@@ -1,5 +1,6 @@
 use crate::memory::mapper::rom::Rom;
 use crate::memory::mapper::Mapper;
+use bitflags::{Bits, Flags};
 
 // The last instruction unmaps the boot ROM. Execution continues normally,
 // thus entering cartridge entrypoint at $100
@@ -29,6 +30,13 @@ impl Mmu {
             0x0000..=0x7fff => self.cartridge.read(addr),
             _ => self.memory[addr as usize],
         }
+    }
+
+    pub fn read_as<T>(&self, addr: u16) -> T
+    where
+        T: From<u8>,
+    {
+        T::from(self.read(addr))
     }
 
     pub fn write(&mut self, addr: u16, data: u8) {
