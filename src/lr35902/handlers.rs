@@ -2,9 +2,9 @@ use crate::error::AyyError;
 use crate::error::AyyError::{InvalidHandler, UnresolvedTarget};
 use crate::lr35902::cpu::{Cpu, Flags};
 use crate::lr35902::sm83::{AddressingMode, Condition, Instruction, Opcode, Operand, Register};
+use crate::memory::{INTERRUPT_ENABLE_REGISTER, INTERRUPT_FLAGS_REGISTER};
 use crate::memory::mmu::Mmu;
 use crate::memory::registers::{InterruptEnable, InterruptFlags};
-use crate::memory::{INTERRUPT_ENABLE_REGISTER, INTERRUPT_FLAGS_REGISTER};
 
 macro_rules! invalid_handler {
     ($instruction:expr) => {
@@ -165,47 +165,201 @@ impl Handlers {
     }
 
     pub fn rotate_left(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
-        let (reg, is_rla) = if instruction.opcode == Opcode::Rla {
-            (&Register::A, true)
-        } else if let Some(Operand::Reg8(reg, _)) = instruction.lhs.as_ref() {
-            (reg, false)
-        } else {
-            return invalid_handler!(instruction);
-        };
+        match instruction {
+            Instruction {
+                opcode: Opcode::Rl,
+                lhs: Some(Operand::Reg8(reg, _)),
+                ..
+            } => {
+                let value = cpu.read_register(reg);
+                let carry = cpu.read_flag(Flags::CARRY) as u8;
+                let result = (value << 1) | carry;
+                cpu.write_register(reg, result);
 
-        let value = cpu.read_register(reg);
-        let carry = cpu.read_flag(Flags::CARRY) as u8;
-        let result = (value << 1) | carry;
-        cpu.write_register(reg, result);
+                cpu.update_flag(Flags::ZERO, result == 0);
+                cpu.update_flag(Flags::SUBTRACT, false);
+                cpu.update_flag(Flags::HALF_CARRY, false);
+                cpu.update_flag(Flags::CARRY, value & 0x80 != 0);
 
-        cpu.update_flag(Flags::ZERO, if !is_rla { result == 0 } else { false });
-        cpu.update_flag(Flags::SUBTRACT, false);
-        cpu.update_flag(Flags::HALF_CARRY, false);
-        cpu.update_flag(Flags::CARRY, value & 0x80 != 0);
+                Ok(instruction.cycles.0)
+            }
+            Instruction {
+                opcode: Opcode::Rl,
+                lhs: Some(Operand::Reg16(Register::HL, _)),
+                ..
+            } => {
+                let addr = cpu.read_register16(&Register::HL);
+                let value = mmu.read(addr);
+                let carry = cpu.read_flag(Flags::CARRY) as u8;
+                let result = (value << 1) | carry;
+                mmu.write(addr, result);
 
-        Ok(instruction.cycles.0)
+                cpu.update_flag(Flags::ZERO, result == 0);
+                cpu.update_flag(Flags::SUBTRACT, false);
+                cpu.update_flag(Flags::HALF_CARRY, false);
+                cpu.update_flag(Flags::CARRY, value & 0x80 != 0);
+
+                Ok(instruction.cycles.0)
+            }
+            Instruction { opcode: Opcode::Rla, .. } => {
+                let value = cpu.read_register(&Register::A);
+                let carry = cpu.read_flag(Flags::CARRY) as u8;
+                let result = (value << 1) | carry;
+                cpu.write_register(&Register::A, result);
+
+                cpu.update_flag(Flags::ZERO, result == 0);
+                cpu.update_flag(Flags::SUBTRACT, false);
+                cpu.update_flag(Flags::HALF_CARRY, false);
+                cpu.update_flag(Flags::CARRY, value & 0x80 != 0);
+
+                Ok(instruction.cycles.0)
+            }
+            Instruction {
+                opcode: Opcode::Rlc,
+                lhs: Some(Operand::Reg8(reg, _)),
+                ..
+            } => {
+                let value = cpu.read_register(reg);
+                let result = (value << 1) | (value >> 7);
+                cpu.write_register(reg, result);
+
+                cpu.update_flag(Flags::ZERO, result == 0);
+                cpu.update_flag(Flags::SUBTRACT, false);
+                cpu.update_flag(Flags::HALF_CARRY, false);
+                cpu.update_flag(Flags::CARRY, value & 0x80 != 0);
+
+                Ok(instruction.cycles.0)
+            }
+            Instruction {
+                opcode: Opcode::Rlc,
+                lhs: Some(Operand::Reg16(Register::HL, _)),
+                ..
+            } => {
+                let addr = cpu.read_register16(&Register::HL);
+                let value = mmu.read(addr);
+                let result = (value << 1) | (value >> 7);
+                mmu.write(addr, result);
+
+                cpu.update_flag(Flags::ZERO, result == 0);
+                cpu.update_flag(Flags::SUBTRACT, false);
+                cpu.update_flag(Flags::HALF_CARRY, false);
+                cpu.update_flag(Flags::CARRY, value & 0x80 != 0);
+
+                Ok(instruction.cycles.0)
+            }
+            Instruction { opcode: Opcode::Rlca, .. } => {
+                let value = cpu.read_register(&Register::A);
+                let result = (value << 1) | (value >> 7);
+                cpu.write_register(&Register::A, result);
+
+                cpu.update_flag(Flags::ZERO, result == 0);
+                cpu.update_flag(Flags::SUBTRACT, false);
+                cpu.update_flag(Flags::HALF_CARRY, false);
+                cpu.update_flag(Flags::CARRY, value & 0x80 != 0);
+
+                Ok(instruction.cycles.0)
+            }
+            _ => invalid_handler!(instruction),
+        }
     }
 
     pub fn rotate_right(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
-        let (reg, is_rra) = if instruction.opcode == Opcode::Rra {
-            (&Register::A, true)
-        } else if let Some(Operand::Reg8(reg, _)) = instruction.lhs.as_ref() {
-            (reg, false)
-        } else {
-            return invalid_handler!(instruction);
-        };
+        match instruction {
+            Instruction {
+                opcode: Opcode::Rr,
+                lhs: Some(Operand::Reg8(reg, _)),
+                ..
+            } => {
+                let value = cpu.read_register(reg);
+                let carry = cpu.read_flag(Flags::CARRY) as u8;
+                let result = (value >> 1) | (carry << 7);
+                cpu.write_register(reg, result);
 
-        let value = cpu.read_register(reg);
-        let carry = cpu.read_flag(Flags::CARRY) as u8;
-        let result = (value >> 1) | (carry << 7);
-        cpu.write_register(reg, result);
+                cpu.update_flag(Flags::ZERO, result == 0);
+                cpu.update_flag(Flags::SUBTRACT, false);
+                cpu.update_flag(Flags::HALF_CARRY, false);
+                cpu.update_flag(Flags::CARRY, value & 0x01 != 0);
 
-        cpu.update_flag(Flags::ZERO, if !is_rra { result == 0 } else { false });
-        cpu.update_flag(Flags::SUBTRACT, false);
-        cpu.update_flag(Flags::HALF_CARRY, false);
-        cpu.update_flag(Flags::CARRY, value & 0x01 != 0);
+                Ok(instruction.cycles.0)
+            }
+            Instruction {
+                opcode: Opcode::Rr,
+                lhs: Some(Operand::Reg16(Register::HL, _)),
+                ..
+            } => {
+                let addr = cpu.read_register16(&Register::HL);
+                let value = mmu.read(addr);
+                let carry = cpu.read_flag(Flags::CARRY) as u8;
+                let result = (value >> 1) | (carry << 7);
+                mmu.write(addr, result);
 
-        Ok(instruction.cycles.0)
+                cpu.update_flag(Flags::ZERO, result == 0);
+                cpu.update_flag(Flags::SUBTRACT, false);
+                cpu.update_flag(Flags::HALF_CARRY, false);
+                cpu.update_flag(Flags::CARRY, value & 0x01 != 0);
+
+                Ok(instruction.cycles.0)
+            }
+            Instruction { opcode: Opcode::Rra, .. } => {
+                let value = cpu.read_register(&Register::A);
+                let carry = cpu.read_flag(Flags::CARRY) as u8;
+                let result = (value >> 1) | (carry << 7);
+                cpu.write_register(&Register::A, result);
+
+                cpu.update_flag(Flags::ZERO, result == 0);
+                cpu.update_flag(Flags::SUBTRACT, false);
+                cpu.update_flag(Flags::HALF_CARRY, false);
+                cpu.update_flag(Flags::CARRY, value & 0x01 != 0);
+
+                Ok(instruction.cycles.0)
+            }
+            Instruction {
+                opcode: Opcode::Rrc,
+                lhs: Some(Operand::Reg8(reg, _)),
+                ..
+            } => {
+                let value = cpu.read_register(reg);
+                let result = (value >> 1) | (value << 7);
+                cpu.write_register(reg, result);
+
+                cpu.update_flag(Flags::ZERO, result == 0);
+                cpu.update_flag(Flags::SUBTRACT, false);
+                cpu.update_flag(Flags::HALF_CARRY, false);
+                cpu.update_flag(Flags::CARRY, value & 0x01 != 0);
+
+                Ok(instruction.cycles.0)
+            }
+            Instruction {
+                opcode: Opcode::Rrc,
+                lhs: Some(Operand::Reg16(Register::HL, _)),
+                ..
+            } => {
+                let addr = cpu.read_register16(&Register::HL);
+                let value = mmu.read(addr);
+                let result = (value >> 1) | (value << 7);
+                mmu.write(addr, result);
+
+                cpu.update_flag(Flags::ZERO, result == 0);
+                cpu.update_flag(Flags::SUBTRACT, false);
+                cpu.update_flag(Flags::HALF_CARRY, false);
+                cpu.update_flag(Flags::CARRY, value & 0x01 != 0);
+
+                Ok(instruction.cycles.0)
+            }
+            Instruction { opcode: Opcode::Rrca, .. } => {
+                let value = cpu.read_register(&Register::A);
+                let result = (value >> 1) | (value << 7);
+                cpu.write_register(&Register::A, result);
+
+                cpu.update_flag(Flags::ZERO, result == 0);
+                cpu.update_flag(Flags::SUBTRACT, false);
+                cpu.update_flag(Flags::HALF_CARRY, false);
+                cpu.update_flag(Flags::CARRY, value & 0x01 != 0);
+
+                Ok(instruction.cycles.0)
+            }
+            _ => invalid_handler!(instruction),
+        }
     }
 
     pub fn reset_bit(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
