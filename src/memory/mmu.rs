@@ -1,6 +1,5 @@
 use crate::memory::mapper::rom::Rom;
 use crate::memory::mapper::Mapper;
-use bitflags::{Bits, Flags};
 
 // The last instruction unmaps the boot ROM. Execution continues normally,
 // thus entering cartridge entrypoint at $100

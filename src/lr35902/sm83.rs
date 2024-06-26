@@ -158,16 +158,16 @@ impl Sm83 {
             let mut instruction = instruction.clone();
 
             instruction.lhs = match instruction.lhs {
-                Some(Operand::Imm8(_, mode)) => Some(Operand::Imm8(mmu.read(current_pc + 1), mode)),
+                Some(Operand::Imm8(_, mode)) => Some(Operand::Imm8(mmu.read(current_pc.wrapping_add(1)), mode)),
                 Some(Operand::Imm16(_, mode)) => Some(Operand::Imm16(mmu.read16(current_pc + 1), mode)),
-                Some(Operand::Offset(_)) => Some(Operand::Offset(mmu.read(current_pc + 1) as i8)),
+                Some(Operand::Offset(_)) => Some(Operand::Offset(mmu.read(current_pc.wrapping_add(1)) as i8)),
                 _ => instruction.lhs,
             };
 
             instruction.rhs = match instruction.rhs {
-                Some(Operand::Imm8(_, mode)) => Some(Operand::Imm8(mmu.read(current_pc + 1), mode)),
+                Some(Operand::Imm8(_, mode)) => Some(Operand::Imm8(mmu.read(current_pc.wrapping_add(1)), mode)),
                 Some(Operand::Imm16(_, mode)) => Some(Operand::Imm16(mmu.read16(current_pc + 1), mode)),
-                Some(Operand::Offset(_)) => Some(Operand::Offset(mmu.read(current_pc + 1) as i8)),
+                Some(Operand::Offset(_)) => Some(Operand::Offset(mmu.read(current_pc.wrapping_add(1)) as i8)),
                 _ => instruction.rhs,
             };
 
@@ -311,7 +311,7 @@ impl Sm83 {
         lut.push(define_decoder!("11100000", Opcode::Ldh, |mmu, pc, opcode| {
             Ok(Instruction {
                 opcode,
-                lhs: Some(Operand::Imm8(mmu.read(pc + 1), AddressingMode::Indirect)),
+                lhs: Some(Operand::Imm8(mmu.read(pc.wrapping_add(1)), AddressingMode::Indirect)),
                 rhs: Some(Operand::Reg8(Register::A, AddressingMode::Direct)),
                 length: 2,
                 cycles: (12, None),
@@ -323,7 +323,7 @@ impl Sm83 {
             Ok(Instruction {
                 opcode,
                 lhs: Some(Operand::Reg8(Register::A, AddressingMode::Direct)),
-                rhs: Some(Operand::Imm8(mmu.read(pc + 1), AddressingMode::Indirect)),
+                rhs: Some(Operand::Imm8(mmu.read(pc.wrapping_add(1)), AddressingMode::Indirect)),
                 length: 2,
                 cycles: (12, None),
             })
@@ -334,7 +334,7 @@ impl Sm83 {
             Ok(Instruction {
                 opcode,
                 lhs: Some(Operand::Reg8(Register::A, AddressingMode::Direct)),
-                rhs: Some(Operand::Imm8(mmu.read(pc + 1), AddressingMode::Direct)),
+                rhs: Some(Operand::Imm8(mmu.read(pc.wrapping_add(1)), AddressingMode::Direct)),
                 length: 2,
                 cycles: (8, None),
             })
@@ -454,7 +454,7 @@ impl Sm83 {
         lut.push(define_decoder!("00xxx000", Opcode::Jr, |mmu, pc, _| {
             let opcode_byte = mmu.read(pc);
             let condition = Sm83::lookup_condition_3bits((opcode_byte & 0b0011_1000) >> 3)?;
-            let offset = mmu.read(pc + 1) as i8;
+            let offset = mmu.read(pc.wrapping_add(1)) as i8;
             let cycles = if condition != Condition::None { (12, Some(8)) } else { (12, None) };
 
             Ok(Instruction {
@@ -552,7 +552,7 @@ impl Sm83 {
             Ok(Instruction {
                 opcode: Opcode::Ld,
                 lhs: Some(lhs),
-                rhs: Some(Operand::Imm8(mmu.read(pc + 1), AddressingMode::Direct)),
+                rhs: Some(Operand::Imm8(mmu.read(pc.wrapping_add(1)), AddressingMode::Direct)),
                 length: 2,
                 cycles: (cycles, None),
             })
@@ -867,7 +867,7 @@ impl Sm83 {
     fn propagate_decoders_prefixed(lut: &mut Vec<(String, Opcode, FDecode)>) {
         // rlc r8 / rlc (HL)
         lut.push(define_decoder!("00000xxx", Opcode::Rlc, |mmu, pc, opcode| {
-            let opcode_byte = mmu.read(pc + 1);
+            let opcode_byte = mmu.read(pc.wrapping_add(1));
             let source = opcode_byte & 0b0000_0111;
             let (rhs, cycles) = Sm83::decode_8bit_operand(source, 8, 16)?;
 
@@ -882,7 +882,7 @@ impl Sm83 {
 
         // rrc r8 / rrc (HL)
         lut.push(define_decoder!("00001xxx", Opcode::Rrc, |mmu, pc, opcode| {
-            let opcode_byte = mmu.read(pc + 1);
+            let opcode_byte = mmu.read(pc.wrapping_add(1));
             let source = opcode_byte & 0b0000_0111;
             let (rhs, cycles) = Sm83::decode_8bit_operand(source, 8, 16)?;
 
@@ -897,7 +897,7 @@ impl Sm83 {
 
         // rl r8 / rl (HL)
         lut.push(define_decoder!("00010xxx", Opcode::Rl, |mmu, pc, opcode| {
-            let opcode_byte = mmu.read(pc + 1);
+            let opcode_byte = mmu.read(pc.wrapping_add(1));
             let source = opcode_byte & 0b0000_0111;
             let (rhs, cycles) = Sm83::decode_8bit_operand(source, 8, 16)?;
 
@@ -912,7 +912,7 @@ impl Sm83 {
 
         // rr r8 / rr (HL)
         lut.push(define_decoder!("00011xxx", Opcode::Rr, |mmu, pc, opcode| {
-            let opcode_byte = mmu.read(pc + 1);
+            let opcode_byte = mmu.read(pc.wrapping_add(1));
             let source = opcode_byte & 0b0000_0111;
             let (rhs, cycles) = Sm83::decode_8bit_operand(source, 8, 16)?;
 
@@ -927,7 +927,7 @@ impl Sm83 {
 
         // sla r8 / sla (HL)
         lut.push(define_decoder!("00100xxx", Opcode::Sla, |mmu, pc, opcode| {
-            let opcode_byte = mmu.read(pc + 1);
+            let opcode_byte = mmu.read(pc.wrapping_add(1));
             let source = opcode_byte & 0b0000_0111;
             let (rhs, cycles) = Sm83::decode_8bit_operand(source, 8, 16)?;
 
@@ -942,7 +942,7 @@ impl Sm83 {
 
         // sra r8 / sra (HL)
         lut.push(define_decoder!("00101xxx", Opcode::Sra, |mmu, pc, opcode| {
-            let opcode_byte = mmu.read(pc + 1);
+            let opcode_byte = mmu.read(pc.wrapping_add(1));
             let source = opcode_byte & 0b0000_0111;
             let (rhs, cycles) = Sm83::decode_8bit_operand(source, 8, 16)?;
 
@@ -957,7 +957,7 @@ impl Sm83 {
 
         // swap r8 / swap (HL)
         lut.push(define_decoder!("00110xxx", Opcode::Swap, |mmu, pc, opcode| {
-            let opcode_byte = mmu.read(pc + 1);
+            let opcode_byte = mmu.read(pc.wrapping_add(1));
             let source = opcode_byte & 0b0000_0111;
             let (rhs, cycles) = Sm83::decode_8bit_operand(source, 8, 16)?;
 
@@ -972,7 +972,7 @@ impl Sm83 {
 
         // srl r8 / srl (HL)
         lut.push(define_decoder!("00111xxx", Opcode::Srl, |mmu, pc, opcode| {
-            let opcode_byte = mmu.read(pc + 1);
+            let opcode_byte = mmu.read(pc.wrapping_add(1));
             let source = opcode_byte & 0b0000_0111;
             let (rhs, cycles) = Sm83::decode_8bit_operand(source, 8, 16)?;
 
@@ -987,7 +987,7 @@ impl Sm83 {
 
         // bit n, r8 / bit n, (HL)
         lut.push(define_decoder!("01xxxxxx", Opcode::Bit, |mmu, pc, opcode| {
-            let opcode_byte = mmu.read(pc + 1);
+            let opcode_byte = mmu.read(pc.wrapping_add(1));
             let bit = (opcode_byte & 0b0011_1000) >> 3;
             let source = opcode_byte & 0b0000_0111;
             let (rhs, cycles) = Sm83::decode_8bit_operand(source, 8, 12)?;
@@ -1003,7 +1003,7 @@ impl Sm83 {
 
         // res n, r8 / res n, (HL)
         lut.push(define_decoder!("10xxxxxx", Opcode::Res, |mmu, pc, opcode| {
-            let opcode_byte = mmu.read(pc + 1);
+            let opcode_byte = mmu.read(pc.wrapping_add(1));
             let bit = (opcode_byte & 0b0011_1000) >> 3;
             let source = opcode_byte & 0b0000_0111;
             let (rhs, cycles) = Sm83::decode_8bit_operand(source, 8, 16)?;
@@ -1019,7 +1019,7 @@ impl Sm83 {
 
         // set n, r8 / set n, (HL)
         lut.push(define_decoder!("11xxxxxx", Opcode::Set, |mmu, pc, opcode| {
-            let opcode_byte = mmu.read(pc + 1);
+            let opcode_byte = mmu.read(pc.wrapping_add(1));
             let bit = (opcode_byte & 0b0011_1000) >> 3;
             let source = opcode_byte & 0b0000_0111;
             let (rhs, cycles) = Sm83::decode_8bit_operand(source, 8, 16)?;
