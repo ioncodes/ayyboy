@@ -223,6 +223,18 @@ impl Handlers {
 
                 Ok(instruction.cycles.0)
             }
+            Instruction {
+                lhs: Some(Operand::Bit(bit)),
+                rhs: Some(Operand::Reg16(register, AddressingMode::Indirect)),
+                ..
+            } => {
+                let addr = cpu.read_register16(register);
+                let value = mmu.read(addr);
+                let result = value & !(1 << *bit);
+                mmu.write(addr, result);
+
+                Ok(instruction.cycles.0)
+            }
             _ => invalid_handler!(instruction),
         }
     }
@@ -239,6 +251,18 @@ impl Handlers {
                 let value = cpu.read_register(register);
                 let result = value | (1 << *bit);
                 cpu.write_register(register, result);
+
+                Ok(instruction.cycles.0)
+            }
+            Instruction {
+                lhs: Some(Operand::Bit(bit)),
+                rhs: Some(Operand::Reg16(register, AddressingMode::Indirect)),
+                ..
+            } => {
+                let addr = cpu.read_register16(register);
+                let value = mmu.read(addr);
+                let result = value | (1 << *bit);
+                mmu.write(addr, result);
 
                 Ok(instruction.cycles.0)
             }

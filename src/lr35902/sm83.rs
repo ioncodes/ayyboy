@@ -149,7 +149,7 @@ impl Sm83 {
         let mut prefix = false;
 
         if opcode_byte == 0xcb {
-            opcode_byte = mmu.read(current_pc + 1);
+            opcode_byte = mmu.read(current_pc.wrapping_add(1));
             prefix = true;
         }
 
@@ -474,7 +474,7 @@ impl Sm83 {
             Ok(Instruction {
                 opcode: Opcode::Ld,
                 lhs: Some(Operand::Reg16(Sm83::lookup_register_16(destination)?, AddressingMode::Direct)),
-                rhs: Some(Operand::Imm16(mmu.read16(pc + 1), AddressingMode::Direct)),
+                rhs: Some(Operand::Imm16(mmu.read16(pc.wrapping_add(1)), AddressingMode::Direct)),
                 length: 3,
                 cycles: (12, None),
             })

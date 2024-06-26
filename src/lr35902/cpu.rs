@@ -34,7 +34,7 @@ impl Cpu {
             mmu.read(self.registers.sp)
         );
 
-        self.registers.pc += instruction.length as u16;
+        self.registers.pc = self.registers.pc.wrapping_add(instruction.length as u16);
 
         let cycles = match instruction.opcode {
             Opcode::Ld | Opcode::Ldh => Handlers::load(self, mmu, &instruction),
