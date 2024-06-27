@@ -825,9 +825,9 @@ impl Handlers {
 
     pub fn handle_interrupt(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         if instruction.opcode == Opcode::Ei {
-            cpu.enable_interrupts();
+            cpu.enable_vector_irq();
         } else {
-            cpu.disable_interrupts();
+            cpu.disable_vector_irq();
         }
 
         Ok(instruction.cycles.0)

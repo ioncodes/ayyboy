@@ -37,6 +37,11 @@ mod tests {
             cpu.write_register(&Register::L, initial.get("l").unwrap().as_u64().unwrap() as u8);
             cpu.write_register16(&Register::SP, initial.get("sp").unwrap().as_u64().unwrap() as u16);
             cpu.write_register16(&Register::PC, initial.get("pc").unwrap().as_u64().unwrap() as u16);
+            if initial.get("ime").unwrap().as_u64().unwrap() == 1 {
+                cpu.enable_vector_irq();
+            } else {
+                cpu.disable_vector_irq();
+            }
 
             let ram = initial.get("ram").unwrap().as_array().unwrap();
             for value in ram {
@@ -115,6 +120,12 @@ mod tests {
                 cpu.read_register16(&Register::PC),
                 final_state.get("pc").unwrap().as_u64().unwrap() as u16,
                 "Comparison with register PC failed for {}",
+                name
+            );
+            assert_eq!(
+                cpu.interrupt_master(),
+                final_state.get("ime").unwrap().as_u64().unwrap() == 1,
+                "Comparison with IME failed for {}",
                 name
             );
 

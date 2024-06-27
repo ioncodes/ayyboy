@@ -10,7 +10,7 @@ pub struct Cpu {
     sm83: Sm83,
     registers: Registers,
     cycles: usize,
-    ime: bool,
+    ime: Ime,
 }
 
 impl Cpu {
@@ -19,11 +19,21 @@ impl Cpu {
             sm83: Sm83::new(),
             registers: Registers::default(),
             cycles: 0,
-            ime: false,
+            ime: Ime {
+                enabled: false,
+                enable_pending: false,
+            },
         }
     }
 
     pub fn tick(&mut self, mmu: &mut Mmu) -> Result<(), AyyError> {
+        // "EI instruction enables IME the following cycle to its execution."
+        //   - TCAGBD.pdf, chapter 3.3
+        if self.ime.enable_pending {
+            self.ime.enabled = true;
+            self.ime.enable_pending = false;
+        }
+
         let instruction = self.sm83.decode(mmu, self.registers.pc)?;
 
         trace!(
@@ -176,12 +186,16 @@ impl Cpu {
         value
     }
 
-    pub fn enable_interrupts(&mut self) {
-        self.ime = true;
+    pub fn enable_vector_irq(&mut self) {
+        self.ime.enable_pending = true;
     }
 
-    pub fn disable_interrupts(&mut self) {
-        self.ime = false;
+    pub fn disable_vector_irq(&mut self) {
+        self.ime.enabled = false;
+    }
+
+    pub fn interrupt_master(&self) -> bool {
+        self.ime.enabled
     }
 
     pub fn elapsed_cycles(&self) -> usize {
@@ -210,6 +224,12 @@ impl std::fmt::Display for Cpu {
             self.registers.pc
         )
     }
+}
+
+#[derive(Clone)]
+pub struct Ime {
+    pub enabled: bool,
+    pub enable_pending: bool,
 }
 
 bitflags! {
