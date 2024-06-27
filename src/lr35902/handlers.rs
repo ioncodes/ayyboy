@@ -848,6 +848,7 @@ impl Handlers {
                 Ok(mmu.read(0xff00 + addr as u16) as usize)
             }
             Operand::Imm16(imm, mode) if mode.contains(AddressingMode::Direct) => Ok(*imm as usize),
+            Operand::Imm16(imm, mode) if mode.contains(AddressingMode::Indirect) => Ok(mmu.read16(*imm) as usize),
             Operand::Imm8(imm, mode) if mode.contains(AddressingMode::Direct) => Ok(*imm as usize),
             Operand::Imm8(imm, mode) if mode.contains(AddressingMode::Indirect) && is_ldh => {
                 // ldh a, (imm)
