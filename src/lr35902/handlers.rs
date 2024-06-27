@@ -207,7 +207,7 @@ impl Handlers {
                 let result = (value << 1) | carry;
                 cpu.write_register(&Register::A, result);
 
-                cpu.update_flag(Flags::ZERO, result == 0);
+                cpu.update_flag(Flags::ZERO, false);
                 cpu.update_flag(Flags::SUBTRACT, false);
                 cpu.update_flag(Flags::HALF_CARRY, false);
                 cpu.update_flag(Flags::CARRY, value & 0x80 != 0);
@@ -252,7 +252,7 @@ impl Handlers {
                 let result = (value << 1) | (value >> 7);
                 cpu.write_register(&Register::A, result);
 
-                cpu.update_flag(Flags::ZERO, result == 0);
+                cpu.update_flag(Flags::ZERO, false);
                 cpu.update_flag(Flags::SUBTRACT, false);
                 cpu.update_flag(Flags::HALF_CARRY, false);
                 cpu.update_flag(Flags::CARRY, value & 0x80 != 0);
@@ -306,7 +306,7 @@ impl Handlers {
                 let result = (value >> 1) | (carry << 7);
                 cpu.write_register(&Register::A, result);
 
-                cpu.update_flag(Flags::ZERO, result == 0);
+                cpu.update_flag(Flags::ZERO, false);
                 cpu.update_flag(Flags::SUBTRACT, false);
                 cpu.update_flag(Flags::HALF_CARRY, false);
                 cpu.update_flag(Flags::CARRY, value & 0x01 != 0);
@@ -351,7 +351,7 @@ impl Handlers {
                 let result = (value >> 1) | (value << 7);
                 cpu.write_register(&Register::A, result);
 
-                cpu.update_flag(Flags::ZERO, result == 0);
+                cpu.update_flag(Flags::ZERO, false);
                 cpu.update_flag(Flags::SUBTRACT, false);
                 cpu.update_flag(Flags::HALF_CARRY, false);
                 cpu.update_flag(Flags::CARRY, value & 0x01 != 0);
