@@ -1,4 +1,6 @@
 use crate::memory::mmu::Mmu;
+use crate::memory::registers::InterruptFlags;
+use crate::memory::INTERRUPT_FLAGS_REGISTER;
 use crate::video::palette::Palette;
 use crate::video::tile::Tile;
 use crate::video::{SCREEN_HEIGHT, SCREEN_WIDTH};
@@ -27,18 +29,28 @@ impl Ppu {
         Ppu {}
     }
 
-    pub fn tick(&mut self, mmu: &mut Mmu) -> bool {
+    pub fn tick(&mut self, mmu: &mut Mmu) {
         let scanline = mmu.read(SCANLINE_Y_REGISTER);
         let scanline = scanline.wrapping_add(1);
         if scanline >= 154 {
             mmu.write(SCANLINE_Y_REGISTER, 0);
-            true
         } else {
             mmu.write(SCANLINE_Y_REGISTER, scanline);
-            false
         }
 
-        //mmu.write(SCANLINE_Y_REGISTER, 0x90); // stub for trace
+        let mut interrupt_flags = mmu.read_as::<InterruptFlags>(INTERRUPT_FLAGS_REGISTER);
+
+        // Raise vblank IRQ
+        if scanline >= 144 {
+            interrupt_flags |= InterruptFlags::VBLANK;
+        }
+
+        let lyc = mmu.read(SCANLINE_Y_COMPARE_REGISTER);
+        if scanline == lyc {
+            interrupt_flags |= InterruptFlags::LCD_STAT;
+        }
+
+        mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits());
     }
 
     pub fn render_tilemap(&mut self, mmu: &Mmu) -> Vec<Tile> {

@@ -2,6 +2,8 @@ use crate::error::AyyError;
 use crate::lr35902::handlers::Handlers;
 use crate::lr35902::sm83::{Opcode, Register, Sm83};
 use crate::memory::mmu::Mmu;
+use crate::memory::registers::{InterruptEnable, InterruptFlags};
+use crate::memory::{INTERRUPT_ENABLE_REGISTER, INTERRUPT_FLAGS_REGISTER};
 use bitflags::bitflags;
 use log::trace;
 
@@ -11,6 +13,7 @@ pub struct Cpu {
     registers: Registers,
     cycles: usize,
     ime: Ime,
+    pub halted: bool,
 }
 
 impl Cpu {
@@ -23,15 +26,16 @@ impl Cpu {
                 enabled: false,
                 enable_pending: false,
             },
+            halted: false,
         }
     }
 
     pub fn tick(&mut self, mmu: &mut Mmu) -> Result<(), AyyError> {
-        // "EI instruction enables IME the following cycle to its execution."
-        //   - TCAGBD.pdf, chapter 3.3
-        if self.ime.enable_pending {
-            self.ime.enabled = true;
-            self.ime.enable_pending = false;
+        self.handle_interrupts(mmu)?;
+
+        if self.halted {
+            self.cycles += 4;
+            return Ok(());
         }
 
         let instruction = self.sm83.decode(mmu, self.registers.pc)?;
@@ -194,7 +198,7 @@ impl Cpu {
         self.ime.enabled = false;
     }
 
-    pub fn interrupt_master(&self) -> bool {
+    pub fn interrupt_master_raised(&self) -> bool {
         self.ime.enabled
     }
 
@@ -204,6 +208,44 @@ impl Cpu {
 
     pub fn reset_cycles(&mut self) {
         self.cycles = 0;
+    }
+
+    fn handle_interrupts(&mut self, mmu: &mut Mmu) -> Result<(), AyyError> {
+        // "EI instruction enables IME the following cycle to its execution."
+        //   - TCAGBD.pdf, chapter 3.3
+        if self.ime.enable_pending {
+            self.ime.enabled = true;
+            self.ime.enable_pending = false;
+        }
+
+        let interrupt_enable = mmu.read_as::<InterruptEnable>(INTERRUPT_ENABLE_REGISTER);
+        let interrupt_flags = mmu.read_as::<InterruptFlags>(INTERRUPT_FLAGS_REGISTER);
+
+        if self.ime.enabled && interrupt_enable.bits() & interrupt_flags.bits() != 0 {
+            // handle vector
+            self.push_stack(mmu, self.registers.pc);
+            self.registers.pc = self.resolve_irq_to_vector(&interrupt_flags)?;
+        }
+
+        Ok(())
+    }
+
+    fn resolve_irq_to_vector(&self, interrupt_flags: &InterruptFlags) -> Result<u16, AyyError> {
+        if interrupt_flags.contains(InterruptFlags::VBLANK) {
+            Ok(0x0040)
+        } else if interrupt_flags.contains(InterruptFlags::LCD_STAT) {
+            Ok(0x0048)
+        } else if interrupt_flags.contains(InterruptFlags::TIMER) {
+            Ok(0x0050)
+        } else if interrupt_flags.contains(InterruptFlags::SERIAL) {
+            Ok(0x0058)
+        } else if interrupt_flags.contains(InterruptFlags::JOYPAD) {
+            Ok(0x0060)
+        } else {
+            Err(AyyError::UnknownIrqVector {
+                vector: interrupt_flags.bits(),
+            })
+        }
     }
 }
 

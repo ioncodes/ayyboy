@@ -15,4 +15,6 @@ pub enum AyyError {
     InvalidHandler { instruction: Instruction },
     #[snafu(display("Unresolved target: {:?}", target))]
     UnresolvedTarget { target: Operand },
+    #[snafu(display("Unknown interrupt vector: {:08b}", vector))]
+    UnknownIrqVector { vector: u8 },
 }

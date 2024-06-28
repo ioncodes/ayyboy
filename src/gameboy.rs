@@ -3,7 +3,7 @@ use crate::lr35902::sm83::Register;
 use crate::memory::mmu::Mmu;
 use crate::rhai_engine::RhaiEngine;
 use crate::video::palette::Palette;
-use crate::video::ppu::Ppu;
+use crate::video::ppu::{Ppu, SCANLINE_Y_REGISTER};
 use crate::video::tile::Tile;
 use crate::video::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use std::path::PathBuf;
@@ -55,11 +55,12 @@ impl<'a> GameBoy<'a> {
             // This mode takes up the remainder of the scanline after the Drawing Mode finishes,
             // more or less “padding” the duration of the scanline to a total of 456 T-Cycles.
             // The PPU effectively pauses during this mode.
-            let ly_reset = self.ppu.tick(&mut self.mmu); // "does a scanline"
+            self.ppu.tick(&mut self.mmu); // "does a scanline"
+            let vblank_done = self.mmu.read(SCANLINE_Y_REGISTER);
             self.cpu.reset_cycles();
 
             // Do we have a frame to render?
-            if ly_reset {
+            if vblank_done == 0 {
                 break;
             }
         }

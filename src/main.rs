@@ -36,7 +36,7 @@ fn main() {
         }
 
         gb.run_frame();
-        renderer.update_texture(&gb.render_background());
+        //renderer.update_texture(&gb.render_background());
         renderer.render();
 
         let frame_duration = throttle_timer.elapsed();

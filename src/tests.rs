@@ -123,7 +123,7 @@ mod tests {
                 name
             );
             assert_eq!(
-                cpu.interrupt_master(),
+                cpu.interrupt_master_raised(),
                 final_state.get("ime").unwrap().as_u64().unwrap() == 1,
                 "Comparison with IME failed for {}",
                 name

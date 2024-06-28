@@ -613,11 +613,13 @@ impl Handlers {
         let interrupt_enable = mmu.read_as::<InterruptEnable>(INTERRUPT_ENABLE_REGISTER);
         let interrupt_flags = mmu.read_as::<InterruptFlags>(INTERRUPT_FLAGS_REGISTER);
 
-        if interrupt_enable.bits() & interrupt_flags.bits() == 0 {
-            // We need to set the PC back to HALT to make sure we land here again
-            let addr_of_halt = cpu.read_register16(&Register::PC).wrapping_sub(instruction.length as u16);
-            cpu.write_register16(&Register::PC, addr_of_halt);
+        if !cpu.interrupt_master_raised() && (interrupt_enable.bits() & interrupt_flags.bits() == 0) {
+            return Ok(instruction.cycles.0);
         }
+
+        // We need to set the PC back to HALT to make sure we land here again or
+        // the CPU jumps into a interrupt vector
+        cpu.halted = true;
 
         Ok(instruction.cycles.0)
     }
