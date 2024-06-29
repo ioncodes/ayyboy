@@ -41,12 +41,22 @@ impl Cpu {
         let instruction = self.sm83.decode(mmu, self.registers.pc)?;
 
         trace!(
-            "[{:04x}] {:<20} [{}  (SP): ${:02x}]",
+            "[{:04x}] {:<20} [{}  (SP): ${:02x}  IME: {}]",
             self.registers.pc,
             format!("{}", instruction),
             self,
-            mmu.read(self.registers.sp)
+            mmu.read(self.registers.sp),
+            self.ime.enabled
         );
+
+        if self.registers.pc == 0x69d3 && instruction.opcode == Opcode::Jp {
+            println!(
+                "Reached breakpoint at ${:04x} {:?} {:02x}",
+                self.registers.pc,
+                instruction,
+                mmu.read(self.registers.pc)
+            );
+        }
 
         self.registers.pc = self.registers.pc.wrapping_add(instruction.length as u16);
 

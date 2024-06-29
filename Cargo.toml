@@ -7,13 +7,6 @@ edition = "2021"
 debug = true
 strip = false
 
-[profile.dev]
-opt-level = 3
-debug = true
-strip = false
-overflow-checks = true
-debug-assertions = true
-
 [dependencies]
 bitflags = "2.5.0"
 datatest = "0.8.0"

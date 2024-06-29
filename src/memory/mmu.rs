@@ -38,6 +38,10 @@ impl Mmu {
     }
 
     pub fn write(&mut self, addr: u16, data: u8) {
+        if addr == 0x69d3 && data == 0xd3 {
+            println!("Writing to 0x69d3: {:02x}", data);
+        }
+
         match addr {
             0x0000..=BOOTROM_SIZE if self.is_bootrom_mapped() => self.bootrom[addr as usize] = data,
             0x0000..=0x7fff => self.cartridge.write(addr, data),

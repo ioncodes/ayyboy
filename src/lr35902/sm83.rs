@@ -162,6 +162,9 @@ impl Sm83 {
                 Some(Operand::Imm8(_, mode)) => Some(Operand::Imm8(mmu.read(current_pc.wrapping_add(1)), mode)),
                 Some(Operand::Imm16(_, mode)) => Some(Operand::Imm16(mmu.read16(current_pc + 1), mode)),
                 Some(Operand::Offset(_)) => Some(Operand::Offset(mmu.read(current_pc.wrapping_add(1)) as i8)),
+                Some(Operand::DisplacedReg16(reg, _, mode)) => {
+                    Some(Operand::DisplacedReg16(reg, mmu.read(current_pc.wrapping_add(1)) as i8, mode))
+                }
                 _ => instruction.lhs,
             };
 
@@ -169,6 +172,9 @@ impl Sm83 {
                 Some(Operand::Imm8(_, mode)) => Some(Operand::Imm8(mmu.read(current_pc.wrapping_add(1)), mode)),
                 Some(Operand::Imm16(_, mode)) => Some(Operand::Imm16(mmu.read16(current_pc + 1), mode)),
                 Some(Operand::Offset(_)) => Some(Operand::Offset(mmu.read(current_pc.wrapping_add(1)) as i8)),
+                Some(Operand::DisplacedReg16(reg, _, mode)) => {
+                    Some(Operand::DisplacedReg16(reg, mmu.read(current_pc.wrapping_add(1)) as i8, mode))
+                }
                 _ => instruction.rhs,
             };
 
