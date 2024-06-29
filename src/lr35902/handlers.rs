@@ -45,48 +45,108 @@ impl Handlers {
         let src = instruction.rhs.as_ref().unwrap();
         let src = Handlers::resolve_operand(cpu, mmu, src, is_ldh_instruction)?;
 
-        match instruction.lhs.as_ref().unwrap() {
-            Operand::Reg8(reg, mode) => {
-                if mode.contains(AddressingMode::Indirect) {
-                    // ld (c), a
-                    let addr = cpu.read_register(reg);
-                    mmu.write(0xff00 + addr as u16, src as u8);
+        match instruction {
+            Instruction {
+                opcode: Opcode::Ld,
+                lhs: Some(Operand::Reg16(reg, _)),
+                rhs: Some(Operand::DisplacedReg16(Register::SP, offset, _)),
+                ..
+            } => {
+                let sp = cpu.read_register16(&Register::SP);
+                let addr = sp.wrapping_add_signed(*offset as i16);
+                cpu.write_register16(reg, addr);
+
+                let imm_signed = *offset as i16;
+                let effective_address = (addr as i32).wrapping_add(imm_signed as i32) as u16;
+                let sp_low = sp as u8;
+                let imm_low = *offset as u8;
+
+                cpu.update_flag(Flags::ZERO, false);
+                cpu.update_flag(Flags::SUBTRACT, false);
+                cpu.update_flag(Flags::HALF_CARRY, (sp_low & 0x0f) + (imm_low & 0x0f) > 0x0f);
+                cpu.update_flag(Flags::CARRY, (sp_low as u16) + (imm_low as u16) > 0xff);
+            }
+            Instruction {
+                opcode: Opcode::Ld,
+                lhs: Some(Operand::Reg8(reg, mode)),
+                ..
+            } => {
+                if !mode.contains(AddressingMode::Indirect) {
+                    cpu.write_register(reg, src as u8);
                 } else {
-                    cpu.write_register(&reg, src as u8);
+                    let addr = 0xff00 + cpu.read_register(reg) as u16;
+                    mmu.write(addr as u16, src as u8);
                 }
             }
-            Operand::Reg16(reg, mode) => {
-                if mode.contains(AddressingMode::Indirect) {
-                    let addr = cpu.read_register16(&reg);
-                    Handlers::process_additional_address_mode(cpu, reg, addr, mode);
-                    mmu.write(addr, src as u8);
-                } else {
-                    cpu.write_register16(&reg, src as u16);
-
-                    match instruction.rhs.as_ref().unwrap() {
-                        Operand::DisplacedReg16(Register::SP, imm, _) => {
-                            let imm_signed = *imm as i16;
-                            let sp = cpu.read_register16(&Register::SP);
-                            let effective_address = (sp as i32).wrapping_add(imm_signed as i32) as u16;
-                            let sp_low = sp as u8;
-                            let imm_low = *imm as u8;
-
-                            cpu.update_flag(Flags::ZERO, false);
-                            cpu.update_flag(Flags::SUBTRACT, false);
-                            cpu.update_flag(Flags::HALF_CARRY, (sp_low & 0x0f) + (imm_low & 0x0f) > 0x0f);
-                            cpu.update_flag(Flags::CARRY, (sp_low as u16) + (imm_low as u16) > 0xff);
-                        }
-                        _ => {}
-                    }
-                }
+            Instruction {
+                opcode: Opcode::Ld,
+                lhs: Some(Operand::Reg16(Register::HL, mode)),
+                ..
+            } if mode.contains(AddressingMode::Increment) => {
+                let addr = cpu.read_register16(&Register::HL);
+                mmu.write(addr, src as u8);
+                cpu.write_register16(&Register::HL, addr.wrapping_add(1));
             }
-            Operand::Imm8(imm, mode) if is_ldh_instruction && mode.contains(AddressingMode::Indirect) => {
-                let addr = 0xff00 + *imm as u16;
+            Instruction {
+                opcode: Opcode::Ld,
+                lhs: Some(Operand::Reg16(Register::HL, mode)),
+                ..
+            } if mode.contains(AddressingMode::Decrement) => {
+                let addr = cpu.read_register16(&Register::HL);
+                mmu.write(addr, src as u8);
+                cpu.write_register16(&Register::HL, addr.wrapping_sub(1));
+            }
+            Instruction {
+                opcode: Opcode::Ld,
+                lhs: Some(Operand::Reg16(reg, mode)),
+                ..
+            } if !mode.contains(AddressingMode::Indirect) => {
+                cpu.write_register16(reg, src as u16);
+            }
+            Instruction {
+                opcode: Opcode::Ld,
+                lhs: Some(Operand::Reg16(reg, mode)),
+                ..
+            } if mode.contains(AddressingMode::Indirect) => {
+                let addr = cpu.read_register16(reg);
                 mmu.write(addr, src as u8);
             }
-            Operand::Imm16(imm, mode) if mode.contains(AddressingMode::Indirect) => mmu.write16(*imm, src as u16),
+            Instruction {
+                opcode: Opcode::Ld,
+                lhs: Some(Operand::Imm16(addr, _)),
+                rhs: Some(Operand::Reg16(reg, _)),
+                ..
+            } => {
+                let value = cpu.read_register16(reg);
+                mmu.write16(*addr, value);
+            }
+            Instruction {
+                opcode: Opcode::Ld,
+                lhs: Some(Operand::Imm16(addr, _)),
+                rhs: Some(Operand::Reg8(reg, _)),
+                ..
+            } => {
+                let value = cpu.read_register(reg);
+                mmu.write(*addr, value);
+            }
+            Instruction {
+                opcode: Opcode::Ldh,
+                lhs: Some(Operand::Imm8(addr, _)),
+                ..
+            } => {
+                mmu.write(0xff00 + *addr as u16, src as u8);
+            }
+            Instruction {
+                opcode: Opcode::Ldh,
+                lhs: Some(Operand::Reg8(reg, _)),
+                rhs: Some(Operand::Imm8(addr, _)),
+                ..
+            } => {
+                let value = mmu.read(0xff00 + *addr as u16);
+                cpu.write_register(reg, value);
+            }
             _ => return invalid_handler!(instruction),
-        };
+        }
 
         Ok(instruction.cycles.0)
     }

@@ -149,16 +149,16 @@ impl Sm83 {
 
     pub fn decode(&mut self, mmu: &mut Mmu, current_pc: u16) -> Result<Instruction, AyyError> {
         let mut opcode_byte = mmu.read(current_pc);
-        let mut prefix = false;
-
-        if opcode_byte == 0xcb {
-            opcode_byte = mmu.read(current_pc.wrapping_add(1));
-            prefix = true;
-        }
 
         #[cfg(debug_assertions)]
         if self.invalid_opcodes_lut.contains(&opcode_byte) {
             return Err(AyyError::InvalidOpcode { opcode: opcode_byte });
+        }
+
+        let mut prefix = false;
+        if opcode_byte == 0xcb {
+            opcode_byte = mmu.read(current_pc.wrapping_add(1));
+            prefix = true;
         }
 
         let cached_lut = if prefix { &self.cached_lut_prefixed } else { &self.cached_lut };

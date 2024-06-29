@@ -19,4 +19,8 @@ impl Mapper for Rom {
     fn write(&mut self, addr: u16, data: u8) {
         self.memory[addr as usize] = data;
     }
+
+    fn current_rom_bank(&self) -> u8 {
+        0
+    }
 }

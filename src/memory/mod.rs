@@ -1,4 +1,4 @@
-mod mapper;
+pub mod mapper;
 pub mod mmu;
 pub mod registers;
 

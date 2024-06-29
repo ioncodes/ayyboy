@@ -1,3 +1,4 @@
+use crate::memory::mapper::mbc1::Mbc1;
 use crate::memory::mapper::rom::Rom;
 use crate::memory::mapper::Mapper;
 use crate::memory::{BOOTROM_MAPPER_REGISTER, JOYPAD_REGISTER};
@@ -14,9 +15,10 @@ pub struct Mmu {
 }
 
 impl Mmu {
-    pub fn new(bootrom: Vec<u8>, cartridge: Vec<u8>) -> Mmu {
+    pub fn new(bootrom: Vec<u8>, cartridge: Box<dyn Mapper>) -> Mmu {
         Mmu {
-            cartridge: Box::new(Rom::new(cartridge)),
+            //cartridge: Box::new(Rom::new(cartridge)),
+            cartridge,
             memory: vec![0; 0x10000],
             bootrom,
         }
@@ -24,9 +26,9 @@ impl Mmu {
 
     pub fn read(&self, addr: u16) -> u8 {
         // if joypad is read, spoof no buttons pressed
-        if addr == JOYPAD_REGISTER {
-            return self.memory[addr as usize] | 0xf;
-        }
+        // if addr == JOYPAD_REGISTER {
+        //     return self.memory[addr as usize] | 0xf;
+        // }
 
         match addr {
             0x0000..=BOOTROM_SIZE if self.is_bootrom_mapped() => self.bootrom[addr as usize],
@@ -43,10 +45,6 @@ impl Mmu {
     }
 
     pub fn write(&mut self, addr: u16, data: u8) {
-        if addr == 0x69d3 && data == 0xd3 {
-            println!("Writing to 0x69d3: {:02x}", data);
-        }
-
         match addr {
             0x0000..=BOOTROM_SIZE if self.is_bootrom_mapped() => self.bootrom[addr as usize] = data,
             0x0000..=0x7fff => self.cartridge.write(addr, data),
@@ -77,5 +75,9 @@ impl Mmu {
 
     pub fn resize_memory(&mut self, size: usize) {
         self.memory.resize(size, 0);
+    }
+
+    pub fn current_rom_bank(&self) -> u8 {
+        self.cartridge.current_rom_bank()
     }
 }

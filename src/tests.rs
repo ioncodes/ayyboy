@@ -2,6 +2,7 @@
 mod tests {
     use crate::lr35902::cpu::*;
     use crate::lr35902::sm83::*;
+    use crate::memory::mapper::rom::Rom;
     use crate::memory::mmu::*;
     use serde_json::Value;
 
@@ -16,7 +17,7 @@ mod tests {
         let tests: Value = serde_json::from_str(&input).unwrap();
 
         for test in tests.as_array().unwrap() {
-            let mut mmu = Mmu::new(vec![], vec![0u8; 0xffff]);
+            let mut mmu = Mmu::new(vec![], Box::new(Rom::new(vec![0u8; 0xffff])));
             mmu.unmap_bootrom();
             mmu.resize_memory(0xffff * 4);
             let mut sm83 = Sm83::new();

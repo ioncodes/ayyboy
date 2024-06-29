@@ -1,5 +1,6 @@
 use crate::lr35902::cpu::Cpu;
 use crate::lr35902::sm83::Register;
+use crate::memory::mapper::mbc1::Mbc1;
 use crate::memory::mmu::Mmu;
 use crate::rhai_engine::RhaiEngine;
 use crate::video::palette::Palette;
@@ -19,7 +20,7 @@ pub struct GameBoy<'a> {
 impl<'a> GameBoy<'a> {
     pub fn new(bootrom: Vec<u8>, cartridge: Vec<u8>) -> GameBoy<'a> {
         let cpu = Cpu::new();
-        let mmu = Mmu::new(bootrom, cartridge);
+        let mmu = Mmu::new(bootrom, Box::new(Mbc1::new(cartridge)));
         let ppu = Ppu::new();
 
         GameBoy {
