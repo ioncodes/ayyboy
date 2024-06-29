@@ -242,6 +242,10 @@ impl Cpu {
 
             // unhalt the CPU
             self.halted = false;
+
+            // "The entire process lasts 5 M-cycles."
+            //   - Pandocs
+            self.cycles += 20;
         }
 
         Ok(())
