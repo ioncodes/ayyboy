@@ -62,6 +62,15 @@ impl Handlers {
                     mmu.write(addr, src as u8);
                 } else {
                     cpu.write_register16(&reg, src as u16);
+
+                    match instruction.rhs.as_ref().unwrap() {
+                        Operand::DisplacedReg16(Register::SP, imm8, _) => {
+                            cpu.update_flag(Flags::ZERO, false);
+                            cpu.update_flag(Flags::SUBTRACT, false);
+                            // TODO: more flags?
+                        }
+                        _ => {}
+                    }
                 }
             }
             Operand::Imm8(imm, mode) if is_ldh_instruction && mode.contains(AddressingMode::Indirect) => {
@@ -96,16 +105,80 @@ impl Handlers {
         Ok(instruction.cycles.0)
     }
 
+    pub fn complement(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
+        match instruction {
+            Instruction { opcode: Opcode::Cpl, .. } => {
+                let value = cpu.read_register(&Register::A);
+                let result = !value;
+                cpu.write_register(&Register::A, result);
+
+                cpu.update_flag(Flags::SUBTRACT, true);
+                cpu.update_flag(Flags::HALF_CARRY, true);
+
+                Ok(instruction.cycles.0)
+            }
+            Instruction { opcode: Opcode::Ccf, .. } => {
+                let carry = cpu.read_flag(Flags::CARRY);
+                cpu.update_flag(Flags::SUBTRACT, false);
+                cpu.update_flag(Flags::HALF_CARRY, false);
+                cpu.update_flag(Flags::CARRY, !carry);
+
+                Ok(instruction.cycles.0)
+            }
+            Instruction { opcode: Opcode::Scf, .. } => {
+                cpu.update_flag(Flags::SUBTRACT, false);
+                cpu.update_flag(Flags::HALF_CARRY, false);
+                cpu.update_flag(Flags::CARRY, true);
+
+                Ok(instruction.cycles.0)
+            }
+            _ => invalid_handler!(instruction),
+        }
+    }
+
+    pub fn decimal_adjust_accumulator(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
+        let mut a = cpu.read_register(&Register::A);
+        let mut adjust = 0;
+        let mut carry = cpu.read_flag(Flags::CARRY) as u8;
+
+        if cpu.read_flag(Flags::HALF_CARRY) || (!cpu.read_flag(Flags::SUBTRACT) && (a & 0x0f) > 9) {
+            adjust |= 0x06;
+        }
+
+        if cpu.read_flag(Flags::CARRY) || (!cpu.read_flag(Flags::SUBTRACT) && a > 0x99) {
+            adjust |= 0x60;
+            carry = 1;
+        }
+
+        if cpu.read_flag(Flags::SUBTRACT) {
+            a = a.wrapping_sub(adjust);
+        } else {
+            a = a.wrapping_add(adjust);
+        }
+
+        cpu.write_register(&Register::A, a);
+
+        cpu.update_flag(Flags::ZERO, a == 0);
+        cpu.update_flag(Flags::HALF_CARRY, false);
+        cpu.update_flag(Flags::CARRY, carry == 1);
+
+        Ok(instruction.cycles.0)
+    }
+
     pub fn add(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         ensure!(lhs_rhs => instruction);
 
         match instruction.lhs.as_ref().unwrap() {
-            Operand::Reg16(Register::HL, _) => {
+            Operand::Reg16(reg, _) => {
                 let x = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false)? as u16;
                 let y = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as u16;
 
                 let result = x.wrapping_add(y);
-                cpu.write_register16(&Register::HL, result);
+                cpu.write_register16(reg, result);
+
+                if reg == &Register::SP {
+                    cpu.update_flag(Flags::ZERO, false);
+                }
 
                 cpu.update_flag(Flags::SUBTRACT, false);
                 cpu.update_flag(Flags::HALF_CARRY, (x & 0x0fff) + (y & 0x0fff) > 0x0fff);
@@ -906,6 +979,9 @@ impl Handlers {
             }
             Operand::Bit(bit) => Ok(*bit as usize),
             Operand::Offset(offset) => Ok(*offset as usize),
+            Operand::DisplacedReg16(reg, offset, mode) if mode.contains(AddressingMode::Direct) => {
+                Ok(cpu.read_register16(reg).wrapping_add_signed(*offset as i16) as usize)
+            }
             _ => Err(UnresolvedTarget { target: operand.clone() }),
         }
     }

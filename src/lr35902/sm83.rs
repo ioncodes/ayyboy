@@ -51,6 +51,7 @@ pub enum Operand {
     Imm8(u8, AddressingMode),
     Imm16(u16, AddressingMode),
     Conditional(Condition),
+    DisplacedReg16(Register, i8, AddressingMode),
     Offset(i8),
     Bit(u8),
 }
@@ -271,6 +272,107 @@ impl Sm83 {
                 rhs: None,
                 length: 1,
                 cycles: (4, None),
+            })
+        }));
+
+        // cpl
+        lut.push(define_decoder!("00101111", Opcode::Cpl, |_, _, opcode| {
+            Ok(Instruction {
+                opcode,
+                lhs: None,
+                rhs: None,
+                length: 1,
+                cycles: (4, None),
+            })
+        }));
+
+        // ccf
+        lut.push(define_decoder!("00111111", Opcode::Ccf, |_, _, opcode| {
+            Ok(Instruction {
+                opcode,
+                lhs: None,
+                rhs: None,
+                length: 1,
+                cycles: (4, None),
+            })
+        }));
+
+        // ld (imm16), SP
+        lut.push(define_decoder!("00001000", Opcode::Ld, |mmu, pc, opcode| {
+            Ok(Instruction {
+                opcode,
+                lhs: Some(Operand::Imm16(mmu.read16(pc.wrapping_add(1)), AddressingMode::Indirect)),
+                rhs: Some(Operand::Reg16(Register::SP, AddressingMode::Direct)),
+                length: 3,
+                cycles: (20, None),
+            })
+        }));
+
+        // stop imm8
+        lut.push(define_decoder!("00010000", Opcode::Stop, |mmu, pc, opcode| {
+            Ok(Instruction {
+                opcode,
+                lhs: Some(Operand::Imm8(mmu.read(pc.wrapping_add(1)), AddressingMode::Direct)),
+                rhs: None,
+                length: 2,
+                cycles: (4, None),
+            })
+        }));
+
+        // daa
+        lut.push(define_decoder!("00100111", Opcode::Daa, |_, _, opcode| {
+            Ok(Instruction {
+                opcode,
+                lhs: None,
+                rhs: None,
+                length: 1,
+                cycles: (4, None),
+            })
+        }));
+
+        // scf
+        lut.push(define_decoder!("00110111", Opcode::Scf, |_, _, opcode| {
+            Ok(Instruction {
+                opcode,
+                lhs: None,
+                rhs: None,
+                length: 1,
+                cycles: (4, None),
+            })
+        }));
+
+        // add sp, imm8
+        lut.push(define_decoder!("11101000", Opcode::Add, |mmu, pc, opcode| {
+            Ok(Instruction {
+                opcode,
+                lhs: Some(Operand::Reg16(Register::SP, AddressingMode::Direct)),
+                rhs: Some(Operand::Imm8(mmu.read(pc.wrapping_add(1)), AddressingMode::Direct)),
+                length: 2,
+                cycles: (16, None),
+            })
+        }));
+
+        // ld hl, sp+/-imm8
+        lut.push(define_decoder!("11111000", Opcode::Ld, |mmu, pc, opcode| {
+            let offset = mmu.read(pc.wrapping_add(1)) as i8;
+
+            Ok(Instruction {
+                opcode,
+                lhs: Some(Operand::Reg16(Register::HL, AddressingMode::Direct)),
+                rhs: Some(Operand::DisplacedReg16(Register::SP, offset, AddressingMode::Direct)),
+                length: 2,
+                cycles: (12, None),
+            })
+        }));
+
+        // ld sp, hl
+        lut.push(define_decoder!("11111001", Opcode::Ld, |_, _, opcode| {
+            Ok(Instruction {
+                opcode,
+                lhs: Some(Operand::Reg16(Register::SP, AddressingMode::Direct)),
+                rhs: Some(Operand::Reg16(Register::HL, AddressingMode::Direct)),
+                length: 1,
+                cycles: (8, None),
             })
         }));
 
@@ -1270,6 +1372,13 @@ impl std::fmt::Display for Operand {
                 }
             }
             Operand::Bit(value) => format!("{}", value),
+            Operand::DisplacedReg16(reg, value, mode) => {
+                if mode.contains(AddressingMode::Indirect) {
+                    format!("({}+{:#02x})", reg, value)
+                } else {
+                    format!("{}+{:#02x}", reg, value)
+                }
+            }
         };
 
         write!(f, "{}", output)
