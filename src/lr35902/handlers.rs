@@ -64,10 +64,17 @@ impl Handlers {
                     cpu.write_register16(&reg, src as u16);
 
                     match instruction.rhs.as_ref().unwrap() {
-                        Operand::DisplacedReg16(Register::SP, imm8, _) => {
+                        Operand::DisplacedReg16(Register::SP, imm, _) => {
+                            let imm_signed = *imm as i16;
+                            let sp = cpu.read_register16(&Register::SP);
+                            let effective_address = (sp as i32).wrapping_add(imm_signed as i32) as u16;
+                            let sp_low = sp as u8;
+                            let imm_low = *imm as u8;
+
                             cpu.update_flag(Flags::ZERO, false);
                             cpu.update_flag(Flags::SUBTRACT, false);
-                            // TODO: more flags?
+                            cpu.update_flag(Flags::HALF_CARRY, (sp_low & 0x0f) + (imm_low & 0x0f) > 0x0f);
+                            cpu.update_flag(Flags::CARRY, (sp_low as u16) + (imm_low as u16) > 0xff);
                         }
                         _ => {}
                     }
@@ -171,18 +178,25 @@ impl Handlers {
         match instruction.lhs.as_ref().unwrap() {
             Operand::Reg16(reg, _) => {
                 let x = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false)? as u16;
-                let y = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as u16;
-
-                let result = x.wrapping_add(y);
-                cpu.write_register16(reg, result);
 
                 if reg == &Register::SP {
-                    cpu.update_flag(Flags::ZERO, false);
-                }
+                    let y = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as i16;
+                    let result = x.wrapping_add_signed(y);
+                    cpu.write_register16(reg, result);
 
-                cpu.update_flag(Flags::SUBTRACT, false);
-                cpu.update_flag(Flags::HALF_CARRY, (x & 0x0fff) + (y & 0x0fff) > 0x0fff);
-                cpu.update_flag(Flags::CARRY, result < x);
+                    cpu.update_flag(Flags::ZERO, false);
+                    cpu.update_flag(Flags::SUBTRACT, false);
+                    cpu.update_flag(Flags::HALF_CARRY, (x & 0x0f).wrapping_add_signed(y & 0x0f) > 0x0f);
+                    cpu.update_flag(Flags::CARRY, (x & 0xff).wrapping_add_signed(y & 0xff) > 0xff);
+                } else {
+                    let y = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as u16;
+                    let result = x.wrapping_add(y);
+                    cpu.write_register16(reg, result);
+
+                    cpu.update_flag(Flags::SUBTRACT, false);
+                    cpu.update_flag(Flags::HALF_CARRY, (x & 0x0fff) + (y & 0x0fff) > 0x0fff);
+                    cpu.update_flag(Flags::CARRY, result < x);
+                }
             }
             _ => {
                 let x = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false)? as u8;

@@ -352,7 +352,7 @@ impl Sm83 {
             Ok(Instruction {
                 opcode,
                 lhs: Some(Operand::Reg16(Register::SP, AddressingMode::Direct)),
-                rhs: Some(Operand::Imm8(mmu.read(pc.wrapping_add(1)), AddressingMode::Direct)),
+                rhs: Some(Operand::Offset(mmu.read(pc.wrapping_add(1)) as i8)),
                 length: 2,
                 cycles: (16, None),
             })
