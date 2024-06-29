@@ -13,7 +13,7 @@ pub const BACKGROUND_0_ADDRESS: u16 = 0x9800;
 pub const BACKGROUND_1_ADDRESS: u16 = 0x9c00;
 pub const BACKGROUND_MAP_SIZE: usize = 32 * 32;
 
-pub const CONTROL_REGISTER: u16 = 0xff40;
+pub const LCD_CONTROL_REGISTER: u16 = 0xff40;
 pub const STATUS_REGISTER: u16 = 0xff41;
 pub const SCROLL_Y_REGISTER: u16 = 0xff42;
 pub const SCROLL_X_REGISTER: u16 = 0xff43;
@@ -45,6 +45,7 @@ impl Ppu {
             interrupt_flags |= InterruptFlags::VBLANK;
         }
 
+        // Raise stat IRQ
         let lyc = mmu.read(SCANLINE_Y_COMPARE_REGISTER);
         if scanline == lyc {
             interrupt_flags |= InterruptFlags::LCD_STAT;
@@ -68,8 +69,14 @@ impl Ppu {
     pub fn render_backgroundmap(&self, mmu: &Mmu) -> Vec<Tile> {
         let mut tiles: Vec<Tile> = Vec::new();
 
+        let bg_map_addr = if mmu.read(LCD_CONTROL_REGISTER) & 0b1000 == 0 {
+            BACKGROUND_0_ADDRESS
+        } else {
+            BACKGROUND_1_ADDRESS
+        };
+
         for idx in 0..BACKGROUND_MAP_SIZE {
-            let tile_nr = mmu.read(BACKGROUND_0_ADDRESS + idx as u16);
+            let tile_nr = mmu.read(bg_map_addr + idx as u16);
             let addr = TILEMAP_ADDRESS + (tile_nr as u16 * 16);
             let tile = Tile::from_addr(mmu, addr);
             tiles.push(tile);
