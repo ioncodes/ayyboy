@@ -5,7 +5,7 @@ use crate::memory::mmu::Mmu;
 use crate::memory::registers::{InterruptEnable, InterruptFlags};
 use crate::memory::{INTERRUPT_ENABLE_REGISTER, INTERRUPT_FLAGS_REGISTER};
 use bitflags::bitflags;
-use log::trace;
+use log::{debug, trace};
 
 #[derive(Clone)]
 pub struct Cpu {
@@ -216,36 +216,35 @@ impl Cpu {
         if self.ime.enable_pending {
             self.ime.enabled = true;
             self.ime.enable_pending = false;
+
+            debug!("IME pending, enabled");
         }
 
         let interrupt_enable = mmu.read_as::<InterruptEnable>(INTERRUPT_ENABLE_REGISTER);
         let interrupt_flags = mmu.read_as::<InterruptFlags>(INTERRUPT_FLAGS_REGISTER);
 
         if self.ime.enabled && interrupt_enable.bits() & interrupt_flags.bits() != 0 {
-            // handle vector
+            // handle interrupt vector
             self.push_stack(mmu, self.registers.pc);
-            self.registers.pc = self.resolve_irq_to_vector(&interrupt_flags)?;
+            let vector = interrupt_flags.to_vector()?;
+            debug!("Handling interrupt vector: ${:04x}", vector);
+            self.registers.pc = vector;
+
+            // clear interrupt flag
+            match vector {
+                0x0040 => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::VBLANK.bits()),
+                0x0048 => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::LCD_STAT.bits()),
+                0x0050 => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::TIMER.bits()),
+                0x0058 => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::SERIAL.bits()),
+                0x0060 => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::JOYPAD.bits()),
+                _ => unreachable!(),
+            }
+
+            // unhalt the CPU
+            self.halted = false;
         }
 
         Ok(())
-    }
-
-    fn resolve_irq_to_vector(&self, interrupt_flags: &InterruptFlags) -> Result<u16, AyyError> {
-        if interrupt_flags.contains(InterruptFlags::VBLANK) {
-            Ok(0x0040)
-        } else if interrupt_flags.contains(InterruptFlags::LCD_STAT) {
-            Ok(0x0048)
-        } else if interrupt_flags.contains(InterruptFlags::TIMER) {
-            Ok(0x0050)
-        } else if interrupt_flags.contains(InterruptFlags::SERIAL) {
-            Ok(0x0058)
-        } else if interrupt_flags.contains(InterruptFlags::JOYPAD) {
-            Ok(0x0060)
-        } else {
-            Err(AyyError::UnknownIrqVector {
-                vector: interrupt_flags.bits(),
-            })
-        }
     }
 }
 
