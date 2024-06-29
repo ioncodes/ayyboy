@@ -567,6 +567,20 @@ impl Sm83 {
             })
         }));
 
+        // add HL, r16
+        lut.push(define_decoder!("00xx1001", Opcode::Add, |mmu, pc, _| {
+            let opcode_byte = mmu.read(pc);
+            let source = (opcode_byte & 0b0011_0000) >> 4;
+
+            Ok(Instruction {
+                opcode: Opcode::Add,
+                lhs: Some(Operand::Reg16(Register::HL, AddressingMode::Direct)),
+                rhs: Some(Operand::Reg16(Sm83::lookup_register_16(source)?, AddressingMode::Direct)),
+                length: 1,
+                cycles: (8, None),
+            })
+        }));
+
         // ld A, (r16)
         lut.push(define_decoder!("00xx1010", Opcode::Ld, |mmu, pc, _| {
             let opcode_byte = mmu.read(pc);

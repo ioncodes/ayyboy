@@ -99,16 +99,30 @@ impl Handlers {
     pub fn add(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         ensure!(lhs_rhs => instruction);
 
-        let x = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false)? as u8;
-        let y = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as u8;
+        match instruction.lhs.as_ref().unwrap() {
+            Operand::Reg16(Register::HL, _) => {
+                let x = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false)? as u16;
+                let y = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as u16;
 
-        let result = x.wrapping_add(y);
-        cpu.write_register(&Register::A, result);
+                let result = x.wrapping_add(y);
+                cpu.write_register16(&Register::HL, result);
 
-        cpu.update_flag(Flags::ZERO, result == 0);
-        cpu.update_flag(Flags::SUBTRACT, false);
-        cpu.update_flag(Flags::HALF_CARRY, (x & 0x0f) + (y & 0x0f) > 0x0f);
-        cpu.update_flag(Flags::CARRY, result < x);
+                cpu.update_flag(Flags::SUBTRACT, false);
+                cpu.update_flag(Flags::HALF_CARRY, (x & 0x0fff) + (y & 0x0fff) > 0x0fff);
+                cpu.update_flag(Flags::CARRY, result < x);
+            }
+            _ => {
+                let x = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false)? as u8;
+                let y = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as u8;
+                let result = x.wrapping_add(y);
+                cpu.write_register(&Register::A, result);
+
+                cpu.update_flag(Flags::ZERO, result == 0);
+                cpu.update_flag(Flags::SUBTRACT, false);
+                cpu.update_flag(Flags::HALF_CARRY, (x & 0x0f) + (y & 0x0f) > 0x0f);
+                cpu.update_flag(Flags::CARRY, result < x);
+            }
+        };
 
         Ok(instruction.cycles.0)
     }
@@ -116,16 +130,30 @@ impl Handlers {
     pub fn sub(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         ensure!(lhs_rhs => instruction);
 
-        let x = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false)? as u8;
-        let y = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as u8;
+        match instruction.lhs.as_ref().unwrap() {
+            Operand::Reg16(Register::HL, _) => {
+                let x = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false)? as u16;
+                let y = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as u16;
 
-        let result = x.wrapping_sub(y);
-        cpu.write_register(&Register::A, result);
+                let result = x.wrapping_sub(y);
+                cpu.write_register16(&Register::HL, result);
 
-        cpu.update_flag(Flags::ZERO, result == 0);
-        cpu.update_flag(Flags::SUBTRACT, true);
-        cpu.update_flag(Flags::HALF_CARRY, (x & 0x0f) < (y & 0x0f));
-        cpu.update_flag(Flags::CARRY, result > x);
+                cpu.update_flag(Flags::SUBTRACT, true);
+                cpu.update_flag(Flags::HALF_CARRY, (x & 0x0fff) < (y & 0x0fff));
+                cpu.update_flag(Flags::CARRY, result > x);
+            }
+            _ => {
+                let x = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false)? as u8;
+                let y = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as u8;
+                let result = x.wrapping_sub(y);
+                cpu.write_register(&Register::A, result);
+
+                cpu.update_flag(Flags::ZERO, result == 0);
+                cpu.update_flag(Flags::SUBTRACT, true);
+                cpu.update_flag(Flags::HALF_CARRY, (x & 0x0f) < (y & 0x0f));
+                cpu.update_flag(Flags::CARRY, result > x);
+            }
+        };
 
         Ok(instruction.cycles.0)
     }
