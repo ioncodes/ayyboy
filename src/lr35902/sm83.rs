@@ -274,6 +274,50 @@ impl Sm83 {
             })
         }));
 
+        // adc a, imm8
+        lut.push(define_decoder!("11001110", Opcode::Adc, |mmu, pc, opcode| {
+            Ok(Instruction {
+                opcode,
+                lhs: Some(Operand::Reg8(Register::A, AddressingMode::Direct)),
+                rhs: Some(Operand::Imm8(mmu.read(pc.wrapping_add(1)), AddressingMode::Direct)),
+                length: 2,
+                cycles: (8, None),
+            })
+        }));
+
+        // sbc a, imm8
+        lut.push(define_decoder!("11011110", Opcode::Sbc, |mmu, pc, opcode| {
+            Ok(Instruction {
+                opcode,
+                lhs: Some(Operand::Reg8(Register::A, AddressingMode::Direct)),
+                rhs: Some(Operand::Imm8(mmu.read(pc.wrapping_add(1)), AddressingMode::Direct)),
+                length: 2,
+                cycles: (8, None),
+            })
+        }));
+
+        // xor a, imm8
+        lut.push(define_decoder!("11101110", Opcode::Xor, |mmu, pc, opcode| {
+            Ok(Instruction {
+                opcode,
+                lhs: Some(Operand::Reg8(Register::A, AddressingMode::Direct)),
+                rhs: Some(Operand::Imm8(mmu.read(pc.wrapping_add(1)), AddressingMode::Direct)),
+                length: 2,
+                cycles: (8, None),
+            })
+        }));
+
+        // cp a, imm8
+        lut.push(define_decoder!("11111110", Opcode::Cp, |mmu, pc, opcode| {
+            Ok(Instruction {
+                opcode,
+                lhs: Some(Operand::Reg8(Register::A, AddressingMode::Direct)),
+                rhs: Some(Operand::Imm8(mmu.read(pc.wrapping_add(1)), AddressingMode::Direct)),
+                length: 2,
+                cycles: (8, None),
+            })
+        }));
+
         // halt
         lut.push(define_decoder!("01110110", Opcode::Halt, |_, _, opcode| {
             Ok(Instruction {
