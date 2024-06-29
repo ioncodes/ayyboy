@@ -68,7 +68,7 @@ impl Cpu {
             Opcode::Or => Handlers::or(self, mmu, &instruction),
             Opcode::Halt => Handlers::halt(self, mmu, &instruction),
             Opcode::Jp | Opcode::Jr | Opcode::Call => Handlers::jump(self, mmu, &instruction),
-            Opcode::Ret => Handlers::ret(self, mmu, &instruction),
+            Opcode::Ret | Opcode::Reti => Handlers::ret(self, mmu, &instruction),
             Opcode::Bit => Handlers::test_bit(self, mmu, &instruction),
             Opcode::Rl | Opcode::Rla | Opcode::Rlc | Opcode::Rlca => Handlers::rotate_left(self, mmu, &instruction),
             Opcode::Rr | Opcode::Rra | Opcode::Rrc | Opcode::Rrca => Handlers::rotate_right(self, mmu, &instruction),
@@ -190,11 +190,15 @@ impl Cpu {
         value
     }
 
-    pub fn enable_vector_irq(&mut self) {
-        self.ime.enable_pending = true;
+    pub fn enable_interrupts(&mut self, delayed: bool) {
+        if delayed {
+            self.ime.enable_pending = true;
+        } else {
+            self.ime.enabled = true;
+        }
     }
 
-    pub fn disable_vector_irq(&mut self) {
+    pub fn disable_interrupts(&mut self) {
         self.ime.enabled = false;
     }
 
@@ -239,6 +243,7 @@ impl Cpu {
                 0x0060 => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::JOYPAD.bits()),
                 _ => unreachable!(),
             }
+            self.ime.enabled = false;
 
             // unhalt the CPU
             self.halted = false;

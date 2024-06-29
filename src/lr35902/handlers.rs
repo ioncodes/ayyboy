@@ -672,18 +672,26 @@ impl Handlers {
     }
 
     pub fn ret(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
-        ensure!(lhs => instruction);
-
-        if let Some(Operand::Conditional(cond)) = instruction.lhs.as_ref() {
-            if Handlers::check_condition(cpu, cond) {
+        match instruction.opcode {
+            Opcode::Ret => {
+                ensure!(lhs => instruction);
+                if let Some(Operand::Conditional(cond)) = instruction.lhs.as_ref() {
+                    if Handlers::check_condition(cpu, cond) {
+                        let addr = cpu.pop_stack(mmu);
+                        cpu.write_register16(&Register::PC, addr);
+                    }
+                    Ok(instruction.cycles.0)
+                } else {
+                    Ok(instruction.cycles.1.unwrap())
+                }
+            }
+            Opcode::Reti => {
                 let addr = cpu.pop_stack(mmu);
                 cpu.write_register16(&Register::PC, addr);
-                return Ok(instruction.cycles.0);
+                cpu.enable_interrupts(false);
+                Ok(instruction.cycles.0)
             }
-
-            Ok(instruction.cycles.1.unwrap())
-        } else {
-            invalid_handler!(instruction)
+            _ => invalid_handler!(instruction),
         }
     }
 
@@ -827,9 +835,9 @@ impl Handlers {
 
     pub fn handle_interrupt(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         if instruction.opcode == Opcode::Ei {
-            cpu.enable_vector_irq();
+            cpu.enable_interrupts(true);
         } else {
-            cpu.disable_vector_irq();
+            cpu.disable_interrupts();
         }
 
         Ok(instruction.cycles.0)

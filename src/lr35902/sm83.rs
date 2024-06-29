@@ -428,6 +428,17 @@ impl Sm83 {
             })
         }));
 
+        // jp hl
+        lut.push(define_decoder!("11101001", Opcode::Jp, |_, _, opcode| {
+            Ok(Instruction {
+                opcode,
+                lhs: Some(Operand::Conditional(Condition::None)),
+                rhs: Some(Operand::Reg16(Register::HL, AddressingMode::Direct)),
+                length: 1,
+                cycles: (4, None),
+            })
+        }));
+
         // di
         lut.push(define_decoder!("11110011", Opcode::Di, |_, _, opcode| {
             Ok(Instruction {

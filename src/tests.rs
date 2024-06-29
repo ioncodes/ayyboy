@@ -38,9 +38,9 @@ mod tests {
             cpu.write_register16(&Register::SP, initial.get("sp").unwrap().as_u64().unwrap() as u16);
             cpu.write_register16(&Register::PC, initial.get("pc").unwrap().as_u64().unwrap() as u16);
             if initial.get("ime").unwrap().as_u64().unwrap() == 1 {
-                cpu.enable_vector_irq();
+                cpu.enable_interrupts();
             } else {
-                cpu.disable_vector_irq();
+                cpu.disable_interrupts();
             }
 
             let ram = initial.get("ram").unwrap().as_array().unwrap();
