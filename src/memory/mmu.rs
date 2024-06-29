@@ -1,6 +1,6 @@
 use crate::memory::mapper::rom::Rom;
 use crate::memory::mapper::Mapper;
-use crate::memory::BOOTROM_MAPPER_REGISTER;
+use crate::memory::{BOOTROM_MAPPER_REGISTER, JOYPAD_REGISTER};
 
 // The last instruction unmaps the boot ROM. Execution continues normally,
 // thus entering cartridge entrypoint at $100
@@ -23,6 +23,11 @@ impl Mmu {
     }
 
     pub fn read(&self, addr: u16) -> u8 {
+        // if joypad is read, spoof no buttons pressed
+        if addr == JOYPAD_REGISTER {
+            return self.memory[addr as usize] | 0xf;
+        }
+
         match addr {
             0x0000..=BOOTROM_SIZE if self.is_bootrom_mapped() => self.bootrom[addr as usize],
             0x0000..=0x7fff => self.cartridge.read(addr),
