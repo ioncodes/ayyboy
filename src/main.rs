@@ -23,7 +23,7 @@ fn main() {
 
     // Load the bootrom and cartridge, execute emulator
     let bootrom = include_bytes!("../external/roms/dmg_boot.bin").to_vec();
-    let cartridge = include_bytes!("../external/roms/Alleyway (World).gb").to_vec();
+    let cartridge = include_bytes!("../external/roms/Asterix (USA) (Proto 1).gb").to_vec();
 
     let mut renderer = Renderer::new();
     let mut gb = GameBoy::new(bootrom, cartridge);

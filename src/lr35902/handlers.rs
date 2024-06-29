@@ -699,6 +699,17 @@ impl Handlers {
         invalid_handler!(instruction)
     }
 
+    pub fn restart(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
+        ensure!(lhs => instruction);
+
+        let addr = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false)? as u16;
+        let pc = cpu.read_register16(&Register::PC);
+        cpu.push_stack(mmu, pc);
+        cpu.write_register16(&Register::PC, addr);
+
+        Ok(instruction.cycles.0)
+    }
+
     pub fn ret(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         match instruction.opcode {
             Opcode::Ret => {

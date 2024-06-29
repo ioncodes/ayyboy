@@ -975,6 +975,29 @@ impl Sm83 {
                 cycles: (cycles, None),
             })
         }));
+
+        // rst n
+        lut.push(define_decoder!("11xxx111", Opcode::Rst, |mmu, pc, opcode| {
+            let n = match (mmu.read(pc) & 0b0011_1000) >> 3 {
+                0b000 => 0x00,
+                0b001 => 0x08,
+                0b010 => 0x10,
+                0b011 => 0x18,
+                0b100 => 0x20,
+                0b101 => 0x28,
+                0b110 => 0x30,
+                0b111 => 0x38,
+                _ => unreachable!(),
+            };
+
+            Ok(Instruction {
+                opcode,
+                lhs: Some(Operand::Imm8(n, AddressingMode::Direct)),
+                rhs: None,
+                length: 1,
+                cycles: (16, None),
+            })
+        }));
     }
 
     fn propagate_decoders_prefixed(lut: &mut Vec<(String, Opcode, FDecode)>) {

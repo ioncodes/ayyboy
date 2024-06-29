@@ -68,6 +68,7 @@ impl Cpu {
             Opcode::Or => Handlers::or(self, mmu, &instruction),
             Opcode::Halt => Handlers::halt(self, mmu, &instruction),
             Opcode::Jp | Opcode::Jr | Opcode::Call => Handlers::jump(self, mmu, &instruction),
+            Opcode::Rst => Handlers::restart(self, mmu, &instruction),
             Opcode::Ret | Opcode::Reti => Handlers::ret(self, mmu, &instruction),
             Opcode::Bit => Handlers::test_bit(self, mmu, &instruction),
             Opcode::Rl | Opcode::Rla | Opcode::Rlc | Opcode::Rlca => Handlers::rotate_left(self, mmu, &instruction),
