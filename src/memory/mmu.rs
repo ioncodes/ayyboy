@@ -1,5 +1,6 @@
 use crate::memory::mapper::rom::Rom;
 use crate::memory::mapper::Mapper;
+use crate::memory::BOOTROM_MAPPER_REGISTER;
 
 // The last instruction unmaps the boot ROM. Execution continues normally,
 // thus entering cartridge entrypoint at $100
@@ -9,7 +10,6 @@ const BOOTROM_SIZE: u16 = 0xff;
 pub struct Mmu {
     cartridge: Box<dyn Mapper>,
     memory: Vec<u8>,
-    bootrom_mapped: bool,
     bootrom: Vec<u8>,
 }
 
@@ -18,14 +18,13 @@ impl Mmu {
         Mmu {
             cartridge: Box::new(Rom::new(cartridge)),
             memory: vec![0; 0x10000],
-            bootrom_mapped: true,
             bootrom,
         }
     }
 
     pub fn read(&self, addr: u16) -> u8 {
         match addr {
-            0x0000..=BOOTROM_SIZE if self.bootrom_mapped => self.bootrom[addr as usize],
+            0x0000..=BOOTROM_SIZE if self.is_bootrom_mapped() => self.bootrom[addr as usize],
             0x0000..=0x7fff => self.cartridge.read(addr),
             _ => self.memory[addr as usize],
         }
@@ -40,7 +39,7 @@ impl Mmu {
 
     pub fn write(&mut self, addr: u16, data: u8) {
         match addr {
-            0x0000..=BOOTROM_SIZE if self.bootrom_mapped => self.bootrom[addr as usize] = data,
+            0x0000..=BOOTROM_SIZE if self.is_bootrom_mapped() => self.bootrom[addr as usize] = data,
             0x0000..=0x7fff => self.cartridge.write(addr, data),
             _ => self.memory[addr as usize] = data,
         }
@@ -60,7 +59,11 @@ impl Mmu {
     }
 
     pub fn unmap_bootrom(&mut self) {
-        self.bootrom_mapped = false;
+        self.write(BOOTROM_MAPPER_REGISTER, 0x69);
+    }
+
+    pub fn is_bootrom_mapped(&self) -> bool {
+        self.read(BOOTROM_MAPPER_REGISTER) == 0x00
     }
 
     pub fn resize_memory(&mut self, size: usize) {

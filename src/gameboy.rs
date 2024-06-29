@@ -66,6 +66,29 @@ impl<'a> GameBoy<'a> {
         }
     }
 
+    // Run the emulator until the CPU reaches the specified address
+    pub fn run_until(&mut self, addr: u16) {
+        'outer: loop {
+            'inner: loop {
+                self.try_rhai_script();
+                match self.cpu.tick(&mut self.mmu) {
+                    Ok(_) => {}
+                    Err(e) => panic!("{}", e),
+                }
+
+                if self.cpu.read_register16(&Register::PC) == addr {
+                    break 'outer;
+                }
+
+                if self.cpu.elapsed_cycles() >= 456 {
+                    break 'inner;
+                }
+            }
+
+            self.ppu.tick(&mut self.mmu); // "does a scanline"
+        }
+    }
+
     pub fn render_tilemap(&mut self) -> Vec<Tile> {
         self.ppu.render_tilemap(&self.mmu)
     }
