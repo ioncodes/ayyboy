@@ -126,6 +126,7 @@ pub struct Sm83 {
     decoder_lut_prefixed: Vec<(String, Opcode, FDecode)>,
     cached_lut: HashMap<u8, Instruction>,
     cached_lut_prefixed: HashMap<u8, Instruction>,
+    invalid_opcodes_lut: Vec<u8>,
 }
 
 //noinspection DuplicatedCode
@@ -142,6 +143,7 @@ impl Sm83 {
             decoder_lut_prefixed,
             cached_lut: HashMap::new(),
             cached_lut_prefixed: HashMap::new(),
+            invalid_opcodes_lut: vec![0xd3, 0xdb, 0xdd, 0xe3, 0xe4, 0xeb, 0xec, 0xed, 0xf4, 0xfc, 0xfd],
         }
     }
 
@@ -152,6 +154,11 @@ impl Sm83 {
         if opcode_byte == 0xcb {
             opcode_byte = mmu.read(current_pc.wrapping_add(1));
             prefix = true;
+        }
+
+        #[cfg(debug_assertions)]
+        if self.invalid_opcodes_lut.contains(&opcode_byte) {
+            return Err(AyyError::InvalidOpcode { opcode: opcode_byte });
         }
 
         let cached_lut = if prefix { &self.cached_lut_prefixed } else { &self.cached_lut };
