@@ -1,6 +1,6 @@
 use crate::memory::mmu::Mmu;
 use crate::video::palette::Palette;
-use crate::video::sprite::Sprite;
+use crate::video::sprite::{Sprite, SpriteAttributes};
 
 #[derive(Debug, Copy, Clone)]
 pub struct Tile {
@@ -41,6 +41,14 @@ impl Tile {
 
                 pixels[y as usize][x as usize] = Palette::from_object(color, mmu, sprite);
             }
+        }
+
+        if sprite.attributes.contains(SpriteAttributes::FLIP_X) {
+            pixels.iter_mut().for_each(|row| row.reverse());
+        }
+
+        if sprite.attributes.contains(SpriteAttributes::FLIP_Y) {
+            pixels.reverse();
         }
 
         Tile { pixels }

@@ -1,6 +1,6 @@
 use crate::memory::mmu::Mmu;
 use crate::video::ppu::{BG_PALETTE_REGISTER, OBJ0_PALETTE_REGISTER, OBJ1_PALETTE_REGISTER};
-use crate::video::sprite::Sprite;
+use crate::video::sprite::{Sprite, SpriteAttributes};
 
 pub type Color = [u8; 3];
 
@@ -34,7 +34,7 @@ impl Palette {
     }
 
     pub fn from_object(value: u8, mmu: &Mmu, sprite: &Sprite) -> Palette {
-        let objp_shade = if sprite.attributes & 0x10 == 0 {
+        let objp_shade = if !sprite.attributes.contains(SpriteAttributes::PALETTE) {
             mmu.read_unchecked(OBJ0_PALETTE_REGISTER)
         } else {
             mmu.read_unchecked(OBJ1_PALETTE_REGISTER)
