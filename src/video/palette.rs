@@ -36,10 +36,10 @@ impl Palette {
 impl Into<Color> for Palette {
     fn into(self) -> Color {
         match self {
-            Palette::White => [0xe0, 0xf0, 0xe7],
-            Palette::LightGray => [0x8b, 0xa3, 0x94],
-            Palette::DarkGray => [0x55, 0x64, 0x5a],
-            Palette::Black => [0x34, 0x3d, 0x37],
+            Palette::White => [0xff, 0xff, 0xff],
+            Palette::LightGray => [0xaa, 0xaa, 0xaa],
+            Palette::DarkGray => [0x55, 0x55, 0x55],
+            Palette::Black => [0x00, 0x00, 0x00],
         }
     }
 }

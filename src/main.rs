@@ -24,7 +24,10 @@ fn main() {
 
     // Load the bootrom and cartridge, execute emulator
     let bootrom = include_bytes!("../external/roms/dmg_boot.bin").to_vec();
-    let cartridge = include_bytes!("../external/roms/Tetris.gb").to_vec();
+
+    let args: Vec<String> = std::env::args().collect();
+    let cartridge = std::fs::read(&args[1]).expect("Failed to read ROM file");
+    let uncapped = args.iter().any(|arg| arg == "--uncapped");
 
     let mut renderer = Renderer::new();
     let mut gb = GameBoy::new(bootrom, cartridge);
@@ -39,6 +42,10 @@ fn main() {
         gb.run_frame();
         renderer.update_texture(&gb.render_background());
         renderer.render();
+
+        if uncapped {
+            continue;
+        }
 
         let frame_duration = throttle_timer.elapsed();
         if frame_duration < TARGET_FRAME_DURATION {
