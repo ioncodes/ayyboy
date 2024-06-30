@@ -194,9 +194,7 @@ impl Ppu {
         let tile_addr = if tileset == TILESET_0_ADDRESS {
             tileset + ((tile_number as u16) * 16)
         } else {
-            // TODO: Need this for foreground window?
             tileset.wrapping_add_signed((tile_number as i8 as i16 + 128) * 16)
-            //tileset.wrapping_add_signed(((tile_number & 0xff) as i16 + 128) * 16)
         };
         let tile = Tile::from_background_addr(mmu, tile_addr);
 
@@ -259,7 +257,11 @@ impl Ppu {
         let tile_number = mmu.read_unchecked((tilemap + (win_map_y * 32)) + win_map_x);
 
         // Calculate the address of the tile data
-        let tile_addr = tileset + (tile_number as u16) * 16;
+        let tile_addr = if tileset == TILESET_0_ADDRESS {
+            tileset + ((tile_number as u16) * 16)
+        } else {
+            tileset.wrapping_add_signed((tile_number as i8 as i16 + 128) * 16)
+        };
         let tile = Tile::from_background_addr(mmu, tile_addr);
 
         // Calculate the pixel coordinates in the tile

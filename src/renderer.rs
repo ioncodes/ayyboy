@@ -22,7 +22,6 @@ impl Renderer {
         let window = video_subsystem
             .window("ayyboy", SCREEN_WIDTH as u32 * 4, SCREEN_HEIGHT as u32 * 4)
             .position_centered()
-            .allow_highdpi()
             .build()
             .unwrap();
 
