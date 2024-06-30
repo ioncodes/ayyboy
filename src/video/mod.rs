@@ -1,5 +1,6 @@
 pub mod palette;
 pub mod ppu;
+mod sprite;
 pub mod tile;
 
 pub const SCREEN_WIDTH: usize = 160;

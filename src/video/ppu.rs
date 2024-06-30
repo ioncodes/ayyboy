@@ -1,7 +1,8 @@
 use crate::memory::mmu::Mmu;
 use crate::memory::registers::InterruptFlags;
 use crate::memory::INTERRUPT_FLAGS_REGISTER;
-use crate::video::palette::Palette;
+use crate::video::palette::{Color, Palette};
+use crate::video::sprite::Sprite;
 use crate::video::tile::Tile;
 use crate::video::{SCREEN_HEIGHT, SCREEN_WIDTH};
 
@@ -12,6 +13,8 @@ pub const TILEMAP_0_ADDRESS: u16 = 0x8000;
 pub const TILEMAP_1_ADDRESS: u16 = 0x8800;
 pub const BACKGROUND_0_ADDRESS: u16 = 0x9800;
 pub const BACKGROUND_1_ADDRESS: u16 = 0x9c00;
+pub const OAM_ADDRESS: u16 = 0xfe00;
+
 pub const BACKGROUND_MAP_SIZE: usize = 32 * 32;
 
 pub const LCD_CONTROL_REGISTER: u16 = 0xff40;
@@ -66,9 +69,24 @@ impl Ppu {
             return;
         }
 
+        // Track visited OAMs for current scanline
+        let mut visited_oams: Vec<u16> = Vec::new();
+
         for x in 0..SCREEN_WIDTH {
-            let color = self.fetch_pixel(mmu, x, scanline);
-            self.emulated_frame[scanline][x] = color;
+            if visited_oams.len() > 10 {
+                break;
+            }
+
+            let background_color = self.fetch_background_pixel(mmu, x, scanline);
+
+            if let Some((oam_id, sprite_color)) = self.fetch_sprite_pixel(mmu, x, scanline) {
+                self.emulated_frame[scanline][x] = sprite_color;
+                if !visited_oams.contains(&oam_id) {
+                    visited_oams.push(oam_id);
+                }
+            } else {
+                self.emulated_frame[scanline][x] = background_color;
+            }
         }
     }
 
@@ -144,7 +162,7 @@ impl Ppu {
         mmu.read_unchecked(SCANLINE_Y_REGISTER) >= 144
     }
 
-    fn fetch_pixel(&self, mmu: &Mmu, x: usize, y: usize) -> Palette {
+    fn fetch_background_pixel(&self, mmu: &Mmu, x: usize, y: usize) -> Palette {
         // Read scroll values from memory
         let scy = mmu.read_unchecked(SCROLL_Y_REGISTER);
         let scx = mmu.read_unchecked(SCROLL_X_REGISTER);
@@ -168,6 +186,33 @@ impl Ppu {
 
         // Get the color of the pixel
         tile.pixels[tile_y as usize][tile_x as usize]
+    }
+
+    fn fetch_sprite_pixel(&self, mmu: &Mmu, x: usize, y: usize) -> Option<(u16, Palette)> {
+        for i in 0..40 {
+            let sprite = Sprite::from_oam(mmu, i);
+
+            if sprite.is_visible_on_scanline(y) {
+                let sprite_y = sprite.y.wrapping_sub(16);
+                let sprite_x = sprite.x.wrapping_sub(8);
+
+                if x >= sprite_x as usize && x < (sprite_x as usize + 8) {
+                    let tile_addr = self.tile_map_address(mmu) + (sprite.tile_index as u16) * 16;
+                    let tile = Tile::from_addr(mmu, tile_addr);
+
+                    let mut tile_x = (x - sprite_x as usize) as u8;
+                    let mut tile_y = (y - sprite_y as usize) as u8;
+
+                    let color = tile.pixels[tile_y as usize][tile_x as usize];
+
+                    if !color.is_transparent() {
+                        return Some((i, color));
+                    }
+                }
+            }
+        }
+
+        None
     }
 
     fn background_map_address(&self, mmu: &Mmu) -> u16 {

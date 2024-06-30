@@ -31,6 +31,13 @@ impl Palette {
             _ => panic!("Invalid shade value: {}", shade),
         }
     }
+
+    pub fn is_transparent(&self) -> bool {
+        match self {
+            Palette::White => true,
+            _ => false,
+        }
+    }
 }
 
 impl Into<Color> for Palette {
