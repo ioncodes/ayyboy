@@ -1,5 +1,6 @@
 use crate::memory::mmu::Mmu;
-use crate::video::ppu::BG_PALETTE_REGISTER;
+use crate::video::ppu::{BG_PALETTE_REGISTER, OBJ0_PALETTE_REGISTER, OBJ1_PALETTE_REGISTER};
+use crate::video::sprite::Sprite;
 
 pub type Color = [u8; 3];
 
@@ -12,7 +13,7 @@ pub enum Palette {
 }
 
 impl Palette {
-    pub fn from(value: u8, mmu: &Mmu) -> Palette {
+    pub fn from_background(value: u8, mmu: &Mmu) -> Palette {
         let bgp_shade = mmu.read_unchecked(BG_PALETTE_REGISTER);
 
         let shade = match value {
@@ -20,6 +21,30 @@ impl Palette {
             0b01 => (bgp_shade & 0b0000_1100) >> 2,
             0b10 => (bgp_shade & 0b0011_0000) >> 4,
             0b11 => (bgp_shade & 0b1100_0000) >> 6,
+            _ => panic!("Invalid color value: {}", value),
+        };
+
+        match shade {
+            0b00 => Palette::White,
+            0b01 => Palette::LightGray,
+            0b10 => Palette::DarkGray,
+            0b11 => Palette::Black,
+            _ => panic!("Invalid shade value: {}", shade),
+        }
+    }
+
+    pub fn from_object(value: u8, mmu: &Mmu, sprite: &Sprite) -> Palette {
+        let objp_shade = if sprite.attributes & 0x10 == 0 {
+            mmu.read_unchecked(OBJ0_PALETTE_REGISTER)
+        } else {
+            mmu.read_unchecked(OBJ1_PALETTE_REGISTER)
+        };
+
+        let shade = match value {
+            0b00 => objp_shade & 0b0000_0011,
+            0b01 => (objp_shade & 0b0000_1100) >> 2,
+            0b10 => (objp_shade & 0b0011_0000) >> 4,
+            0b11 => (objp_shade & 0b1100_0000) >> 6,
             _ => panic!("Invalid color value: {}", value),
         };
 

@@ -23,6 +23,8 @@ pub const SCROLL_X_REGISTER: u16 = 0xff43;
 pub const SCANLINE_Y_REGISTER: u16 = 0xff44;
 pub const SCANLINE_Y_COMPARE_REGISTER: u16 = 0xff45;
 pub const BG_PALETTE_REGISTER: u16 = 0xff47;
+pub const OBJ0_PALETTE_REGISTER: u16 = 0xff48;
+pub const OBJ1_PALETTE_REGISTER: u16 = 0xff49;
 
 #[derive(Debug)]
 pub struct Ppu {
@@ -105,7 +107,7 @@ impl Ppu {
 
         for tile_nr in 0..384 {
             let addr = tile_map_addr + (tile_nr as u16 * 16);
-            let tile = Tile::from_addr(mmu, addr);
+            let tile = Tile::from_background_addr(mmu, addr);
             tiles.push(tile);
         }
 
@@ -130,7 +132,7 @@ impl Ppu {
         for idx in 0..BACKGROUND_MAP_SIZE {
             let tile_nr = mmu.read_unchecked(bg_map_addr + idx as u16);
             let addr = tile_map_addr + (tile_nr as u16 * 16);
-            let tile = Tile::from_addr(mmu, addr);
+            let tile = Tile::from_background_addr(mmu, addr);
             tiles.push(tile);
         }
 
@@ -178,7 +180,7 @@ impl Ppu {
 
         // Calculate the address of the tile data
         let tile_addr = tile_data_addr + (tile_number as u16) * 16;
-        let tile = Tile::from_addr(mmu, tile_addr);
+        let tile = Tile::from_background_addr(mmu, tile_addr);
 
         // Calculate the pixel coordinates in the tile
         let tile_x = (x as u8 + scx) % 8;
@@ -198,7 +200,7 @@ impl Ppu {
 
                 if x >= sprite_x as usize && x < (sprite_x as usize + 8) {
                     let tile_addr = self.tile_map_address(mmu) + (sprite.tile_index as u16) * 16;
-                    let tile = Tile::from_addr(mmu, tile_addr);
+                    let tile = Tile::from_sprite_addr(mmu, tile_addr, &sprite);
 
                     let mut tile_x = (x - sprite_x as usize) as u8;
                     let mut tile_y = (y - sprite_y as usize) as u8;
