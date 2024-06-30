@@ -47,25 +47,26 @@ fn main() {
 }
 
 fn setup_logging() {
+    use fern::Dispatch;
+    use log::LevelFilter;
+
+    // Setup logger
+    const LOG_PATH: &str = "./external/ayyboy_trace.log";
+    std::fs::remove_file(LOG_PATH).unwrap_or_default();
+
+    let mut base_config = Dispatch::new()
+        .level(LevelFilter::Trace)
+        .chain(Dispatch::new().level(log::LevelFilter::Info).chain(std::io::stdout()))
+        .format(move |out, message, record| out.finish(format_args!("[{}] {}", record.level(), message)));
+
     #[cfg(debug_assertions)]
     {
-        use fern::Dispatch;
-        use log::LevelFilter;
-
-        // Setup logger
-        const LOG_PATH: &str = "./external/ayyboy_trace.log";
-        std::fs::remove_file(LOG_PATH).unwrap_or_default();
-
-        let base_config = Dispatch::new()
-            .level(LevelFilter::Trace)
-            .chain(Dispatch::new().level(log::LevelFilter::Info).chain(std::io::stdout()))
-            .chain(
-                Dispatch::new()
-                    .level(LevelFilter::Trace)
-                    .chain(fern::log_file(LOG_PATH).unwrap()),
-            )
-            .format(move |out, message, record| out.finish(format_args!("[{}] {}", record.level(), message)));
-
-        base_config.apply().unwrap();
+        base_config = base_config.chain(
+            Dispatch::new()
+                .level(LevelFilter::Trace)
+                .chain(fern::log_file(LOG_PATH).unwrap()),
+        );
     }
+
+    base_config.apply().unwrap();
 }

@@ -1,5 +1,5 @@
+use crate::error::AyyError;
 use crate::memory::mapper::Mapper;
-use log::warn;
 
 #[derive(Clone)]
 pub struct Rom {
@@ -13,13 +13,13 @@ impl Rom {
 }
 
 impl Mapper for Rom {
-    fn read(&self, addr: u16) -> u8 {
-        self.memory[addr as usize]
+    fn read(&self, addr: u16) -> Result<u8, AyyError> {
+        Ok(self.memory[addr as usize])
     }
 
-    fn write(&mut self, addr: u16, data: u8) {
+    fn write(&mut self, addr: u16, data: u8) -> Result<(), AyyError> {
         // We simply only have a ROM. Writing to it is not allowed.
-        warn!("Attempted to write to ROM at address {:04x}", addr);
+        Err(AyyError::WriteToReadOnlyMemory { address: addr, data })
     }
 
     fn current_rom_bank(&self) -> u8 {

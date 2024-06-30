@@ -39,13 +39,17 @@ impl Cpu {
         }
 
         let instruction = self.sm83.decode(mmu, self.registers.pc)?;
+        let instruction_bytes = (0..instruction.length)
+            .map(|i| mmu.read_unchecked(self.registers.pc + i as u16))
+            .collect::<Vec<u8>>();
 
         trace!(
-            "[{:04x}] {:<20} [{}  (SP): ${:02x}  IME: {}  ROM Bank: {}]",
+            "[{:04x}] {:<12} {:<20} [{}  (SP): ${:02x}  IME: {}  ROM Bank: {}]",
             self.registers.pc,
+            format!("{:02x?}", instruction_bytes),
             format!("{}", instruction),
             self,
-            mmu.read(self.registers.sp),
+            mmu.read(self.registers.sp)?,
             self.ime.enabled,
             mmu.current_rom_bank()
         );
@@ -82,12 +86,10 @@ impl Cpu {
             Opcode::Swap => Handlers::swap(self, mmu, &instruction),
             Opcode::Res => Handlers::reset_bit(self, mmu, &instruction),
             Opcode::Set => Handlers::set_bit(self, mmu, &instruction),
-            _ => {
-                return Err(AyyError::UnimplementedInstruction {
-                    instruction: format!("{}", instruction),
-                    cpu: format!("{}", self),
-                })
-            }
+            _ => Err(AyyError::UnimplementedInstruction {
+                instruction: format!("{}", instruction),
+                cpu: format!("{}", self),
+            }),
         }?;
 
         self.cycles += cycles;
@@ -184,15 +186,16 @@ impl Cpu {
         self.registers.f &= !flag;
     }
 
-    pub fn push_stack(&mut self, mmu: &mut Mmu, value: u16) {
+    pub fn push_stack(&mut self, mmu: &mut Mmu, value: u16) -> Result<(), AyyError> {
         self.registers.sp -= 2;
-        mmu.write16(self.registers.sp, value);
+        mmu.write16(self.registers.sp, value)?;
+        Ok(())
     }
 
-    pub fn pop_stack(&mut self, mmu: &Mmu) -> u16 {
-        let value = mmu.read16(self.registers.sp);
+    pub fn pop_stack(&mut self, mmu: &Mmu) -> Result<u16, AyyError> {
+        let value = mmu.read16(self.registers.sp)?;
         self.registers.sp += 2;
-        value
+        Ok(value)
     }
 
     pub fn enable_interrupts(&mut self, delayed: bool) {
@@ -229,23 +232,23 @@ impl Cpu {
             debug!("IME pending, enabled");
         }
 
-        let interrupt_enable = mmu.read_as::<InterruptEnable>(INTERRUPT_ENABLE_REGISTER);
-        let interrupt_flags = mmu.read_as::<InterruptFlags>(INTERRUPT_FLAGS_REGISTER);
+        let interrupt_enable = mmu.read_as::<InterruptEnable>(INTERRUPT_ENABLE_REGISTER)?;
+        let interrupt_flags = mmu.read_as::<InterruptFlags>(INTERRUPT_FLAGS_REGISTER)?;
 
         if self.ime.enabled && interrupt_enable.bits() & interrupt_flags.bits() != 0 {
             // handle interrupt vector
-            self.push_stack(mmu, self.registers.pc);
+            self.push_stack(mmu, self.registers.pc)?;
             let vector = interrupt_flags.to_vector()?;
             debug!("Handling interrupt vector: ${:04x}", vector);
             self.registers.pc = vector;
 
             // clear interrupt flag
             match vector {
-                0x0040 => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::VBLANK.bits()),
-                0x0048 => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::LCD_STAT.bits()),
-                0x0050 => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::TIMER.bits()),
-                0x0058 => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::SERIAL.bits()),
-                0x0060 => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::JOYPAD.bits()),
+                0x0040 => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::VBLANK.bits())?,
+                0x0048 => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::LCD_STAT.bits())?,
+                0x0050 => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::TIMER.bits())?,
+                0x0058 => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::SERIAL.bits())?,
+                0x0060 => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::JOYPAD.bits())?,
                 _ => unreachable!(),
             }
             self.ime.enabled = false;

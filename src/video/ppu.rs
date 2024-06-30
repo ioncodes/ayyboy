@@ -14,7 +14,6 @@ pub const BACKGROUND_1_ADDRESS: u16 = 0x9c00;
 pub const BACKGROUND_MAP_SIZE: usize = 32 * 32;
 
 pub const LCD_CONTROL_REGISTER: u16 = 0xff40;
-pub const STATUS_REGISTER: u16 = 0xff41;
 pub const SCROLL_Y_REGISTER: u16 = 0xff42;
 pub const SCROLL_X_REGISTER: u16 = 0xff43;
 pub const SCANLINE_Y_REGISTER: u16 = 0xff44;
@@ -30,15 +29,15 @@ impl Ppu {
     }
 
     pub fn tick(&mut self, mmu: &mut Mmu) {
-        let scanline = mmu.read(SCANLINE_Y_REGISTER);
+        let scanline = mmu.read_unchecked(SCANLINE_Y_REGISTER);
         let scanline = scanline.wrapping_add(1);
         if scanline >= 154 {
-            mmu.write(SCANLINE_Y_REGISTER, 0);
+            mmu.write_unchecked(SCANLINE_Y_REGISTER, 0);
         } else {
-            mmu.write(SCANLINE_Y_REGISTER, scanline);
+            mmu.write_unchecked(SCANLINE_Y_REGISTER, scanline);
         }
 
-        let mut interrupt_flags = mmu.read_as::<InterruptFlags>(INTERRUPT_FLAGS_REGISTER);
+        let mut interrupt_flags = mmu.read_as_unchecked::<InterruptFlags>(INTERRUPT_FLAGS_REGISTER);
 
         // Raise vblank IRQ
         if scanline >= 144 {
@@ -46,12 +45,12 @@ impl Ppu {
         }
 
         // Raise stat IRQ
-        let lyc = mmu.read(SCANLINE_Y_COMPARE_REGISTER);
+        let lyc = mmu.read_unchecked(SCANLINE_Y_COMPARE_REGISTER);
         if scanline == lyc {
             interrupt_flags |= InterruptFlags::LCD_STAT;
         }
 
-        mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits());
+        mmu.write_unchecked(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits());
     }
 
     pub fn render_tilemap(&mut self, mmu: &Mmu) -> Vec<Tile> {
@@ -69,14 +68,14 @@ impl Ppu {
     pub fn render_backgroundmap(&self, mmu: &Mmu) -> Vec<Tile> {
         let mut tiles: Vec<Tile> = Vec::new();
 
-        let bg_map_addr = if mmu.read(LCD_CONTROL_REGISTER) & 0b1000 == 0 {
+        let bg_map_addr = if mmu.read_unchecked(LCD_CONTROL_REGISTER) & 0b1000 == 0 {
             BACKGROUND_0_ADDRESS
         } else {
             BACKGROUND_1_ADDRESS
         };
 
         for idx in 0..BACKGROUND_MAP_SIZE {
-            let tile_nr = mmu.read(bg_map_addr + idx as u16);
+            let tile_nr = mmu.read_unchecked(bg_map_addr + idx as u16);
             let addr = TILEMAP_ADDRESS + (tile_nr as u16 * 16);
             let tile = Tile::from_addr(mmu, addr);
             tiles.push(tile);
@@ -88,8 +87,8 @@ impl Ppu {
     pub fn render_background(&self, mmu: &Mmu) -> [[Palette; SCREEN_WIDTH]; SCREEN_HEIGHT] {
         let mut background: [[Palette; SCREEN_WIDTH]; SCREEN_HEIGHT] = [[Palette::White; SCREEN_WIDTH]; SCREEN_HEIGHT];
         let bg_map = self.render_backgroundmap(mmu);
-        let scroll_y = mmu.read(SCROLL_Y_REGISTER);
-        let scroll_x = mmu.read(SCROLL_X_REGISTER);
+        let scroll_y = mmu.read_unchecked(SCROLL_Y_REGISTER);
+        let scroll_x = mmu.read_unchecked(SCROLL_X_REGISTER);
 
         for y in 0..SCREEN_HEIGHT {
             for x in 0..SCREEN_WIDTH {
@@ -107,6 +106,6 @@ impl Ppu {
     }
 
     pub fn is_vblank(&self, mmu: &Mmu) -> bool {
-        mmu.read(SCANLINE_Y_REGISTER) >= 144
+        mmu.read_unchecked(SCANLINE_Y_REGISTER) >= 144
     }
 }

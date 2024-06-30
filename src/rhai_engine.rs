@@ -48,9 +48,9 @@ impl<'a> RhaiEngine<'a> {
             13 => cpu.read_register(&Register::L) as i64,
             _ => panic!("Invalid register: {}", register),
         });
-        rhai.register_fn("read_memory", |mmu: &mut Mmu, addr: i32| mmu.read(addr as u16) as i64);
+        rhai.register_fn("read_memory", |mmu: &mut Mmu, addr: i32| mmu.read_unchecked(addr as u16) as i64);
         rhai.register_fn("write_memory", |mmu: &mut Mmu, addr: i32, data: i64| {
-            mmu.write(addr as u16, data as u8)
+            mmu.write_unchecked(addr as u16, data as u8)
         });
 
         let rhai_scope = Scope::new();

@@ -13,7 +13,7 @@ pub enum Palette {
 
 impl Palette {
     pub fn from(value: u8, mmu: &Mmu) -> Palette {
-        let bgp_shade = mmu.read(BG_PALETTE_REGISTER);
+        let bgp_shade = mmu.read_unchecked(BG_PALETTE_REGISTER);
 
         let shade = match value {
             0b00 => bgp_shade & 0b0000_0011,

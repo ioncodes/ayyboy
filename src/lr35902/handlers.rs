@@ -75,7 +75,7 @@ impl Handlers {
                     cpu.write_register(reg, src as u8);
                 } else {
                     let addr = 0xff00 + cpu.read_register(reg) as u16;
-                    mmu.write(addr as u16, src as u8);
+                    mmu.write(addr, src as u8)?;
                 }
             }
             Instruction {
@@ -84,7 +84,7 @@ impl Handlers {
                 ..
             } if mode.contains(AddressingMode::Increment) => {
                 let addr = cpu.read_register16(&Register::HL);
-                mmu.write(addr, src as u8);
+                mmu.write(addr, src as u8)?;
                 cpu.write_register16(&Register::HL, addr.wrapping_add(1));
             }
             Instruction {
@@ -93,7 +93,7 @@ impl Handlers {
                 ..
             } if mode.contains(AddressingMode::Decrement) => {
                 let addr = cpu.read_register16(&Register::HL);
-                mmu.write(addr, src as u8);
+                mmu.write(addr, src as u8)?;
                 cpu.write_register16(&Register::HL, addr.wrapping_sub(1));
             }
             Instruction {
@@ -109,7 +109,7 @@ impl Handlers {
                 ..
             } if mode.contains(AddressingMode::Indirect) => {
                 let addr = cpu.read_register16(reg);
-                mmu.write(addr, src as u8);
+                mmu.write(addr, src as u8)?;
             }
             Instruction {
                 opcode: Opcode::Ld,
@@ -118,7 +118,7 @@ impl Handlers {
                 ..
             } => {
                 let value = cpu.read_register16(reg);
-                mmu.write16(*addr, value);
+                mmu.write16(*addr, value)?;
             }
             Instruction {
                 opcode: Opcode::Ld,
@@ -127,14 +127,14 @@ impl Handlers {
                 ..
             } => {
                 let value = cpu.read_register(reg);
-                mmu.write(*addr, value);
+                mmu.write(*addr, value)?;
             }
             Instruction {
                 opcode: Opcode::Ldh,
                 lhs: Some(Operand::Imm8(addr, _)),
                 ..
             } => {
-                mmu.write(0xff00 + *addr as u16, src as u8);
+                mmu.write(0xff00 + *addr as u16, src as u8)?;
             }
             Instruction {
                 opcode: Opcode::Ldh,
@@ -142,7 +142,7 @@ impl Handlers {
                 rhs: Some(Operand::Imm8(addr, _)),
                 ..
             } => {
-                let value = mmu.read(0xff00 + *addr as u16);
+                let value = mmu.read(0xff00 + *addr as u16)?;
                 cpu.write_register(reg, value);
             }
             _ => return invalid_handler!(instruction),
@@ -364,10 +364,10 @@ impl Handlers {
                 ..
             } => {
                 let addr = cpu.read_register16(&Register::HL);
-                let value = mmu.read(addr);
+                let value = mmu.read(addr)?;
                 let carry = cpu.read_flag(Flags::CARRY) as u8;
                 let result = (value << 1) | carry;
-                mmu.write(addr, result);
+                mmu.write(addr, result)?;
 
                 cpu.update_flag(Flags::ZERO, result == 0);
                 cpu.update_flag(Flags::SUBTRACT, false);
@@ -411,9 +411,9 @@ impl Handlers {
                 ..
             } => {
                 let addr = cpu.read_register16(&Register::HL);
-                let value = mmu.read(addr);
+                let value = mmu.read(addr)?;
                 let result = (value << 1) | (value >> 7);
-                mmu.write(addr, result);
+                mmu.write(addr, result)?;
 
                 cpu.update_flag(Flags::ZERO, result == 0);
                 cpu.update_flag(Flags::SUBTRACT, false);
@@ -463,10 +463,10 @@ impl Handlers {
                 ..
             } => {
                 let addr = cpu.read_register16(&Register::HL);
-                let value = mmu.read(addr);
+                let value = mmu.read(addr)?;
                 let carry = cpu.read_flag(Flags::CARRY) as u8;
                 let result = (value >> 1) | (carry << 7);
-                mmu.write(addr, result);
+                mmu.write(addr, result)?;
 
                 cpu.update_flag(Flags::ZERO, result == 0);
                 cpu.update_flag(Flags::SUBTRACT, false);
@@ -510,9 +510,9 @@ impl Handlers {
                 ..
             } => {
                 let addr = cpu.read_register16(&Register::HL);
-                let value = mmu.read(addr);
+                let value = mmu.read(addr)?;
                 let result = (value >> 1) | (value << 7);
-                mmu.write(addr, result);
+                mmu.write(addr, result)?;
 
                 cpu.update_flag(Flags::ZERO, result == 0);
                 cpu.update_flag(Flags::SUBTRACT, false);
@@ -563,9 +563,9 @@ impl Handlers {
                 ..
             } => {
                 let addr = cpu.read_register16(&Register::HL);
-                let value = mmu.read(addr);
+                let value = mmu.read(addr)?;
                 let result = value << 1;
-                mmu.write(addr, result);
+                mmu.write(addr, result)?;
 
                 cpu.update_flag(Flags::ZERO, result == 0);
                 cpu.update_flag(Flags::SUBTRACT, false);
@@ -604,9 +604,9 @@ impl Handlers {
                 ..
             } => {
                 let addr = cpu.read_register16(&Register::HL);
-                let value = mmu.read(addr);
+                let value = mmu.read(addr)?;
                 let result = (value >> 1) | (value & 0x80);
-                mmu.write(addr, result);
+                mmu.write(addr, result)?;
 
                 cpu.update_flag(Flags::ZERO, result == 0);
                 cpu.update_flag(Flags::SUBTRACT, false);
@@ -637,9 +637,9 @@ impl Handlers {
                 ..
             } => {
                 let addr = cpu.read_register16(&Register::HL);
-                let value = mmu.read(addr);
+                let value = mmu.read(addr)?;
                 let result = value >> 1;
-                mmu.write(addr, result);
+                mmu.write(addr, result)?;
 
                 cpu.update_flag(Flags::ZERO, result == 0);
                 cpu.update_flag(Flags::SUBTRACT, false);
@@ -672,9 +672,9 @@ impl Handlers {
                 ..
             } => {
                 let addr = cpu.read_register16(&Register::HL);
-                let value = mmu.read(addr);
+                let value = mmu.read(addr)?;
                 let result = (value >> 4) | (value << 4);
-                mmu.write(addr, result);
+                mmu.write(addr, result)?;
                 result
             }
             _ => return invalid_handler!(instruction),
@@ -709,9 +709,9 @@ impl Handlers {
                 ..
             } => {
                 let addr = cpu.read_register16(register);
-                let value = mmu.read(addr);
+                let value = mmu.read(addr)?;
                 let result = value & !(1 << *bit);
-                mmu.write(addr, result);
+                mmu.write(addr, result)?;
 
                 Ok(instruction.cycles.0)
             }
@@ -740,9 +740,9 @@ impl Handlers {
                 ..
             } => {
                 let addr = cpu.read_register16(register);
-                let value = mmu.read(addr);
+                let value = mmu.read(addr)?;
                 let result = value | (1 << *bit);
-                mmu.write(addr, result);
+                mmu.write(addr, result)?;
 
                 Ok(instruction.cycles.0)
             }
@@ -785,8 +785,8 @@ impl Handlers {
         // interrupt vector (and clear the IF flag), while IME='0' will only make the CPU continue executing
         // instructions, but the jump won't be performed (and the IF flag won't be cleared).
 
-        let interrupt_enable = mmu.read_as::<InterruptEnable>(INTERRUPT_ENABLE_REGISTER);
-        let interrupt_flags = mmu.read_as::<InterruptFlags>(INTERRUPT_FLAGS_REGISTER);
+        let interrupt_enable = mmu.read_as::<InterruptEnable>(INTERRUPT_ENABLE_REGISTER)?;
+        let interrupt_flags = mmu.read_as::<InterruptFlags>(INTERRUPT_FLAGS_REGISTER)?;
 
         if !cpu.interrupt_master_raised() && (interrupt_enable.bits() & interrupt_flags.bits() == 0) {
             return Ok(instruction.cycles.0);
@@ -832,7 +832,7 @@ impl Handlers {
                         let addr = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as u16;
                         let pc = cpu.read_register16(&Register::PC);
                         // We already increased the PC by 3, so we need to push the current PC + 3
-                        cpu.push_stack(mmu, pc);
+                        cpu.push_stack(mmu, pc)?;
                         cpu.write_register16(&Register::PC, addr);
                         Ok(instruction.cycles.0)
                     } else {
@@ -851,7 +851,7 @@ impl Handlers {
 
         let addr = Handlers::resolve_operand(cpu, mmu, instruction.lhs.as_ref().unwrap(), false)? as u16;
         let pc = cpu.read_register16(&Register::PC);
-        cpu.push_stack(mmu, pc);
+        cpu.push_stack(mmu, pc)?;
         cpu.write_register16(&Register::PC, addr);
 
         Ok(instruction.cycles.0)
@@ -863,7 +863,7 @@ impl Handlers {
                 ensure!(lhs => instruction);
                 if let Some(Operand::Conditional(cond)) = instruction.lhs.as_ref() {
                     if Handlers::check_condition(cpu, cond) {
-                        let addr = cpu.pop_stack(mmu);
+                        let addr = cpu.pop_stack(mmu)?;
                         cpu.write_register16(&Register::PC, addr);
                     }
                     Ok(instruction.cycles.0)
@@ -872,7 +872,7 @@ impl Handlers {
                 }
             }
             Opcode::Reti => {
-                let addr = cpu.pop_stack(mmu);
+                let addr = cpu.pop_stack(mmu)?;
                 cpu.write_register16(&Register::PC, addr);
                 cpu.enable_interrupts(false);
                 Ok(instruction.cycles.0)
@@ -888,7 +888,7 @@ impl Handlers {
         match operand {
             Operand::Reg16(reg, _) => {
                 let value = cpu.read_register16(reg);
-                cpu.push_stack(mmu, value);
+                cpu.push_stack(mmu, value)?;
             }
             _ => return invalid_handler!(instruction),
         }
@@ -902,7 +902,7 @@ impl Handlers {
         let operand = instruction.lhs.as_ref().unwrap();
         match operand {
             Operand::Reg16(reg, _) => {
-                let value = cpu.pop_stack(mmu);
+                let value = cpu.pop_stack(mmu)?;
                 cpu.write_register16(reg, value);
             }
             _ => return invalid_handler!(instruction),
@@ -928,9 +928,9 @@ impl Handlers {
             Operand::Reg16(reg, mode) => {
                 if mode.contains(AddressingMode::Indirect) {
                     let addr = cpu.read_register16(reg);
-                    let value = mmu.read(addr);
+                    let value = mmu.read(addr)?;
                     let result = value.wrapping_add(1);
-                    mmu.write(addr, result);
+                    mmu.write(addr, result)?;
 
                     cpu.update_flag(Flags::ZERO, result == 0);
                     cpu.update_flag(Flags::SUBTRACT, false);
@@ -964,9 +964,9 @@ impl Handlers {
             Operand::Reg16(reg, mode) => {
                 if mode.contains(AddressingMode::Indirect) {
                     let addr = cpu.read_register16(reg);
-                    let value = mmu.read(addr);
+                    let value = mmu.read(addr)?;
                     let result = value.wrapping_sub(1);
-                    mmu.write(addr, result);
+                    mmu.write(addr, result)?;
 
                     cpu.update_flag(Flags::ZERO, result == 0);
                     cpu.update_flag(Flags::SUBTRACT, true);
@@ -1035,21 +1035,21 @@ impl Handlers {
             Operand::Reg16(reg, mode) if mode.contains(AddressingMode::Indirect) => {
                 let addr = cpu.read_register16(&reg);
                 Handlers::process_additional_address_mode(cpu, reg, addr, mode);
-                Ok(mmu.read16(addr) as usize)
+                Ok(mmu.read16(addr)? as usize)
             }
             Operand::Reg8(reg, mode) if mode.contains(AddressingMode::Direct) => Ok(cpu.read_register(&reg) as usize),
             Operand::Reg8(reg, mode) if mode.contains(AddressingMode::Indirect) => {
                 // ld a, (c)
                 let addr = cpu.read_register(&reg);
-                Ok(mmu.read(0xff00 + addr as u16) as usize)
+                Ok(mmu.read(0xff00 + addr as u16)? as usize)
             }
             Operand::Imm16(imm, mode) if mode.contains(AddressingMode::Direct) => Ok(*imm as usize),
-            Operand::Imm16(imm, mode) if mode.contains(AddressingMode::Indirect) => Ok(mmu.read16(*imm) as usize),
+            Operand::Imm16(imm, mode) if mode.contains(AddressingMode::Indirect) => Ok(mmu.read16(*imm)? as usize),
             Operand::Imm8(imm, mode) if mode.contains(AddressingMode::Direct) => Ok(*imm as usize),
             Operand::Imm8(imm, mode) if mode.contains(AddressingMode::Indirect) && is_ldh => {
                 // ldh a, (imm)
                 let addr = 0xff00 + *imm as u16;
-                Ok(mmu.read(addr) as usize)
+                Ok(mmu.read(addr)? as usize)
             }
             Operand::Bit(bit) => Ok(*bit as usize),
             Operand::Offset(offset) => Ok(*offset as usize),

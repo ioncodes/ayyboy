@@ -1,3 +1,5 @@
+use crate::error::AyyError;
+use crate::error::AyyError::WriteToReadOnlyMemory;
 use crate::lr35902::cpu::Cpu;
 use crate::lr35902::sm83::Register;
 use crate::memory::mapper::mbc1::Mbc1;
@@ -9,7 +11,7 @@ use crate::video::palette::Palette;
 use crate::video::ppu::{Ppu, SCANLINE_Y_REGISTER};
 use crate::video::tile::Tile;
 use crate::video::{SCREEN_HEIGHT, SCREEN_WIDTH};
-use log::info;
+use log::{info, warn};
 use std::path::PathBuf;
 
 pub struct GameBoy<'a> {
@@ -54,6 +56,21 @@ impl<'a> GameBoy<'a> {
                 self.try_rhai_script();
                 match self.cpu.tick(&mut self.mmu) {
                     Ok(_) => {}
+                    Err(WriteToReadOnlyMemory { address, data }) => {
+                        warn!(
+                            "PC @ {:04x} => Attempted to write {:02x} to read-only memory at {:04x}",
+                            self.cpu.read_register16(&Register::PC),
+                            data,
+                            address
+                        );
+                    }
+                    Err(AyyError::OutOfBoundsMemoryAccess { address }) => {
+                        warn!(
+                            "PC @ {:04x} => Attempted to read out-of-bounds memory at {:04x}",
+                            self.cpu.read_register16(&Register::PC),
+                            address
+                        );
+                    }
                     Err(e) => panic!("{}", e),
                 }
 
@@ -67,36 +84,13 @@ impl<'a> GameBoy<'a> {
             // more or less “padding” the duration of the scanline to a total of 456 T-Cycles.
             // The PPU effectively pauses during this mode.
             self.ppu.tick(&mut self.mmu); // "does a scanline"
-            let vblank_done = self.mmu.read(SCANLINE_Y_REGISTER);
+            let vblank_done = self.mmu.read_unchecked(SCANLINE_Y_REGISTER);
             self.cpu.reset_cycles();
 
             // Do we have a frame to render?
             if vblank_done == 0 {
                 break;
             }
-        }
-    }
-
-    // Run the emulator until the CPU reaches the specified address
-    pub fn run_until(&mut self, addr: u16) {
-        'outer: loop {
-            'inner: loop {
-                self.try_rhai_script();
-                match self.cpu.tick(&mut self.mmu) {
-                    Ok(_) => {}
-                    Err(e) => panic!("{}", e),
-                }
-
-                if self.cpu.read_register16(&Register::PC) == addr {
-                    break 'outer;
-                }
-
-                if self.cpu.elapsed_cycles() >= 456 {
-                    break 'inner;
-                }
-            }
-
-            self.ppu.tick(&mut self.mmu); // "does a scanline"
         }
     }
 

@@ -1,5 +1,6 @@
+use crate::error::AyyError;
 use crate::memory::mapper::Mapper;
-use log::{debug, warn};
+use log::debug;
 
 #[derive(Clone)]
 pub struct Mbc1 {
@@ -14,18 +15,18 @@ impl Mbc1 {
 }
 
 impl Mapper for Mbc1 {
-    fn read(&self, addr: u16) -> u8 {
+    fn read(&self, addr: u16) -> Result<u8, AyyError> {
         match addr {
-            0x0000..=0x3fff => self.rom[addr as usize],
+            0x0000..=0x3fff => Ok(self.rom[addr as usize]),
             0x4000..=0x7fff => {
                 let addr = (addr as usize % 0x4000) + (self.rom_bank as usize * 0x4000);
-                self.rom[addr]
+                Ok(self.rom[addr])
             }
-            _ => panic!("Invalid read address: {:04x}", addr),
+            _ => Err(AyyError::OutOfBoundsMemoryAccess { address: addr }),
         }
     }
 
-    fn write(&mut self, addr: u16, data: u8) {
+    fn write(&mut self, addr: u16, data: u8) -> Result<(), AyyError> {
         if addr >= 0x2000 && addr <= 0x3fff {
             // This 5-bit register (range $01-$1F) selects the ROM bank number for the 4000–7FFF region.
             // Higher bits are discarded — writing $E1 (binary 11100001) to this register would select bank $01.
@@ -35,8 +36,10 @@ impl Mapper for Mbc1 {
             }
             debug!("MBC1: Switched to ROM bank {}", self.rom_bank);
         } else {
-            warn!("MBC1: Attempting to write to read-only memory at {:04x} with {:02x}", addr, data);
+            return Err(AyyError::WriteToReadOnlyMemory { address: addr, data });
         }
+
+        Ok(())
     }
 
     fn current_rom_bank(&self) -> u8 {

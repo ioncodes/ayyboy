@@ -11,8 +11,8 @@ impl Tile {
         let mut pixels = [[Palette::default(); 8]; 8];
 
         for y in 0..8 {
-            let lsb = mmu.read(address + (y * 2));
-            let msb = mmu.read((address + (y * 2)) + 1);
+            let lsb = mmu.read_unchecked(address + (y * 2));
+            let msb = mmu.read_unchecked((address + (y * 2)) + 1);
 
             for x in 0..8 {
                 let lsb_bit = (lsb >> (7 - x)) & 0b0000_0001;
