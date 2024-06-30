@@ -9,10 +9,10 @@ use crate::video::{SCREEN_HEIGHT, SCREEN_WIDTH};
 pub const BACKGROUND_WIDTH: usize = 256;
 pub const BACKGROUND_HEIGHT: usize = 256;
 
-pub const TILEMAP_0_ADDRESS: u16 = 0x8000;
-pub const TILEMAP_1_ADDRESS: u16 = 0x8800;
-pub const BACKGROUND_0_ADDRESS: u16 = 0x9800;
-pub const BACKGROUND_1_ADDRESS: u16 = 0x9c00;
+pub const TILESET_0_ADDRESS: u16 = 0x8000;
+pub const TILESET_1_ADDRESS: u16 = 0x8800;
+pub const TILEMAP_0_ADDRESS: u16 = 0x9800;
+pub const TILEMAP_1_ADDRESS: u16 = 0x9c00;
 pub const OAM_ADDRESS: u16 = 0xfe00;
 
 pub const BACKGROUND_MAP_SIZE: usize = 32 * 32;
@@ -25,6 +25,8 @@ pub const SCANLINE_Y_COMPARE_REGISTER: u16 = 0xff45;
 pub const BG_PALETTE_REGISTER: u16 = 0xff47;
 pub const OBJ0_PALETTE_REGISTER: u16 = 0xff48;
 pub const OBJ1_PALETTE_REGISTER: u16 = 0xff49;
+pub const WINDOW_X_REGISTER: u16 = 0xff4b;
+pub const WINDOW_Y_REGISTER: u16 = 0xff4a;
 
 #[derive(Debug)]
 pub struct Ppu {
@@ -76,6 +78,7 @@ impl Ppu {
 
         for x in 0..SCREEN_WIDTH {
             let background_color = self.fetch_background_pixel(mmu, x, scanline);
+            let window_color = self.fetch_window_pixel(mmu, x, scanline);
 
             if visited_oams.len() <= 10
                 && mmu
@@ -88,7 +91,15 @@ impl Ppu {
                     visited_oams.push(oam_id);
                 }
             } else {
-                self.emulated_frame[scanline][x] = background_color;
+                if mmu
+                    .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
+                    .contains(LcdControl::WINDOW_DISPLAY)
+                    && !window_color.is_transparent()
+                {
+                    self.emulated_frame[scanline][x] = window_color;
+                } else {
+                    self.emulated_frame[scanline][x] = background_color;
+                }
             }
         }
     }
@@ -103,7 +114,7 @@ impl Ppu {
         let tile_map_addr = if mmu.read_unchecked(LCD_CONTROL_REGISTER) & 0b0001_0000 == 0 {
             TILEMAP_1_ADDRESS
         } else {
-            TILEMAP_0_ADDRESS
+            TILESET_0_ADDRESS
         };
 
         for tile_nr in 0..384 {
@@ -119,15 +130,15 @@ impl Ppu {
         let mut tiles: Vec<Tile> = Vec::new();
 
         let bg_map_addr = if mmu.read_unchecked(LCD_CONTROL_REGISTER) & 0b1000 == 0 {
-            BACKGROUND_0_ADDRESS
+            TILEMAP_0_ADDRESS
         } else {
-            BACKGROUND_1_ADDRESS
+            TILEMAP_1_ADDRESS
         };
 
         let tile_map_addr = if mmu.read_unchecked(LCD_CONTROL_REGISTER) & 0b0001_0000 == 0 {
-            TILEMAP_0_ADDRESS // should be 1?
+            TILESET_0_ADDRESS // should be 1?
         } else {
-            TILEMAP_0_ADDRESS
+            TILESET_0_ADDRESS
         };
 
         for idx in 0..BACKGROUND_MAP_SIZE {
@@ -171,16 +182,16 @@ impl Ppu {
         let scx = mmu.read_unchecked(SCROLL_X_REGISTER);
 
         // Read the background map and tile data addresses from memory
-        let map_addr = self.background_map_address(mmu);
-        let tile_data_addr = self.tile_map_address(mmu);
+        let tilemap = self.get_background_tilemap_address(mmu);
+        let tileset = self.get_tileset_address(mmu);
 
         // Calculate the tile coordinates in the background map
         let bg_map_x = ((x as u8 + scx) / 8) as u16;
         let bg_map_y = ((y as u8 + scy) / 8) as u16;
-        let tile_number = mmu.read_unchecked((map_addr + (bg_map_y * 32)) + bg_map_x);
+        let tile_number = mmu.read_unchecked((tilemap + (bg_map_y * 32)) + bg_map_x);
 
         // Calculate the address of the tile data
-        let tile_addr = tile_data_addr + (tile_number as u16) * 16;
+        let tile_addr = tileset + (tile_number as u16) * 16;
         let tile = Tile::from_background_addr(mmu, tile_addr);
 
         // Calculate the pixel coordinates in the tile
@@ -200,7 +211,7 @@ impl Ppu {
                 let sprite_x = sprite.x.wrapping_sub(8);
 
                 if x >= sprite_x as usize && x < (sprite_x as usize + 8) {
-                    let tile_addr = TILEMAP_0_ADDRESS + (sprite.tile_index as u16) * 16;
+                    let tile_addr = TILESET_0_ADDRESS + (sprite.tile_index as u16) * 16;
                     let tile = Tile::from_sprite_addr(mmu, tile_addr, &sprite);
 
                     let mut tile_x = (x - sprite_x as usize) as u8;
@@ -218,25 +229,71 @@ impl Ppu {
         None
     }
 
-    fn background_map_address(&self, mmu: &Mmu) -> u16 {
+    fn fetch_window_pixel(&self, mmu: &Mmu, x: usize, y: usize) -> Palette {
+        // Read window values from memory
+        let wy = mmu.read_unchecked(WINDOW_Y_REGISTER);
+        let wx = mmu.read_unchecked(WINDOW_X_REGISTER);
+
+        // Return transparent color if window is disabled or not on screen yet
+        if y < wy as usize || x + 7 < wx as usize {
+            return Palette::White;
+        }
+
+        // Adjust the coordinates based on window position
+        let window_x = x as u8 + 7 - wx;
+        let window_y = y as u8 - wy;
+
+        // Read the window map and tile data addresses from memory
+        let tilemap = self.get_window_tilemap_address(mmu);
+        let tileset = self.get_tileset_address(mmu);
+
+        // Calculate the tile coordinates in the window map
+        let win_map_x = (window_x / 8) as u16;
+        let win_map_y = (window_y / 8) as u16;
+        let tile_number = mmu.read_unchecked((tilemap + (win_map_y * 32)) + win_map_x);
+
+        // Calculate the address of the tile data
+        let tile_addr = tileset + (tile_number as u16) * 16;
+        let tile = Tile::from_background_addr(mmu, tile_addr);
+
+        // Calculate the pixel coordinates in the tile
+        let tile_x = window_x % 8;
+        let tile_y = window_y % 8;
+
+        // Get the color of the pixel
+        tile.pixels[tile_y as usize][tile_x as usize]
+    }
+
+    fn get_background_tilemap_address(&self, mmu: &Mmu) -> u16 {
         if !mmu
             .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
             .contains(LcdControl::BG_TILE_MAP)
         {
-            BACKGROUND_0_ADDRESS
+            TILEMAP_0_ADDRESS
         } else {
-            BACKGROUND_1_ADDRESS
+            TILEMAP_1_ADDRESS
         }
     }
 
-    fn tile_map_address(&self, mmu: &Mmu) -> u16 {
+    fn get_window_tilemap_address(&self, mmu: &Mmu) -> u16 {
+        if !mmu
+            .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
+            .contains(LcdControl::WINDOW_TILE_MAP)
+        {
+            TILEMAP_0_ADDRESS
+        } else {
+            TILEMAP_1_ADDRESS
+        }
+    }
+
+    fn get_tileset_address(&self, mmu: &Mmu) -> u16 {
         if !mmu
             .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
             .contains(LcdControl::BG_TILE_DATA)
         {
-            TILEMAP_0_ADDRESS
+            TILESET_0_ADDRESS // <- upper face is fine if this is 0, breaks if 1
         } else {
-            TILEMAP_0_ADDRESS
+            TILESET_0_ADDRESS
         }
     }
 }
