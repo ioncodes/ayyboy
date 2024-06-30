@@ -1,5 +1,5 @@
 use crate::memory::mapper::Mapper;
-use log::debug;
+use log::{debug, warn};
 
 #[derive(Clone)]
 pub struct Mbc1 {
@@ -35,12 +35,15 @@ impl Mapper for Mbc1 {
             }
             debug!("MBC1: Switched to ROM bank {}", self.rom_bank);
         } else {
-            let addr = addr + (self.rom_bank as u16 * 0x4000);
-            self.rom[addr as usize] = data;
+            warn!("MBC1: Attempting to write to read-only memory at {:04x} with {:02x}", addr, data);
         }
     }
 
     fn current_rom_bank(&self) -> u8 {
         self.rom_bank
+    }
+
+    fn name(&self) -> String {
+        String::from("MBC1")
     }
 }

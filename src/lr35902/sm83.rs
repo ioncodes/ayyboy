@@ -152,7 +152,7 @@ impl Sm83 {
 
         #[cfg(debug_assertions)]
         if self.invalid_opcodes_lut.contains(&opcode_byte) {
-            return Err(AyyError::InvalidOpcode { opcode: opcode_byte });
+            return Err(AyyError::IllegalOpcode { opcode: opcode_byte });
         }
 
         let mut prefix = false;

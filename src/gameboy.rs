@@ -2,12 +2,14 @@ use crate::lr35902::cpu::Cpu;
 use crate::lr35902::sm83::Register;
 use crate::memory::mapper::mbc1::Mbc1;
 use crate::memory::mapper::rom::Rom;
+use crate::memory::mapper::Mapper;
 use crate::memory::mmu::Mmu;
 use crate::rhai_engine::RhaiEngine;
 use crate::video::palette::Palette;
 use crate::video::ppu::{Ppu, SCANLINE_Y_REGISTER};
 use crate::video::tile::Tile;
 use crate::video::{SCREEN_HEIGHT, SCREEN_WIDTH};
+use log::info;
 use std::path::PathBuf;
 
 pub struct GameBoy<'a> {
@@ -20,8 +22,15 @@ pub struct GameBoy<'a> {
 
 impl<'a> GameBoy<'a> {
     pub fn new(bootrom: Vec<u8>, cartridge: Vec<u8>) -> GameBoy<'a> {
+        let cartridge: Box<dyn Mapper> = match cartridge[0x0147] {
+            0x00 => Box::new(Rom::new(cartridge)),
+            0x01 => Box::new(Mbc1::new(cartridge)),
+            _ => panic!("Unsupported cartridge type"),
+        };
+        info!("Cartridge type: {}", cartridge.name());
+
         let cpu = Cpu::new();
-        let mmu = Mmu::new(bootrom, Box::new(Rom::new(cartridge)));
+        let mmu = Mmu::new(bootrom, cartridge);
         let ppu = Ppu::new();
 
         GameBoy {

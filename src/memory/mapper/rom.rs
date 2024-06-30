@@ -1,4 +1,5 @@
 use crate::memory::mapper::Mapper;
+use log::warn;
 
 #[derive(Clone)]
 pub struct Rom {
@@ -17,10 +18,15 @@ impl Mapper for Rom {
     }
 
     fn write(&mut self, addr: u16, data: u8) {
-        self.memory[addr as usize] = data;
+        // We simply only have a ROM. Writing to it is not allowed.
+        warn!("Attempted to write to ROM at address {:04x}", addr);
     }
 
     fn current_rom_bank(&self) -> u8 {
         0
+    }
+
+    fn name(&self) -> String {
+        String::from("ROM")
     }
 }

@@ -23,7 +23,7 @@ fn main() {
 
     // Load the bootrom and cartridge, execute emulator
     let bootrom = include_bytes!("../external/roms/dmg_boot.bin").to_vec();
-    let cartridge = include_bytes!("../external/roms/Legend of Zelda, The - Link's Awakening (G) [!].gb").to_vec();
+    let cartridge = include_bytes!("../external/roms/Tetris.gb").to_vec();
 
     let mut renderer = Renderer::new();
     let mut gb = GameBoy::new(bootrom, cartridge);
@@ -57,18 +57,16 @@ fn setup_logging() {
         const LOG_PATH: &str = "./external/ayyboy_trace.log";
         std::fs::remove_file(LOG_PATH).unwrap_or_default();
 
-        let file = OpenOptions::new()
-            .write(true)
-            .append(false)
-            .create(true)
-            .open(LOG_PATH)
-            .unwrap();
-        let _dispatch = Dispatch::new()
+        let base_config = Dispatch::new()
             .level(LevelFilter::Trace)
-            .chain(file)
-            //.chain(std::io::stdout())
-            .format(move |out, message, record| out.finish(format_args!("[{}] {}", record.level(), message)))
-            .apply()
-            .unwrap();
+            .chain(Dispatch::new().level(log::LevelFilter::Info).chain(std::io::stdout()))
+            .chain(
+                Dispatch::new()
+                    .level(LevelFilter::Trace)
+                    .chain(fern::log_file(LOG_PATH).unwrap()),
+            )
+            .format(move |out, message, record| out.finish(format_args!("[{}] {}", record.level(), message)));
+
+        base_config.apply().unwrap();
     }
 }
