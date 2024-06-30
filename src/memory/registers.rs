@@ -21,6 +21,19 @@ bitflags! {
     }
 }
 
+bitflags! {
+    pub struct LcdControl: u8 {
+        const BG_DISPLAY = 0b0000_0001;
+        const OBJ_DISPLAY = 0b0000_0010;
+        const OBJ_SIZE = 0b0000_0100;
+        const BG_TILE_MAP = 0b0000_1000;
+        const BG_TILE_DATA = 0b0001_0000;
+        const WINDOW_DISPLAY = 0b0010_0000;
+        const WINDOW_TILE_MAP = 0b0100_0000;
+        const LCD_DISPLAY = 0b1000_0000;
+    }
+}
+
 impl From<u8> for InterruptFlags {
     fn from(byte: u8) -> Self {
         Self::from_bits_truncate(byte)
@@ -28,6 +41,12 @@ impl From<u8> for InterruptFlags {
 }
 
 impl From<u8> for InterruptEnable {
+    fn from(byte: u8) -> Self {
+        Self::from_bits_truncate(byte)
+    }
+}
+
+impl From<u8> for LcdControl {
     fn from(byte: u8) -> Self {
         Self::from_bits_truncate(byte)
     }

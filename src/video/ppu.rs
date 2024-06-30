@@ -1,8 +1,8 @@
 use crate::memory::mmu::Mmu;
-use crate::memory::registers::InterruptFlags;
+use crate::memory::registers::{InterruptFlags, LcdControl};
 use crate::memory::INTERRUPT_FLAGS_REGISTER;
 use crate::video::palette::{Color, Palette};
-use crate::video::sprite::Sprite;
+use crate::video::sprite::{Sprite, SpriteAttributes};
 use crate::video::tile::Tile;
 use crate::video::{SCREEN_HEIGHT, SCREEN_WIDTH};
 
@@ -75,13 +75,14 @@ impl Ppu {
         let mut visited_oams: Vec<u16> = Vec::new();
 
         for x in 0..SCREEN_WIDTH {
-            if visited_oams.len() > 10 {
-                break;
-            }
-
             let background_color = self.fetch_background_pixel(mmu, x, scanline);
 
-            if let Some((oam_id, sprite_color)) = self.fetch_sprite_pixel(mmu, x, scanline) {
+            if visited_oams.len() <= 10
+                && mmu
+                    .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
+                    .contains(LcdControl::OBJ_DISPLAY)
+                && let Some((oam_id, sprite_color)) = self.fetch_sprite_pixel(mmu, x, scanline)
+            {
                 self.emulated_frame[scanline][x] = sprite_color;
                 if !visited_oams.contains(&oam_id) {
                     visited_oams.push(oam_id);
@@ -199,7 +200,7 @@ impl Ppu {
                 let sprite_x = sprite.x.wrapping_sub(8);
 
                 if x >= sprite_x as usize && x < (sprite_x as usize + 8) {
-                    let tile_addr = self.tile_map_address(mmu) + (sprite.tile_index as u16) * 16;
+                    let tile_addr = TILEMAP_0_ADDRESS + (sprite.tile_index as u16) * 16;
                     let tile = Tile::from_sprite_addr(mmu, tile_addr, &sprite);
 
                     let mut tile_x = (x - sprite_x as usize) as u8;
@@ -218,7 +219,10 @@ impl Ppu {
     }
 
     fn background_map_address(&self, mmu: &Mmu) -> u16 {
-        if mmu.read_unchecked(LCD_CONTROL_REGISTER) & 0b1000 == 0 {
+        if !mmu
+            .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
+            .contains(LcdControl::BG_TILE_MAP)
+        {
             BACKGROUND_0_ADDRESS
         } else {
             BACKGROUND_1_ADDRESS
@@ -226,8 +230,11 @@ impl Ppu {
     }
 
     fn tile_map_address(&self, mmu: &Mmu) -> u16 {
-        if mmu.read_unchecked(LCD_CONTROL_REGISTER) & 0b0001_0000 == 0 {
-            TILEMAP_0_ADDRESS // TODO: this should be 1?
+        if !mmu
+            .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
+            .contains(LcdControl::BG_TILE_DATA)
+        {
+            TILEMAP_0_ADDRESS
         } else {
             TILEMAP_0_ADDRESS
         }
