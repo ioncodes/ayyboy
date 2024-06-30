@@ -207,19 +207,40 @@ impl Ppu {
     }
 
     fn fetch_sprite_pixel(&self, mmu: &Mmu, x: usize, y: usize) -> Option<(u16, Palette)> {
+        let mut lcdc = mmu.read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER);
+        let sprite_height = if lcdc.contains(LcdControl::OBJ_SIZE) { 16 } else { 8 };
+
         for i in 0..40 {
             let sprite = Sprite::from_oam(mmu, i);
 
-            if sprite.is_visible_on_scanline(y) {
+            if sprite.is_visible_on_scanline(y) || true {
                 let sprite_y = sprite.y.wrapping_sub(16);
                 let sprite_x = sprite.x.wrapping_sub(8);
 
-                if x >= sprite_x as usize && x < (sprite_x as usize + 8) {
-                    let tile_addr = TILESET_0_ADDRESS + (sprite.tile_index as u16) * 16;
+                if x >= sprite_x as usize
+                    && x < (sprite_x as usize + 8)
+                    && y >= sprite_y as usize
+                    && y < (sprite_y as usize + sprite_height)
+                {
+                    let tile_index = if sprite_height == 16 {
+                        if (y - sprite_y as usize) < 8 {
+                            sprite.tile_index & 0b1111_1110 // top tile
+                        } else {
+                            sprite.tile_index | 0b0000_0001 // bottom tile
+                        }
+                    } else {
+                        sprite.tile_index
+                    };
+
+                    let tile_addr = TILESET_0_ADDRESS + (tile_index as u16) * 16;
                     let tile = Tile::from_sprite_addr(mmu, tile_addr, &sprite);
 
                     let mut tile_x = (x - sprite_x as usize) as u8;
                     let mut tile_y = (y - sprite_y as usize) as u8;
+
+                    if sprite_height == 16 && y - sprite_y as usize >= 8 {
+                        tile_y -= 8;
+                    }
 
                     let color = tile.pixels[tile_y as usize][tile_x as usize];
 

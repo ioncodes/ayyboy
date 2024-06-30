@@ -1,6 +1,7 @@
 use crate::error::AyyError;
 use crate::memory::mapper::Mapper;
-use crate::memory::{BOOTROM_MAPPER_REGISTER, JOYPAD_REGISTER};
+use crate::memory::{BOOTROM_MAPPER_REGISTER, JOYPAD_REGISTER, OAM_DMA_REGISTER};
+use log::error;
 
 // The last instruction unmaps the boot ROM. Execution continues normally,
 // thus entering cartridge entrypoint at $100
@@ -46,6 +47,7 @@ impl Mmu {
 
     pub fn write(&mut self, addr: u16, data: u8) -> Result<(), AyyError> {
         match addr {
+            OAM_DMA_REGISTER => error!("OAM DMA not implemented!"),
             0x0000..=BOOTROM_SIZE if self.is_bootrom_mapped() => self.bootrom[addr as usize] = data,
             0x0000..=0x7fff => self.cartridge.write(addr, data)?,
             _ => self.memory[addr as usize] = data,
