@@ -40,7 +40,7 @@ fn main() {
         }
 
         gb.run_frame();
-        renderer.update_texture(&gb.render_background());
+        renderer.update_texture(gb.emulated_frame());
         renderer.render();
 
         if uncapped {

@@ -1,7 +1,7 @@
 use crate::memory::mmu::Mmu;
 use crate::video::palette::Palette;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct Tile {
     pub pixels: [[Palette; 8]; 8],
 }
@@ -24,5 +24,13 @@ impl Tile {
         }
 
         Tile { pixels }
+    }
+}
+
+impl Default for Tile {
+    fn default() -> Tile {
+        Tile {
+            pixels: [[Palette::default(); 8]; 8],
+        }
     }
 }

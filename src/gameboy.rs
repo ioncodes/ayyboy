@@ -98,9 +98,9 @@ impl<'a> GameBoy<'a> {
         self.ppu.render_tilemap(&self.mmu)
     }
 
-    pub fn render_backgroundmap(&mut self) -> Vec<Tile> {
-        self.ppu.render_backgroundmap(&self.mmu)
-    }
+    // pub fn render_backgroundmap(&mut self) -> Vec<Tile> {
+    //     self.ppu.render_backgroundmap(&self.mmu)
+    // }
 
     pub fn render_background(&mut self) -> [[Palette; SCREEN_WIDTH]; SCREEN_HEIGHT] {
         self.ppu.render_background(&self.mmu)
@@ -108,6 +108,10 @@ impl<'a> GameBoy<'a> {
 
     pub fn install_breakpoints(&mut self, breakpoints: Vec<u16>) {
         self.cpu_breakpoints = breakpoints;
+    }
+
+    pub fn emulated_frame(&self) -> &[[Palette; SCREEN_WIDTH]; SCREEN_HEIGHT] {
+        self.ppu.get_frame()
     }
 
     fn is_breakpoint_hit(&self) -> bool {

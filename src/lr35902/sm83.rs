@@ -169,7 +169,7 @@ impl Sm83 {
             // TODO: encoded into the opcode itself. Does this fix it?
             // TODO: Example: rst $28. The operand is encoded in the opcode itself.
 
-            if instruction.length == 1 {
+            if instruction.length == 1 || (prefix && instruction.length == 2) {
                 return Ok(instruction);
             }
 
