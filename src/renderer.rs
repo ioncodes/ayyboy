@@ -3,6 +3,7 @@ use crate::video::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::pixels::PixelFormatEnum;
+use sdl2::rect::Rect;
 use sdl2::render::{Canvas, Texture, TextureAccess};
 use sdl2::video::Window;
 use sdl2::EventPump;
@@ -19,8 +20,9 @@ impl Renderer {
         let video_subsystem = sdl_context.video().unwrap();
 
         let window = video_subsystem
-            .window("ayyboy", SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32)
+            .window("ayyboy", SCREEN_WIDTH as u32 * 4, SCREEN_HEIGHT as u32 * 4)
             .position_centered()
+            .allow_highdpi()
             .build()
             .unwrap();
 
@@ -58,7 +60,13 @@ impl Renderer {
     }
 
     pub fn render(&mut self) {
-        self.canvas.copy(&self.screen_texture, None, None).unwrap();
+        self.canvas
+            .copy(
+                &self.screen_texture,
+                None,
+                Rect::new(0, 0, SCREEN_WIDTH as u32 * 4, SCREEN_HEIGHT as u32 * 4),
+            )
+            .unwrap();
         self.canvas.present();
     }
 

@@ -51,7 +51,6 @@ fn setup_logging() {
     {
         use fern::Dispatch;
         use log::LevelFilter;
-        use std::fs::OpenOptions;
 
         // Setup logger
         const LOG_PATH: &str = "./external/ayyboy_trace.log";
