@@ -13,6 +13,7 @@ mod video;
 
 use crate::gameboy::GameBoy;
 use crate::renderer::Renderer;
+use log::warn;
 use std::time::{Duration, Instant};
 
 const TARGET_FPS: f64 = 59.73;
@@ -42,6 +43,8 @@ fn main() {
         let frame_duration = throttle_timer.elapsed();
         if frame_duration < TARGET_FRAME_DURATION {
             spin_sleep::sleep(TARGET_FRAME_DURATION - frame_duration);
+        } else {
+            warn!("Frame took too long: {:?}", frame_duration);
         }
     }
 }
