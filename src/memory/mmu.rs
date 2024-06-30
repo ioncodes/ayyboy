@@ -26,9 +26,10 @@ impl Mmu {
 
     pub fn read(&self, addr: u16) -> u8 {
         // if joypad is read, spoof no buttons pressed
-        // if addr == JOYPAD_REGISTER {
-        //     return self.memory[addr as usize] | 0xf;
-        // }
+        // THIS MAY CAUSE ISSUES WITH THE UNIT TESTS
+        if addr == JOYPAD_REGISTER {
+            return self.memory[addr as usize] | 0xf;
+        }
 
         match addr {
             0x0000..=BOOTROM_SIZE if self.is_bootrom_mapped() => self.bootrom[addr as usize],

@@ -18,8 +18,8 @@ impl Mapper for Mbc1 {
         match addr {
             0x0000..=0x3fff => self.rom[addr as usize],
             0x4000..=0x7fff => {
-                let addr = (addr % 0x4000) + (self.rom_bank as u16 * 0x4000);
-                self.rom[addr as usize]
+                let addr = (addr as usize % 0x4000) + (self.rom_bank as usize * 0x4000);
+                self.rom[addr]
             }
             _ => panic!("Invalid read address: {:#06x}", addr),
         }
