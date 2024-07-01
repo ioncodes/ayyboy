@@ -1,5 +1,7 @@
 use crate::error::AyyError;
 use crate::lr35902::handlers::Handlers;
+use crate::lr35902::irq::{Ime, Vector};
+use crate::lr35902::registers::{Flags, Registers};
 use crate::lr35902::sm83::{Opcode, Register, Sm83};
 use crate::memory::mmu::Mmu;
 use crate::memory::registers::{InterruptEnable, InterruptFlags};
@@ -237,19 +239,20 @@ impl Cpu {
 
         if self.ime.enabled && interrupt_enable.bits() & interrupt_flags.bits() != 0 {
             // handle interrupt vector
+            let vector = Vector::from_flags(&interrupt_flags);
+            debug!("Handling interrupt: {} => ${:04x}", vector, vector.to_address());
+
+            // save $pc, jump to interrupt vector
             self.push_stack(mmu, self.registers.pc)?;
-            let vector = interrupt_flags.to_vector()?;
-            debug!("Handling interrupt vector: ${:04x}", vector);
-            self.registers.pc = vector;
+            self.registers.pc = vector.to_address();
 
             // clear interrupt flag
             match vector {
-                0x0040 => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::VBLANK.bits())?,
-                0x0048 => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::LCD_STAT.bits())?,
-                0x0050 => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::TIMER.bits())?,
-                0x0058 => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::SERIAL.bits())?,
-                0x0060 => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::JOYPAD.bits())?,
-                _ => unreachable!(),
+                Vector::VBlank => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::VBLANK.bits())?,
+                Vector::Stat => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::STAT.bits())?,
+                Vector::Timer => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::TIMER.bits())?,
+                Vector::Serial => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::SERIAL.bits())?,
+                Vector::Joypad => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::JOYPAD.bits())?,
             }
             self.ime.enabled = false;
 
@@ -281,52 +284,5 @@ impl std::fmt::Display for Cpu {
             self.registers.sp,
             self.registers.pc
         )
-    }
-}
-
-#[derive(Clone)]
-pub struct Ime {
-    pub enabled: bool,
-    pub enable_pending: bool,
-}
-
-bitflags! {
-    #[derive(Clone)]
-    pub struct Flags: u8 {
-        const ZERO       = 0b1000_0000;
-        const SUBTRACT   = 0b0100_0000;
-        const HALF_CARRY = 0b0010_0000;
-        const CARRY      = 0b0001_0000;
-    }
-}
-
-#[derive(Clone)]
-struct Registers {
-    a: u8,
-    f: Flags,
-    b: u8,
-    c: u8,
-    d: u8,
-    e: u8,
-    h: u8,
-    l: u8,
-    sp: u16,
-    pc: u16,
-}
-
-impl Default for Registers {
-    fn default() -> Registers {
-        Registers {
-            a: 0,
-            f: Flags::empty(),
-            b: 0,
-            c: 0,
-            d: 0,
-            e: 0,
-            h: 0,
-            l: 0,
-            sp: 0,
-            pc: 0,
-        }
     }
 }

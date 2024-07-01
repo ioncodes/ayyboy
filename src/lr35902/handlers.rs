@@ -1,6 +1,7 @@
 use crate::error::AyyError;
 use crate::error::AyyError::{InvalidHandler, UnresolvedTarget};
-use crate::lr35902::cpu::{Cpu, Flags};
+use crate::lr35902::cpu::Cpu;
+use crate::lr35902::registers::Flags;
 use crate::lr35902::sm83::{AddressingMode, Condition, Instruction, Opcode, Operand, Register};
 use crate::memory::mmu::Mmu;
 use crate::memory::registers::{InterruptEnable, InterruptFlags};

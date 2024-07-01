@@ -61,7 +61,7 @@ impl Ppu {
         // Raise stat IRQ
         let lyc = mmu.read_unchecked(SCANLINE_Y_COMPARE_REGISTER);
         if scanline == lyc {
-            interrupt_flags |= InterruptFlags::LCD_STAT;
+            interrupt_flags |= InterruptFlags::STAT;
         }
 
         mmu.write_unchecked(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits());
@@ -104,7 +104,7 @@ impl Ppu {
         }
     }
 
-    pub fn get_frame(&self) -> &[[Palette; SCREEN_WIDTH]; SCREEN_HEIGHT] {
+    pub fn pull_frame(&self) -> &[[Palette; SCREEN_WIDTH]; SCREEN_HEIGHT] {
         &self.emulated_frame
     }
 

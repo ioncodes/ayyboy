@@ -58,7 +58,7 @@ impl<'a> GameBoy<'a> {
                     Ok(_) => {}
                     Err(WriteToReadOnlyMemory { address, data }) => {
                         warn!(
-                            "PC @ {:04x} => Attempted to write {:02x} to read-only memory at {:04x}",
+                            "PC @ {:04x} => Attempted to write {:02x} to unmapped read-only memory at {:04x}",
                             self.cpu.read_register16(&Register::PC),
                             data,
                             address
@@ -85,7 +85,7 @@ impl<'a> GameBoy<'a> {
             // The PPU effectively pauses during this mode.
             self.ppu.tick(&mut self.mmu); // "does a scanline"
             let vblank_done = self.mmu.read_unchecked(SCANLINE_Y_REGISTER);
-            self.cpu.reset_cycles();
+            self.cpu.reset_cycles(); // TODO: Some cycles are lost here
 
             // Do we have a frame to render?
             if vblank_done == 0 {
@@ -107,7 +107,7 @@ impl<'a> GameBoy<'a> {
     }
 
     pub fn emulated_frame(&self) -> &[[Palette; SCREEN_WIDTH]; SCREEN_HEIGHT] {
-        self.ppu.get_frame()
+        self.ppu.pull_frame()
     }
 
     fn is_breakpoint_hit(&self) -> bool {
