@@ -1,5 +1,5 @@
 use crate::memory::mmu::Mmu;
-use crate::video::ppu::OAM_ADDRESS;
+use crate::video::OAM_ADDRESS;
 use bitflags::bitflags;
 
 bitflags! {

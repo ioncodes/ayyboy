@@ -1,32 +1,15 @@
 use crate::memory::mmu::Mmu;
-use crate::memory::registers::{InterruptFlags, LcdControl};
+use crate::memory::registers::{InterruptFlags, LcdControl, LcdStatus};
 use crate::memory::INTERRUPT_FLAGS_REGISTER;
-use crate::video::palette::{Color, Palette};
-use crate::video::sprite::{Sprite, SpriteAttributes};
+use crate::video::palette::Palette;
+use crate::video::sprite::Sprite;
 use crate::video::tile::Tile;
-use crate::video::{SCREEN_HEIGHT, SCREEN_WIDTH};
-
-pub const BACKGROUND_WIDTH: usize = 256;
-pub const BACKGROUND_HEIGHT: usize = 256;
-
-pub const TILESET_0_ADDRESS: u16 = 0x8000;
-pub const TILESET_1_ADDRESS: u16 = 0x8800;
-pub const TILEMAP_0_ADDRESS: u16 = 0x9800;
-pub const TILEMAP_1_ADDRESS: u16 = 0x9c00;
-pub const OAM_ADDRESS: u16 = 0xfe00;
-
-pub const BACKGROUND_MAP_SIZE: usize = 32 * 32;
-
-pub const LCD_CONTROL_REGISTER: u16 = 0xff40;
-pub const SCROLL_Y_REGISTER: u16 = 0xff42;
-pub const SCROLL_X_REGISTER: u16 = 0xff43;
-pub const SCANLINE_Y_REGISTER: u16 = 0xff44;
-pub const SCANLINE_Y_COMPARE_REGISTER: u16 = 0xff45;
-pub const BG_PALETTE_REGISTER: u16 = 0xff47;
-pub const OBJ0_PALETTE_REGISTER: u16 = 0xff48;
-pub const OBJ1_PALETTE_REGISTER: u16 = 0xff49;
-pub const WINDOW_X_REGISTER: u16 = 0xff4b;
-pub const WINDOW_Y_REGISTER: u16 = 0xff4a;
+use crate::video::{
+    BACKGROUND_HEIGHT, BACKGROUND_MAP_SIZE, BACKGROUND_WIDTH, LCD_CONTROL_REGISTER, LCD_STATUS_REGISTER, SCANLINE_Y_COMPARE_REGISTER,
+    SCANLINE_Y_REGISTER, SCREEN_HEIGHT, SCREEN_WIDTH, SCROLL_X_REGISTER, SCROLL_Y_REGISTER, TILEMAP_0_ADDRESS, TILEMAP_1_ADDRESS,
+    TILESET_0_ADDRESS, TILESET_1_ADDRESS, WINDOW_X_REGISTER, WINDOW_Y_REGISTER,
+};
+use log::debug;
 
 #[derive(Debug)]
 pub struct Ppu {
@@ -41,29 +24,33 @@ impl Ppu {
     }
 
     pub fn tick(&mut self, mmu: &mut Mmu) {
+        // Render the scanline
         self.render_scanline(mmu);
 
-        let scanline = mmu.read_unchecked(SCANLINE_Y_REGISTER);
-        let scanline = scanline.wrapping_add(1);
+        // Increment scanline register
+        let mut scanline = mmu.read_unchecked(SCANLINE_Y_REGISTER);
+        scanline += 1;
         if scanline >= 154 {
-            mmu.write_unchecked(SCANLINE_Y_REGISTER, 0);
-        } else {
-            mmu.write_unchecked(SCANLINE_Y_REGISTER, scanline);
+            scanline = 0;
         }
+        mmu.write_unchecked(SCANLINE_Y_REGISTER, scanline);
 
+        // Raise interrupts
         let mut interrupt_flags = mmu.read_as_unchecked::<InterruptFlags>(INTERRUPT_FLAGS_REGISTER);
 
-        // Raise vblank IRQ
+        // Raise VBLANK IRQ
         if scanline >= 144 {
             interrupt_flags |= InterruptFlags::VBLANK;
         }
 
-        // Raise stat IRQ
+        // Raise STAT IRQ
+        let lcd_status = mmu.read_as_unchecked::<LcdStatus>(LCD_STATUS_REGISTER);
         let lyc = mmu.read_unchecked(SCANLINE_Y_COMPARE_REGISTER);
-        if scanline == lyc {
+        if lcd_status.contains(LcdStatus::LYC_EQ_LY_ENABLE) && scanline == lyc {
             interrupt_flags |= InterruptFlags::STAT;
         }
 
+        // Write back interrupt flags
         mmu.write_unchecked(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits());
     }
 

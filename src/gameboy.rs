@@ -8,9 +8,9 @@ use crate::memory::mapper::Mapper;
 use crate::memory::mmu::Mmu;
 use crate::rhai_engine::RhaiEngine;
 use crate::video::palette::Palette;
-use crate::video::ppu::{Ppu, SCANLINE_Y_REGISTER};
+use crate::video::ppu::Ppu;
 use crate::video::tile::Tile;
-use crate::video::{SCREEN_HEIGHT, SCREEN_WIDTH};
+use crate::video::{SCANLINE_Y_REGISTER, SCREEN_HEIGHT, SCREEN_WIDTH};
 use log::{info, warn};
 use std::path::PathBuf;
 

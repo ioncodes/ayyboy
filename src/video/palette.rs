@@ -1,6 +1,6 @@
 use crate::memory::mmu::Mmu;
-use crate::video::ppu::{BG_PALETTE_REGISTER, OBJ0_PALETTE_REGISTER, OBJ1_PALETTE_REGISTER};
 use crate::video::sprite::{Sprite, SpriteAttributes};
+use crate::video::{BG_PALETTE_REGISTER, OBJ0_PALETTE_REGISTER, OBJ1_PALETTE_REGISTER};
 
 pub type Color = [u8; 3];
 

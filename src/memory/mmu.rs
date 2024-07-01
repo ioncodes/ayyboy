@@ -17,7 +17,6 @@ pub struct Mmu {
 impl Mmu {
     pub fn new(bootrom: Vec<u8>, cartridge: Box<dyn Mapper>) -> Mmu {
         Mmu {
-            //cartridge: Box::new(Rom::new(cartridge)),
             cartridge,
             memory: vec![0; 0x10000],
             bootrom,
