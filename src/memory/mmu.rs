@@ -26,13 +26,11 @@ impl Mmu {
     pub fn read(&self, addr: u16) -> Result<u8, AyyError> {
         // if joypad is read, spoof no buttons pressed
         // THIS MAY CAUSE ISSUES WITH THE UNIT TESTS
-        if addr == JOYPAD_REGISTER {
-            return Ok(self.memory[addr as usize] | 0xf);
-        }
 
         match addr {
             0x0000..=BOOTROM_SIZE if self.is_bootrom_mapped() => Ok(self.bootrom[addr as usize]),
             0x0000..=0x7fff => self.cartridge.read(addr),
+            JOYPAD_REGISTER => Ok(self.memory[addr as usize] | 0xf),
             _ => Ok(self.memory[addr as usize]),
         }
     }
@@ -46,9 +44,9 @@ impl Mmu {
 
     pub fn write(&mut self, addr: u16, data: u8) -> Result<(), AyyError> {
         match addr {
-            OAM_DMA_REGISTER => self.start_dma_transfer(data)?,
             0x0000..=BOOTROM_SIZE if self.is_bootrom_mapped() => self.bootrom[addr as usize] = data,
             0x0000..=0x7fff => self.cartridge.write(addr, data)?,
+            OAM_DMA_REGISTER => self.start_dma_transfer(data)?,
             _ => self.memory[addr as usize] = data,
         }
 
