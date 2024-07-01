@@ -66,7 +66,7 @@ fn setup_logging() {
 
     let mut base_config = Dispatch::new()
         .level(LevelFilter::Trace)
-        .chain(Dispatch::new().level(log::LevelFilter::Info).chain(std::io::stdout()))
+        .chain(Dispatch::new().level(LevelFilter::Info).chain(std::io::stdout()))
         .format(move |out, message, record| out.finish(format_args!("[{}] {}", record.level(), message)));
 
     #[cfg(debug_assertions)]
