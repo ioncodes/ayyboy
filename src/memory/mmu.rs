@@ -1,4 +1,5 @@
 use crate::error::AyyError;
+use crate::joypad::Joypad;
 use crate::memory::mapper::Mapper;
 use crate::memory::{BOOTROM_MAPPER_REGISTER, EXTERNAL_RAM_END, EXTERNAL_RAM_START, JOYPAD_REGISTER, OAM_DMA_REGISTER, ROM_END, ROM_START};
 use log::debug;
@@ -12,6 +13,7 @@ pub struct Mmu {
     cartridge: Box<dyn Mapper>,
     memory: Vec<u8>,
     bootrom: Vec<u8>,
+    pub joypad: Joypad,
 }
 
 impl Mmu {
@@ -20,6 +22,7 @@ impl Mmu {
             cartridge,
             memory: vec![0; 0x10000],
             bootrom,
+            joypad: Joypad::new(),
         }
     }
 
@@ -32,7 +35,7 @@ impl Mmu {
             ROM_START..=BOOTROM_SIZE if self.is_bootrom_mapped() => Ok(self.bootrom[addr as usize]),
             ROM_START..=ROM_END => self.cartridge.read(addr),
             EXTERNAL_RAM_START..=EXTERNAL_RAM_END => self.cartridge.read(addr),
-            JOYPAD_REGISTER => Ok(self.memory[addr as usize] | 0xf),
+            JOYPAD_REGISTER => Ok(self.joypad.as_u8(self.memory[addr as usize])),
             _ => Ok(self.memory[addr as usize]),
         }
     }

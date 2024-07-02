@@ -56,6 +56,56 @@ impl<'a> Renderer<'a> {
         if ctx.input(|i| i.key_pressed(Key::F1)) {
             self.debugger.toggle_window();
         }
+
+        ctx.input(|i| {
+            if i.key_down(Key::Enter) {
+                self.gameboy.update_button(Key::Enter, true);
+            } else {
+                self.gameboy.update_button(Key::Enter, false);
+            }
+
+            if i.key_down(Key::Backspace) {
+                self.gameboy.update_button(Key::Backspace, true);
+            } else {
+                self.gameboy.update_button(Key::Backspace, false);
+            }
+
+            if i.key_down(Key::A) {
+                self.gameboy.update_button(Key::A, true);
+            } else {
+                self.gameboy.update_button(Key::A, false);
+            }
+
+            if i.key_down(Key::S) {
+                self.gameboy.update_button(Key::S, true);
+            } else {
+                self.gameboy.update_button(Key::S, false);
+            }
+
+            if i.key_down(Key::ArrowUp) {
+                self.gameboy.update_button(Key::ArrowUp, true);
+            } else {
+                self.gameboy.update_button(Key::ArrowUp, false);
+            }
+
+            if i.key_down(Key::ArrowDown) {
+                self.gameboy.update_button(Key::ArrowDown, true);
+            } else {
+                self.gameboy.update_button(Key::ArrowDown, false);
+            }
+
+            if i.key_down(Key::ArrowLeft) {
+                self.gameboy.update_button(Key::ArrowLeft, true);
+            } else {
+                self.gameboy.update_button(Key::ArrowLeft, false);
+            }
+
+            if i.key_down(Key::ArrowRight) {
+                self.gameboy.update_button(Key::ArrowRight, true);
+            } else {
+                self.gameboy.update_button(Key::ArrowRight, false);
+            }
+        });
     }
 }
 

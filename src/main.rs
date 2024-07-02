@@ -4,6 +4,7 @@
 
 mod error;
 mod gameboy;
+mod joypad;
 mod lr35902;
 mod memory;
 mod rhai_engine;

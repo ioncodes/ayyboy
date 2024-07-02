@@ -11,6 +11,7 @@ use crate::video::palette::Palette;
 use crate::video::ppu::Ppu;
 use crate::video::tile::Tile;
 use crate::video::{SCANLINE_Y_REGISTER, SCREEN_HEIGHT, SCREEN_WIDTH};
+use eframe::egui::Key;
 use log::{error, info, warn};
 use std::path::PathBuf;
 
@@ -100,6 +101,10 @@ impl<'a> GameBoy<'a> {
                 break;
             }
         }
+    }
+
+    pub fn update_button(&mut self, key: Key, pressed: bool) {
+        self.mmu.joypad.update_button(key, pressed);
     }
 
     pub fn render_tilemap(&mut self) -> Vec<Tile> {
