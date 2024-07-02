@@ -35,6 +35,11 @@ impl Ppu {
         }
         mmu.write_unchecked(SCANLINE_Y_REGISTER, scanline);
 
+        // Emulate the LY == 153 bug, however, let's not write this back to the register
+        // if scanline == 153 {
+        //     scanline = 0;
+        // }
+
         // Raise interrupts
         let mut interrupt_flags = mmu.read_as_unchecked::<InterruptFlags>(INTERRUPT_FLAGS_REGISTER);
 
