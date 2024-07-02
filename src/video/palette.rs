@@ -4,20 +4,25 @@ use crate::video::{BG_PALETTE_REGISTER, OBJ0_PALETTE_REGISTER, OBJ1_PALETTE_REGI
 
 pub type Color = [u8; 3];
 
-#[derive(Debug, Clone, Copy)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Palette {
     White,
     LightGray,
     DarkGray,
     Black,
+    Transparent,
 }
 
 impl Palette {
-    pub fn from_background(value: u8, mmu: &Mmu) -> Palette {
+    pub fn from_background(value: u8, mmu: &Mmu, allow_transparency: bool) -> Palette {
+        if allow_transparency && value == 0b00 {
+            return Palette::Transparent;
+        }
+
         let bgp_shade = mmu.read_unchecked(BG_PALETTE_REGISTER);
 
         let shade = match value {
-            0b00 => bgp_shade & 0b0000_0011,
+            0b00 => bgp_shade & 0b0000_0011, // shouldn't happen for window layer, only background
             0b01 => (bgp_shade & 0b0000_1100) >> 2,
             0b10 => (bgp_shade & 0b0011_0000) >> 4,
             0b11 => (bgp_shade & 0b1100_0000) >> 6,
@@ -33,7 +38,11 @@ impl Palette {
         }
     }
 
-    pub fn from_object(value: u8, mmu: &Mmu, sprite: &Sprite) -> Palette {
+    pub fn from_object(value: u8, mmu: &Mmu, sprite: &Sprite, allow_transparency: bool) -> Palette {
+        if allow_transparency && value == 0 {
+            return Palette::Transparent;
+        }
+
         let objp_shade = if !sprite.attributes.contains(SpriteAttributes::PALETTE) {
             mmu.read_unchecked(OBJ0_PALETTE_REGISTER)
         } else {
@@ -41,7 +50,7 @@ impl Palette {
         };
 
         let shade = match value {
-            0b00 => objp_shade & 0b0000_0011,
+            0b00 => objp_shade & 0b0000_0011, // this case should be handled above (transparent)
             0b01 => (objp_shade & 0b0000_1100) >> 2,
             0b10 => (objp_shade & 0b0011_0000) >> 4,
             0b11 => (objp_shade & 0b1100_0000) >> 6,
@@ -58,10 +67,7 @@ impl Palette {
     }
 
     pub fn is_transparent(&self) -> bool {
-        match self {
-            Palette::White => true,
-            _ => false,
-        }
+        *self == Palette::Transparent
     }
 }
 
@@ -72,6 +78,7 @@ impl Into<Color> for Palette {
             Palette::LightGray => [0xaa, 0xaa, 0xaa],
             Palette::DarkGray => [0x55, 0x55, 0x55],
             Palette::Black => [0x00, 0x00, 0x00],
+            Palette::Transparent => [0x00, 0x00, 0x00],
         }
     }
 }

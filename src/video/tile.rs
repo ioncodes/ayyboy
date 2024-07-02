@@ -8,7 +8,7 @@ pub struct Tile {
 }
 
 impl Tile {
-    pub fn from_background_addr(mmu: &Mmu, address: u16) -> Tile {
+    pub fn from_background_addr(mmu: &Mmu, address: u16, is_window: bool) -> Tile {
         let mut pixels = [[Palette::default(); 8]; 8];
 
         for y in 0..8 {
@@ -20,7 +20,7 @@ impl Tile {
                 let msb_bit = (msb >> (7 - x)) & 0b0000_0001;
                 let color = (msb_bit << 1) | lsb_bit;
 
-                pixels[y as usize][x as usize] = Palette::from_background(color, mmu);
+                pixels[y as usize][x as usize] = Palette::from_background(color, mmu, is_window);
             }
         }
 
@@ -39,7 +39,7 @@ impl Tile {
                 let msb_bit = (msb >> (7 - x)) & 0b0000_0001;
                 let color = (msb_bit << 1) | lsb_bit;
 
-                pixels[y as usize][x as usize] = Palette::from_object(color, mmu, sprite);
+                pixels[y as usize][x as usize] = Palette::from_object(color, mmu, sprite, true);
             }
         }
 

@@ -71,6 +71,8 @@ impl Ppu {
             let background_color = self.fetch_background_pixel(mmu, x, scanline);
             let window_color = self.fetch_window_pixel(mmu, x, scanline);
 
+            self.emulated_frame[scanline][x] = background_color;
+
             if visited_oams.len() <= 10
                 && mmu
                     .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
@@ -81,17 +83,15 @@ impl Ppu {
                 if !visited_oams.contains(&oam_id) {
                     visited_oams.push(oam_id);
                 }
-            } else {
-                if mmu
-                    .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
-                    .contains(LcdControl::WINDOW_DISPLAY)
-                    && !window_color.is_transparent()
-                {
-                    self.emulated_frame[scanline][x] = window_color;
-                } else {
-                    self.emulated_frame[scanline][x] = background_color;
-                }
             }
+
+            // if mmu
+            //     .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
+            //     .contains(LcdControl::WINDOW_DISPLAY)
+            //     && !window_color.is_transparent()
+            // {
+            //     self.emulated_frame[scanline][x] = window_color;
+            // }
         }
     }
 
@@ -110,7 +110,7 @@ impl Ppu {
 
         for tile_nr in 0..384 {
             let addr = tile_map_addr + (tile_nr as u16 * 16);
-            let tile = Tile::from_background_addr(mmu, addr);
+            let tile = Tile::from_background_addr(mmu, addr, false);
             tiles.push(tile);
         }
 
@@ -135,7 +135,7 @@ impl Ppu {
         for idx in 0..BACKGROUND_MAP_SIZE {
             let tile_nr = mmu.read_unchecked(bg_map_addr + idx as u16);
             let addr = tile_map_addr + (tile_nr as u16 * 16);
-            let tile = Tile::from_background_addr(mmu, addr);
+            let tile = Tile::from_background_addr(mmu, addr, false);
             tiles.push(tile);
         }
 
@@ -187,7 +187,7 @@ impl Ppu {
         } else {
             tileset.wrapping_add_signed((tile_number as i8 as i16 + 128) * 16)
         };
-        let tile = Tile::from_background_addr(mmu, tile_addr);
+        let tile = Tile::from_background_addr(mmu, tile_addr, false);
 
         // Calculate the pixel coordinates in the tile
         let tile_x = ((x as u8).wrapping_add(scx)) % 8;
@@ -274,7 +274,7 @@ impl Ppu {
         } else {
             tileset.wrapping_add_signed((tile_number as i8 as i16 + 128) * 16)
         };
-        let tile = Tile::from_background_addr(mmu, tile_addr);
+        let tile = Tile::from_background_addr(mmu, tile_addr, true);
 
         // Calculate the pixel coordinates in the tile
         let tile_x = window_x % 8;
