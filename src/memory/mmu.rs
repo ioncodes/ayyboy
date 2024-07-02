@@ -23,6 +23,7 @@ impl Mmu {
         }
     }
 
+    #[inline]
     pub fn read(&self, addr: u16) -> Result<u8, AyyError> {
         // if joypad is read, spoof no buttons pressed
         // THIS MAY CAUSE ISSUES WITH THE UNIT TESTS
@@ -35,6 +36,7 @@ impl Mmu {
         }
     }
 
+    #[inline]
     pub fn read_as<T>(&self, addr: u16) -> Result<T, AyyError>
     where
         T: From<u8>,
@@ -42,6 +44,37 @@ impl Mmu {
         Ok(T::from(self.read(addr)?))
     }
 
+    #[inline]
+    pub fn read16(&self, addr: u16) -> Result<u16, AyyError> {
+        let lo = self.read(addr)? as u16;
+        let hi = self.read(addr.wrapping_add(1))? as u16;
+        Ok((hi << 8) | lo)
+    }
+
+    #[inline]
+    pub fn read_unchecked(&self, addr: u16) -> u8 {
+        self.read(addr).unwrap()
+    }
+
+    #[inline]
+    pub fn read_as_unchecked<T>(&self, addr: u16) -> T
+    where
+        T: From<u8>,
+    {
+        self.read_as(addr).unwrap()
+    }
+
+    #[inline]
+    pub fn read16_unchecked(&self, addr: u16) -> u16 {
+        self.read16(addr).unwrap()
+    }
+
+    #[inline]
+    pub fn write16_unchecked(&mut self, addr: u16, data: u16) {
+        self.write16(addr, data).unwrap();
+    }
+
+    #[inline]
     pub fn write(&mut self, addr: u16, data: u8) -> Result<(), AyyError> {
         match addr {
             0x0000..=BOOTROM_SIZE if self.is_bootrom_mapped() => self.bootrom[addr as usize] = data,
@@ -53,12 +86,7 @@ impl Mmu {
         Ok(())
     }
 
-    pub fn read16(&self, addr: u16) -> Result<u16, AyyError> {
-        let lo = self.read(addr)? as u16;
-        let hi = self.read(addr.wrapping_add(1))? as u16;
-        Ok((hi << 8) | lo)
-    }
-
+    #[inline]
     pub fn write16(&mut self, addr: u16, data: u16) -> Result<(), AyyError> {
         let lo = data as u8;
         let hi = (data >> 8) as u8;
@@ -67,27 +95,9 @@ impl Mmu {
         Ok(())
     }
 
-    pub fn read_unchecked(&self, addr: u16) -> u8 {
-        self.read(addr).unwrap()
-    }
-
+    #[inline]
     pub fn write_unchecked(&mut self, addr: u16, data: u8) {
         self.write(addr, data).unwrap();
-    }
-
-    pub fn read_as_unchecked<T>(&self, addr: u16) -> T
-    where
-        T: From<u8>,
-    {
-        self.read_as(addr).unwrap()
-    }
-
-    pub fn read16_unchecked(&self, addr: u16) -> u16 {
-        self.read16(addr).unwrap()
-    }
-
-    pub fn write16_unchecked(&mut self, addr: u16, data: u16) {
-        self.write16(addr, data).unwrap();
     }
 
     pub fn is_bootrom_mapped(&self) -> bool {

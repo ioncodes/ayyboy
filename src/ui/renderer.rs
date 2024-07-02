@@ -83,7 +83,11 @@ impl App for Renderer<'_> {
             if frame_duration < TARGET_FRAME_DURATION {
                 spin_sleep::sleep(TARGET_FRAME_DURATION - frame_duration);
             } else {
-                warn!("Frame took too long: {:?}", frame_duration);
+                warn!(
+                    "Frame took too long: {:?} with a delta of {:?}",
+                    frame_duration,
+                    frame_duration - TARGET_FRAME_DURATION
+                );
             }
         }
     }
