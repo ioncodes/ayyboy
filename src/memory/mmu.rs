@@ -1,6 +1,6 @@
 use crate::error::AyyError;
 use crate::memory::mapper::Mapper;
-use crate::memory::{BOOTROM_MAPPER_REGISTER, JOYPAD_REGISTER, OAM_DMA_REGISTER};
+use crate::memory::{BOOTROM_MAPPER_REGISTER, EXTERNAL_RAM_END, EXTERNAL_RAM_START, JOYPAD_REGISTER, OAM_DMA_REGISTER, ROM_END, ROM_START};
 use log::debug;
 
 // The last instruction unmaps the boot ROM. Execution continues normally,
@@ -29,8 +29,9 @@ impl Mmu {
         // THIS MAY CAUSE ISSUES WITH THE UNIT TESTS
 
         match addr {
-            0x0000..=BOOTROM_SIZE if self.is_bootrom_mapped() => Ok(self.bootrom[addr as usize]),
-            0x0000..=0x7fff => self.cartridge.read(addr),
+            ROM_START..=BOOTROM_SIZE if self.is_bootrom_mapped() => Ok(self.bootrom[addr as usize]),
+            ROM_START..=ROM_END => self.cartridge.read(addr),
+            EXTERNAL_RAM_START..=EXTERNAL_RAM_END => self.cartridge.read(addr),
             JOYPAD_REGISTER => Ok(self.memory[addr as usize] | 0xf),
             _ => Ok(self.memory[addr as usize]),
         }
@@ -77,8 +78,9 @@ impl Mmu {
     #[inline]
     pub fn write(&mut self, addr: u16, data: u8) -> Result<(), AyyError> {
         match addr {
-            0x0000..=BOOTROM_SIZE if self.is_bootrom_mapped() => self.bootrom[addr as usize] = data,
-            0x0000..=0x7fff => self.cartridge.write(addr, data)?,
+            ROM_START..=BOOTROM_SIZE if self.is_bootrom_mapped() => self.bootrom[addr as usize] = data,
+            ROM_START..=ROM_END => self.cartridge.write(addr, data)?,
+            EXTERNAL_RAM_START..=EXTERNAL_RAM_END => self.cartridge.write(addr, data)?,
             OAM_DMA_REGISTER => self.start_dma_transfer(data)?,
             _ => self.memory[addr as usize] = data,
         }
@@ -100,12 +102,19 @@ impl Mmu {
         self.write(addr, data).unwrap();
     }
 
-    pub fn is_bootrom_mapped(&self) -> bool {
-        self.read(BOOTROM_MAPPER_REGISTER).unwrap() == 0x00
-    }
-
+    #[inline]
     pub fn current_rom_bank(&self) -> u8 {
         self.cartridge.current_rom_bank()
+    }
+
+    #[inline]
+    pub fn current_ram_bank(&self) -> u8 {
+        self.cartridge.current_ram_bank()
+    }
+
+    #[inline]
+    pub fn is_bootrom_mapped(&self) -> bool {
+        self.read(BOOTROM_MAPPER_REGISTER).unwrap() == 0x00
     }
 
     fn start_dma_transfer(&mut self, data: u8) -> Result<(), AyyError> {

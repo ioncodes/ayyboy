@@ -21,6 +21,8 @@ pub enum AyyError {
     UnknownIrqVector { vector: u8 },
     #[snafu(display("Write to read-only memory at address: {:04x} with data: {:02x}", address, data))]
     WriteToReadOnlyMemory { address: u16, data: u8 },
+    #[snafu(display("Write to disabled external RAM at address: {:04x} with data: {:02x}", address, data))]
+    WriteToDisabledExternalRam { address: u16, data: u8 },
     #[snafu(display("Out of bounds memory access at address: {:04x}", address))]
     OutOfBoundsMemoryAccess { address: u16 },
 }

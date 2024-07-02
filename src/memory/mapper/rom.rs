@@ -26,6 +26,10 @@ impl Mapper for Rom {
         0
     }
 
+    fn current_ram_bank(&self) -> u8 {
+        0
+    }
+
     fn name(&self) -> String {
         String::from("ROM")
     }

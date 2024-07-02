@@ -45,14 +45,15 @@ impl Cpu {
             .collect::<Vec<u8>>();
 
         trace!(
-            "[{:04x}] {:<12} {:<20} [{}  (SP): ${:02x}  IME: {}  ROM Bank: {}]",
+            "[{:04x}] {:<12} {:<20} [{}  (SP): ${:02x}  IME: {}  ROM Bank: {}  RAM Bank: {}]",
             self.registers.pc,
             format!("{:02x?}", instruction_bytes),
             format!("{}", instruction),
             self,
             mmu.read(self.registers.sp)?,
             self.ime.enabled,
-            mmu.current_rom_bank()
+            mmu.current_rom_bank(),
+            mmu.current_ram_bank()
         );
 
         self.registers.pc = self.registers.pc.wrapping_add(instruction.length as u16);

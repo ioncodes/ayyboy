@@ -177,8 +177,8 @@ impl Ppu {
         let tileset = self.get_tileset_address(mmu);
 
         // Calculate the tile coordinates in the background map
-        let bg_map_x = ((x as u8 + scx) / 8) as u16;
-        let bg_map_y = ((y as u8 + scy) / 8) as u16;
+        let bg_map_x = (((x as u8).wrapping_add(scx)) / 8) as u16;
+        let bg_map_y = (((y as u8).wrapping_add(scy)) / 8) as u16;
         let tile_number = mmu.read_unchecked((tilemap + (bg_map_y * 32)) + bg_map_x);
 
         // Calculate the address of the tile data
@@ -190,8 +190,8 @@ impl Ppu {
         let tile = Tile::from_background_addr(mmu, tile_addr);
 
         // Calculate the pixel coordinates in the tile
-        let tile_x = (x as u8 + scx) % 8;
-        let tile_y = (y as u8 + scy) % 8;
+        let tile_x = ((x as u8).wrapping_add(scx)) % 8;
+        let tile_y = ((y as u8).wrapping_add(scy)) % 8;
 
         // Get the color of the pixel
         tile.pixels[tile_y as usize][tile_x as usize]

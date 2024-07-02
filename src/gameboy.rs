@@ -11,7 +11,7 @@ use crate::video::palette::Palette;
 use crate::video::ppu::Ppu;
 use crate::video::tile::Tile;
 use crate::video::{SCANLINE_Y_REGISTER, SCREEN_HEIGHT, SCREEN_WIDTH};
-use log::{info, warn};
+use log::{error, info, warn};
 use std::path::PathBuf;
 
 pub struct GameBoy<'a> {
@@ -68,6 +68,14 @@ impl<'a> GameBoy<'a> {
                         warn!(
                             "PC @ {:04x} => Attempted to read out-of-bounds memory at {:04x}",
                             self.cpu.read_register16(&Register::PC),
+                            address
+                        );
+                    }
+                    Err(AyyError::WriteToDisabledExternalRam { address, data }) => {
+                        error!(
+                            "PC @ {:04x} => Attempted to write {:02x} to disabled external RAM at {:04x}",
+                            self.cpu.read_register16(&Register::PC),
+                            data,
                             address
                         );
                     }
