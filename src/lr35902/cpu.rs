@@ -177,12 +177,10 @@ impl Cpu {
         self.registers.f.contains(flag)
     }
 
-    #[inline]
     pub fn set_flag(&mut self, flag: Flags) {
         self.registers.f |= flag;
     }
 
-    #[inline]
     pub fn clear_flag(&mut self, flag: Flags) {
         self.registers.f &= !flag;
     }
