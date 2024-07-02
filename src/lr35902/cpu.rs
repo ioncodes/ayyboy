@@ -76,6 +76,7 @@ impl Cpu {
             Opcode::Or => Handlers::or(self, mmu, &instruction),
             Opcode::Daa => Handlers::decimal_adjust_accumulator(self, mmu, &instruction),
             Opcode::Halt => Handlers::halt(self, mmu, &instruction),
+            Opcode::Stop => Ok(4),
             Opcode::Jp | Opcode::Jr | Opcode::Call => Handlers::jump(self, mmu, &instruction),
             Opcode::Rst => Handlers::restart(self, mmu, &instruction),
             Opcode::Ret | Opcode::Reti => Handlers::ret(self, mmu, &instruction),
