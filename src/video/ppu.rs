@@ -9,7 +9,6 @@ use crate::video::{
     SCANLINE_Y_REGISTER, SCREEN_HEIGHT, SCREEN_WIDTH, SCROLL_X_REGISTER, SCROLL_Y_REGISTER, TILEMAP_0_ADDRESS, TILEMAP_1_ADDRESS,
     TILESET_0_ADDRESS, TILESET_1_ADDRESS, WINDOW_X_REGISTER, WINDOW_Y_REGISTER,
 };
-use log::debug;
 
 #[derive(Debug)]
 pub struct Ppu {
@@ -96,8 +95,8 @@ impl Ppu {
         }
     }
 
-    pub fn pull_frame(&self) -> &[[Palette; SCREEN_WIDTH]; SCREEN_HEIGHT] {
-        &self.emulated_frame
+    pub fn pull_frame(&self) -> [[Palette; SCREEN_WIDTH]; SCREEN_HEIGHT] {
+        self.emulated_frame
     }
 
     pub fn render_tilemap(&mut self, mmu: &Mmu) -> Vec<Tile> {
@@ -199,7 +198,7 @@ impl Ppu {
     }
 
     fn fetch_sprite_pixel(&self, mmu: &Mmu, x: usize, y: usize) -> Option<(u16, Palette)> {
-        let mut lcdc = mmu.read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER);
+        let lcdc = mmu.read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER);
         let sprite_height = if lcdc.contains(LcdControl::OBJ_SIZE) { 16 } else { 8 };
 
         for i in 0..40 {
@@ -247,24 +246,24 @@ impl Ppu {
     }
 
     fn fetch_window_pixel(&self, mmu: &Mmu, x: usize, y: usize) -> Palette {
-        // Read window values from memory
+        // Read renderer values from memory
         let wy = mmu.read_unchecked(WINDOW_Y_REGISTER);
         let wx = mmu.read_unchecked(WINDOW_X_REGISTER);
 
-        // Return transparent color if window is disabled or not on screen yet
+        // Return transparent color if renderer is disabled or not on screen yet
         if y < wy as usize || x + 7 < wx as usize {
             return Palette::White;
         }
 
-        // Adjust the coordinates based on window position
+        // Adjust the coordinates based on renderer position
         let window_x = x as u8 + 7 - wx;
         let window_y = y as u8 - wy;
 
-        // Read the window map and tile data addresses from memory
+        // Read the renderer map and tile data addresses from memory
         let tilemap = self.get_window_tilemap_address(mmu);
         let tileset = self.get_tileset_address(mmu);
 
-        // Calculate the tile coordinates in the window map
+        // Calculate the tile coordinates in the renderer map
         let win_map_x = (window_x / 8) as u16;
         let win_map_y = (window_y / 8) as u16;
         let tile_number = mmu.read_unchecked((tilemap + (win_map_y * 32)) + win_map_x);

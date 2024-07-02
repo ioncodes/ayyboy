@@ -6,54 +6,54 @@ mod error;
 mod gameboy;
 mod lr35902;
 mod memory;
-mod renderer;
 mod rhai_engine;
 mod tests;
+mod ui;
 mod video;
 
 use crate::gameboy::GameBoy;
-use crate::renderer::Renderer;
-use log::warn;
-use std::time::{Duration, Instant};
-
-const TARGET_FPS: f64 = 59.73;
-const TARGET_FRAME_DURATION: Duration = Duration::from_nanos((1_000_000_000.0 / TARGET_FPS) as u64);
+use crate::ui::renderer::Renderer;
+use crate::ui::settings::Settings;
+use crate::video::{SCREEN_HEIGHT, SCREEN_WIDTH};
+use eframe::egui::{FontFamily, FontId, Style, TextStyle, ViewportBuilder, Visuals};
+use eframe::NativeOptions;
 
 fn main() {
     setup_logging();
 
-    // Load the bootrom and cartridge, execute emulator
-    let bootrom = include_bytes!("../external/roms/dmg_boot.bin").to_vec();
-
     let args: Vec<String> = std::env::args().collect();
+    let bootrom = include_bytes!("../external/roms/dmg_boot.bin").to_vec();
     let cartridge = std::fs::read(&args[1]).expect("Failed to read ROM file");
+    let gameboy = GameBoy::new(bootrom, cartridge);
     let uncapped = args.iter().any(|arg| arg == "--uncapped");
 
-    let mut renderer = Renderer::new();
-    let mut gb = GameBoy::new(bootrom, cartridge);
+    let native_options = NativeOptions {
+        viewport: ViewportBuilder::default()
+            .with_inner_size([(SCREEN_WIDTH * 4) as f32, (SCREEN_HEIGHT * 4) as f32])
+            .with_resizable(true),
+        vsync: false,
+        ..Default::default()
+    };
 
-    loop {
-        let throttle_timer = Instant::now();
-
-        if !renderer.handle_events() {
-            break;
-        }
-
-        gb.run_frame();
-        renderer.update_texture(gb.emulated_frame());
-        renderer.render();
-
-        if uncapped {
-            continue;
-        }
-
-        let frame_duration = throttle_timer.elapsed();
-        if frame_duration < TARGET_FRAME_DURATION {
-            spin_sleep::sleep(TARGET_FRAME_DURATION - frame_duration);
-        } else {
-            warn!("Frame took too long: {:?}", frame_duration);
-        }
-    }
+    let _ = eframe::run_native(
+        "ayyboyy",
+        native_options,
+        Box::new(move |cc| {
+            let style = Style {
+                visuals: Visuals::light(),
+                text_styles: [
+                    (TextStyle::Body, FontId::new(14.0, FontFamily::Monospace)),
+                    (TextStyle::Button, FontId::new(14.0, FontFamily::Monospace)),
+                    (TextStyle::Heading, FontId::new(16.0, FontFamily::Monospace)),
+                    (TextStyle::Monospace, FontId::new(14.0, FontFamily::Monospace)),
+                ]
+                .into(),
+                ..Style::default()
+            };
+            cc.egui_ctx.set_style(style);
+            Box::new(Renderer::new(cc, gameboy, Settings { uncapped }))
+        }),
+    );
 }
 
 fn setup_logging() {

@@ -106,7 +106,7 @@ impl<'a> GameBoy<'a> {
         self.cpu_breakpoints = breakpoints;
     }
 
-    pub fn emulated_frame(&self) -> &[[Palette; SCREEN_WIDTH]; SCREEN_HEIGHT] {
+    pub fn emulated_frame(&self) -> [[Palette; SCREEN_WIDTH]; SCREEN_HEIGHT] {
         self.ppu.pull_frame()
     }
 

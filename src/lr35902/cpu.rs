@@ -6,7 +6,6 @@ use crate::lr35902::sm83::{Opcode, Register, Sm83};
 use crate::memory::mmu::Mmu;
 use crate::memory::registers::{InterruptEnable, InterruptFlags};
 use crate::memory::{INTERRUPT_ENABLE_REGISTER, INTERRUPT_FLAGS_REGISTER};
-use bitflags::bitflags;
 use log::{debug, trace};
 
 #[derive(Clone)]
