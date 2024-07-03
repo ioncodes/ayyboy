@@ -65,6 +65,14 @@ impl Ppu {
         let mut visited_oams: Vec<u16> = Vec::new();
 
         for x in 0..SCREEN_WIDTH {
+            let background_color = self.fetch_background_pixel(mmu, x, scanline);
+            self.emulated_frame[scanline][x] = background_color;
+
+            let window_color = self.fetch_window_pixel(mmu, x, scanline);
+            if !window_color.is_transparent() {
+                self.emulated_frame[scanline][x] = window_color;
+            }
+
             if visited_oams.len() <= 10
                 && mmu
                     .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
@@ -81,21 +89,6 @@ impl Ppu {
                 if !visited_oams.contains(&sprite.index) {
                     visited_oams.push(sprite.index);
                 }
-            } else {
-                // let window_color = self.fetch_window_pixel(mmu, x, scanline);
-                // if mmu
-                //     .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
-                //     .contains(LcdControl::WINDOW_DISPLAY)
-                //     && !window_color.is_transparent()
-                // {
-                //     self.emulated_frame[scanline][x] = window_color;
-                // } else {
-                //     let background_color = self.fetch_background_pixel(mmu, x, scanline);
-                //     self.emulated_frame[scanline][x] = background_color;
-                // }
-
-                let background_color = self.fetch_background_pixel(mmu, x, scanline);
-                self.emulated_frame[scanline][x] = background_color;
             }
         }
     }
@@ -173,6 +166,14 @@ impl Ppu {
     }
 
     fn fetch_background_pixel(&self, mmu: &Mmu, x: usize, y: usize) -> Palette {
+        // Handle case where background is disabled
+        if !mmu
+            .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
+            .contains(LcdControl::BG_DISPLAY)
+        {
+            return Palette::White;
+        }
+
         // Read scroll values from memory
         let scy = mmu.read_unchecked(SCROLL_Y_REGISTER);
         let scx = mmu.read_unchecked(SCROLL_X_REGISTER);
@@ -251,13 +252,23 @@ impl Ppu {
     }
 
     fn fetch_window_pixel(&self, mmu: &Mmu, x: usize, y: usize) -> Palette {
+        if !mmu
+            .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
+            .contains(LcdControl::BG_DISPLAY)
+            || !mmu
+                .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
+                .contains(LcdControl::WINDOW_DISPLAY)
+        {
+            return Palette::Transparent;
+        }
+
         // Read renderer values from memory
         let wy = mmu.read_unchecked(WINDOW_Y_REGISTER);
         let wx = mmu.read_unchecked(WINDOW_X_REGISTER);
 
         // Return transparent color if renderer is disabled or not on screen yet
         if y < wy as usize || x + 7 < wx as usize {
-            return Palette::White;
+            return Palette::Transparent;
         }
 
         // Adjust the coordinates based on renderer position
