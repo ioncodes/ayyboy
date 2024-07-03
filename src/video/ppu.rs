@@ -73,19 +73,16 @@ impl Ppu {
                 self.emulated_frame[scanline][x] = window_color;
             }
 
+            // technically, this allows 11?
             if visited_oams.len() <= 10
                 && mmu
                     .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
                     .contains(LcdControl::OBJ_DISPLAY)
                 && let Some((sprite, sprite_color)) = self.fetch_sprite_pixel(mmu, x, scanline)
             {
-                // if !sprite.attributes.contains(SpriteAttributes::PRIORITY) {
-                //     self.emulated_frame[scanline][x] = sprite_color;
-                // } else {
-                //     let background_color = self.fetch_background_pixel(mmu, x, scanline);
-                //     self.emulated_frame[scanline][x] = background_color;
-                // }
-                self.emulated_frame[scanline][x] = sprite_color;
+                if !sprite.attributes.contains(SpriteAttributes::PRIORITY) {
+                    self.emulated_frame[scanline][x] = sprite_color;
+                }
                 if !visited_oams.contains(&sprite.index) {
                     visited_oams.push(sprite.index);
                 }
