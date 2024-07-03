@@ -10,6 +10,8 @@ use crate::video::{
     SCANLINE_Y_REGISTER, SCREEN_HEIGHT, SCREEN_WIDTH, SCROLL_X_REGISTER, SCROLL_Y_REGISTER, TILEMAP_0_ADDRESS, TILEMAP_1_ADDRESS,
     TILESET_0_ADDRESS, TILESET_1_ADDRESS, WINDOW_X_REGISTER, WINDOW_Y_REGISTER,
 };
+use std::collections::HashMap;
+use std::hash::Hash;
 
 #[derive(Debug)]
 pub struct Ppu {
@@ -62,7 +64,8 @@ impl Ppu {
         }
 
         // Track visited OAMs for current scanline
-        let mut visited_oams: Vec<u16> = Vec::new();
+        // Key: tile index (as OAM identifier), Value: (x coordinate, sprite)
+        let mut visited_oams: HashMap<u8, Vec<(usize, Palette)>> = HashMap::new();
 
         for x in 0..SCREEN_WIDTH {
             let background_color = self.fetch_background_pixel(mmu, x, scanline);
@@ -74,18 +77,23 @@ impl Ppu {
             }
 
             // technically, this allows 11?
-            if visited_oams.len() <= 10
+            if visited_oams.len() <= 9
                 && mmu
                     .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
                     .contains(LcdControl::OBJ_DISPLAY)
                 && let Some((sprite, sprite_color)) = self.fetch_sprite_pixel(mmu, x, scanline)
             {
-                if !sprite.attributes.contains(SpriteAttributes::PRIORITY) {
-                    self.emulated_frame[scanline][x] = sprite_color;
-                }
-                if !visited_oams.contains(&sprite.index) {
-                    visited_oams.push(sprite.index);
-                }
+                visited_oams
+                    .entry(sprite.tile_index)
+                    .or_insert_with(Vec::new)
+                    .push((x, sprite_color));
+            }
+        }
+
+        // TODO: Draw sprites, by X-prio
+        for (_, oam) in visited_oams {
+            for (x, color) in oam {
+                self.emulated_frame[scanline][x] = color;
             }
         }
     }

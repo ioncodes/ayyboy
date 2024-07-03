@@ -17,7 +17,6 @@ pub struct Sprite {
     pub y: u8,
     pub tile_index: u8,
     pub attributes: SpriteAttributes,
-    pub index: u16,
 }
 
 impl Sprite {
@@ -29,7 +28,6 @@ impl Sprite {
             x: mmu.read_unchecked(sprite_addr + 1),
             tile_index: mmu.read_unchecked(sprite_addr + 2),
             attributes: SpriteAttributes::from_bits_truncate(mmu.read_unchecked(sprite_addr + 3)),
-            index,
         }
     }
 
