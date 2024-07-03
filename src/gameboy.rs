@@ -2,6 +2,7 @@ use crate::error::AyyError;
 use crate::error::AyyError::WriteToReadOnlyMemory;
 use crate::lr35902::cpu::Cpu;
 use crate::lr35902::sm83::Register;
+use crate::lr35902::timer::Timer;
 use crate::memory::mapper::mbc1::Mbc1;
 use crate::memory::mapper::rom::Rom;
 use crate::memory::mapper::Mapper;
@@ -19,6 +20,7 @@ pub struct GameBoy<'a> {
     cpu: Cpu,
     mmu: Mmu,
     ppu: Ppu,
+    timer: Timer,
     cpu_breakpoints: Vec<u16>,
     rhai: Option<RhaiEngine<'a>>,
 }
@@ -35,11 +37,13 @@ impl<'a> GameBoy<'a> {
         let cpu = Cpu::new();
         let mmu = Mmu::new(bootrom, cartridge);
         let ppu = Ppu::new();
+        let timer = Timer::new();
 
         GameBoy {
             cpu,
             mmu,
             ppu,
+            timer,
             cpu_breakpoints: Vec::new(),
             rhai: None,
         }
@@ -55,7 +59,7 @@ impl<'a> GameBoy<'a> {
         loop {
             loop {
                 self.try_rhai_script();
-                match self.cpu.tick(&mut self.mmu) {
+                match self.cpu.tick(&mut self.mmu, &mut self.timer) {
                     Ok(_) => {}
                     Err(WriteToReadOnlyMemory { address, data }) => {
                         warn!(
@@ -81,6 +85,10 @@ impl<'a> GameBoy<'a> {
                         );
                     }
                     Err(e) => panic!("{}", e),
+                }
+
+                if self.cpu.elapsed_cycles() >= 256 {
+                    self.timer.tick(&mut self.mmu);
                 }
 
                 if self.cpu.elapsed_cycles() >= 456 {

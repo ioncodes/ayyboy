@@ -3,6 +3,7 @@ use crate::lr35902::handlers::Handlers;
 use crate::lr35902::irq::{Ime, Vector};
 use crate::lr35902::registers::{Flags, Registers};
 use crate::lr35902::sm83::{Opcode, Register, Sm83};
+use crate::lr35902::timer::Timer;
 use crate::memory::mmu::Mmu;
 use crate::memory::registers::{InterruptEnable, InterruptFlags};
 use crate::memory::{INTERRUPT_ENABLE_REGISTER, INTERRUPT_FLAGS_REGISTER};
@@ -31,7 +32,7 @@ impl Cpu {
         }
     }
 
-    pub fn tick(&mut self, mmu: &mut Mmu) -> Result<(), AyyError> {
+    pub fn tick(&mut self, mmu: &mut Mmu, timer: &mut Timer) -> Result<(), AyyError> {
         self.handle_interrupts(mmu)?;
 
         if self.halted {
@@ -76,7 +77,10 @@ impl Cpu {
             Opcode::Or => Handlers::or(self, mmu, &instruction),
             Opcode::Daa => Handlers::decimal_adjust_accumulator(self, mmu, &instruction),
             Opcode::Halt => Handlers::halt(self, mmu, &instruction),
-            Opcode::Stop => Handlers::nop(self, mmu, &instruction), // lol
+            Opcode::Stop => {
+                timer.reset_divider(mmu);
+                Ok(4)
+            }
             Opcode::Jp | Opcode::Jr | Opcode::Call => Handlers::jump(self, mmu, &instruction),
             Opcode::Rst => Handlers::restart(self, mmu, &instruction),
             Opcode::Ret | Opcode::Reti => Handlers::ret(self, mmu, &instruction),

@@ -7,6 +7,10 @@ edition = "2021"
 debug = true
 strip = false
 
+[profile.debug-opt]
+inherits = "dev"
+opt-level = 3
+
 [dependencies]
 bitflags = "2.5.0"
 datatest = "0.8.0"

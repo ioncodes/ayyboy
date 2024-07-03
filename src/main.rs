@@ -13,7 +13,7 @@ mod ui;
 mod video;
 
 use crate::gameboy::GameBoy;
-use crate::ui::renderer::Renderer;
+use crate::ui::renderer::{Renderer, SCALE};
 use crate::ui::settings::Settings;
 use crate::video::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use eframe::egui::{FontFamily, FontId, Style, TextStyle, ViewportBuilder, Visuals};
@@ -30,7 +30,7 @@ fn main() {
 
     let native_options = NativeOptions {
         viewport: ViewportBuilder::default()
-            .with_inner_size([(SCREEN_WIDTH * 4) as f32, (SCREEN_HEIGHT * 4) as f32])
+            .with_inner_size([(SCREEN_WIDTH * SCALE) as f32, (SCREEN_HEIGHT * SCALE) as f32])
             .with_resizable(true),
         vsync: false,
         ..Default::default()

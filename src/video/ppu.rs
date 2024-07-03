@@ -1,8 +1,9 @@
+use crate::lr35902::timer::Timer;
 use crate::memory::mmu::Mmu;
 use crate::memory::registers::{InterruptFlags, LcdControl, LcdStatus};
 use crate::memory::INTERRUPT_FLAGS_REGISTER;
 use crate::video::palette::Palette;
-use crate::video::sprite::Sprite;
+use crate::video::sprite::{Sprite, SpriteAttributes};
 use crate::video::tile::Tile;
 use crate::video::{
     BACKGROUND_HEIGHT, BACKGROUND_MAP_SIZE, BACKGROUND_WIDTH, LCD_CONTROL_REGISTER, LCD_STATUS_REGISTER, SCANLINE_Y_COMPARE_REGISTER,
@@ -34,11 +35,6 @@ impl Ppu {
         }
         mmu.write_unchecked(SCANLINE_Y_REGISTER, scanline);
 
-        // Emulate the LY == 153 bug, however, let's not write this back to the register
-        // if scanline == 153 {
-        //     scanline = 0;
-        // }
-
         // Raise interrupts
         let mut interrupt_flags = mmu.read_as_unchecked::<InterruptFlags>(INTERRUPT_FLAGS_REGISTER);
 
@@ -48,9 +44,10 @@ impl Ppu {
         }
 
         // Raise STAT IRQ
+        // Emulate LYC=0 LY=153 quirk
         let lcd_status = mmu.read_as_unchecked::<LcdStatus>(LCD_STATUS_REGISTER);
         let lyc = mmu.read_unchecked(SCANLINE_Y_COMPARE_REGISTER);
-        if lcd_status.contains(LcdStatus::LYC_EQ_LY_ENABLE) && scanline == lyc {
+        if lcd_status.contains(LcdStatus::LYC_EQ_LY_ENABLE) && (scanline == lyc || (scanline == 153 && lyc == 0)) {
             interrupt_flags |= InterruptFlags::STAT;
         }
 
@@ -68,30 +65,38 @@ impl Ppu {
         let mut visited_oams: Vec<u16> = Vec::new();
 
         for x in 0..SCREEN_WIDTH {
-            let background_color = self.fetch_background_pixel(mmu, x, scanline);
-            let window_color = self.fetch_window_pixel(mmu, x, scanline);
-
-            self.emulated_frame[scanline][x] = background_color;
-
             if visited_oams.len() <= 10
                 && mmu
                     .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
                     .contains(LcdControl::OBJ_DISPLAY)
-                && let Some((oam_id, sprite_color)) = self.fetch_sprite_pixel(mmu, x, scanline)
+                && let Some((sprite, sprite_color)) = self.fetch_sprite_pixel(mmu, x, scanline)
             {
+                // if !sprite.attributes.contains(SpriteAttributes::PRIORITY) {
+                //     self.emulated_frame[scanline][x] = sprite_color;
+                // } else {
+                //     let background_color = self.fetch_background_pixel(mmu, x, scanline);
+                //     self.emulated_frame[scanline][x] = background_color;
+                // }
                 self.emulated_frame[scanline][x] = sprite_color;
-                if !visited_oams.contains(&oam_id) {
-                    visited_oams.push(oam_id);
+                if !visited_oams.contains(&sprite.index) {
+                    visited_oams.push(sprite.index);
                 }
-            }
+            } else {
+                // let window_color = self.fetch_window_pixel(mmu, x, scanline);
+                // if mmu
+                //     .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
+                //     .contains(LcdControl::WINDOW_DISPLAY)
+                //     && !window_color.is_transparent()
+                // {
+                //     self.emulated_frame[scanline][x] = window_color;
+                // } else {
+                //     let background_color = self.fetch_background_pixel(mmu, x, scanline);
+                //     self.emulated_frame[scanline][x] = background_color;
+                // }
 
-            // if mmu
-            //     .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
-            //     .contains(LcdControl::WINDOW_DISPLAY)
-            //     && !window_color.is_transparent()
-            // {
-            //     self.emulated_frame[scanline][x] = window_color;
-            // }
+                let background_color = self.fetch_background_pixel(mmu, x, scanline);
+                self.emulated_frame[scanline][x] = background_color;
+            }
         }
     }
 
@@ -197,7 +202,7 @@ impl Ppu {
         tile.pixels[tile_y as usize][tile_x as usize]
     }
 
-    fn fetch_sprite_pixel(&self, mmu: &Mmu, x: usize, y: usize) -> Option<(u16, Palette)> {
+    fn fetch_sprite_pixel(&self, mmu: &Mmu, x: usize, y: usize) -> Option<(Sprite, Palette)> {
         let lcdc = mmu.read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER);
         let sprite_height = if lcdc.contains(LcdControl::OBJ_SIZE) { 16 } else { 8 };
 
@@ -236,7 +241,7 @@ impl Ppu {
                     let color = tile.pixels[tile_y as usize][tile_x as usize];
 
                     if !color.is_transparent() {
-                        return Some((i, color));
+                        return Some((sprite, color));
                     }
                 }
             }
