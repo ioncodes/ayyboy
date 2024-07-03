@@ -213,7 +213,7 @@ impl Ppu {
         for i in 0..40 {
             let sprite = Sprite::from_oam(mmu, i);
 
-            if sprite.is_visible_on_scanline(y) || true {
+            if sprite.is_visible_on_scanline(y) {
                 let sprite_y = sprite.y.wrapping_sub(16);
                 let sprite_x = sprite.x.wrapping_sub(8);
 
