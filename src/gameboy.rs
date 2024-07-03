@@ -22,7 +22,6 @@ pub struct GameBoy<'a> {
     ppu: Ppu,
     timer: Timer,
     master_clock: usize,
-    master_clock_penalty: usize,
     cpu_breakpoints: Vec<u16>,
     rhai: Option<RhaiEngine<'a>>,
 }
@@ -47,7 +46,6 @@ impl<'a> GameBoy<'a> {
             ppu,
             timer,
             master_clock: 0,
-            master_clock_penalty: 0,
             cpu_breakpoints: Vec::new(),
             rhai: None,
         }
@@ -61,18 +59,12 @@ impl<'a> GameBoy<'a> {
 
     pub fn run_frame(&mut self) {
         loop {
-            self.master_clock += 1;
+            loop {
+                self.master_clock += 1;
 
-            // the cpu might take longer than 1 master clock / 4 t-cycles
-            // we create an artificial penalty for those cases
-            if self.master_clock_penalty > 0 {
-                self.master_clock_penalty -= 1;
-            }
-
-            if self.master_clock % 4 == 0 && self.master_clock_penalty == 0 {
                 self.try_rhai_script();
-                let cycles = match self.cpu.tick(&mut self.mmu, &mut self.timer) {
-                    Ok(cycles) => cycles,
+                match self.cpu.tick(&mut self.mmu, &mut self.timer) {
+                    Ok(_) => {}
                     Err(WriteToReadOnlyMemory { address, data }) => {
                         warn!(
                             "PC @ {:04x} => Attempted to write {:02x} to unmapped read-only memory at {:04x}",
@@ -80,7 +72,6 @@ impl<'a> GameBoy<'a> {
                             data,
                             address
                         );
-                        0
                     }
                     Err(AyyError::OutOfBoundsMemoryAccess { address }) => {
                         warn!(
@@ -88,7 +79,6 @@ impl<'a> GameBoy<'a> {
                             self.cpu.read_register16(&Register::PC),
                             address
                         );
-                        0
                     }
                     Err(AyyError::WriteToDisabledExternalRam { address, data }) => {
                         error!(
@@ -97,23 +87,26 @@ impl<'a> GameBoy<'a> {
                             data,
                             address
                         );
-                        0
                     }
                     Err(e) => panic!("{}", e),
                 };
-                if cycles > 4 {
-                    self.master_clock_penalty = cycles / 4;
+
+                self.timer.tick(&mut self.mmu, self.master_clock);
+
+                if self.cpu.elapsed_cycles() >= 456 {
+                    self.cpu.reset_cycles(self.cpu.elapsed_cycles() - 456);
+                    break;
                 }
             }
 
-            self.timer.tick(&mut self.mmu, self.master_clock);
-
-            if self.master_clock % 456 == 0 {
-                self.ppu.tick(&mut self.mmu);
-            }
+            // H-Blank (Mode 0)
+            // This mode takes up the remainder of the scanline after the Drawing Mode finishes,
+            // more or less “padding” the duration of the scanline to a total of 456 T-Cycles.
+            // The PPU effectively pauses during this mode.
+            self.ppu.tick(&mut self.mmu); // "does a scanline"
 
             // Do we have a frame to render?
-            if self.master_clock % 70224 == 0 {
+            if self.mmu.read_unchecked(SCANLINE_Y_REGISTER) == 0 {
                 break;
             }
         }

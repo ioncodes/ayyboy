@@ -223,8 +223,8 @@ impl Cpu {
         self.cycles
     }
 
-    pub fn reset_cycles(&mut self) {
-        self.cycles = 0;
+    pub fn reset_cycles(&mut self, to: usize) {
+        self.cycles = to;
     }
 
     fn handle_interrupts(&mut self, mmu: &mut Mmu) -> Result<(), AyyError> {
