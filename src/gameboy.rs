@@ -22,6 +22,7 @@ pub struct GameBoy<'a> {
     ppu: Ppu,
     timer: Timer,
     master_clock: usize,
+    master_clock_penalty: usize,
     cpu_breakpoints: Vec<u16>,
     rhai: Option<RhaiEngine<'a>>,
 }
@@ -46,6 +47,7 @@ impl<'a> GameBoy<'a> {
             ppu,
             timer,
             master_clock: 0,
+            master_clock_penalty: 0,
             cpu_breakpoints: Vec::new(),
             rhai: None,
         }
@@ -61,10 +63,16 @@ impl<'a> GameBoy<'a> {
         loop {
             self.master_clock += 1;
 
-            if self.master_clock % 4 == 0 {
+            // the cpu might take longer than 1 master clock / 4 t-cycles
+            // we create an artificial penalty for those cases
+            if self.master_clock_penalty > 0 {
+                self.master_clock_penalty -= 1;
+            }
+
+            if self.master_clock % 4 == 0 && self.master_clock_penalty == 0 {
                 self.try_rhai_script();
-                match self.cpu.tick(&mut self.mmu, &mut self.timer) {
-                    Ok(_) => {}
+                let cycles = match self.cpu.tick(&mut self.mmu, &mut self.timer) {
+                    Ok(cycles) => cycles,
                     Err(WriteToReadOnlyMemory { address, data }) => {
                         warn!(
                             "PC @ {:04x} => Attempted to write {:02x} to unmapped read-only memory at {:04x}",
@@ -72,6 +80,7 @@ impl<'a> GameBoy<'a> {
                             data,
                             address
                         );
+                        0
                     }
                     Err(AyyError::OutOfBoundsMemoryAccess { address }) => {
                         warn!(
@@ -79,6 +88,7 @@ impl<'a> GameBoy<'a> {
                             self.cpu.read_register16(&Register::PC),
                             address
                         );
+                        0
                     }
                     Err(AyyError::WriteToDisabledExternalRam { address, data }) => {
                         error!(
@@ -87,9 +97,13 @@ impl<'a> GameBoy<'a> {
                             data,
                             address
                         );
+                        0
                     }
                     Err(e) => panic!("{}", e),
                 };
+                if cycles > 4 {
+                    self.master_clock_penalty = cycles / 4;
+                }
             }
 
             self.timer.tick(&mut self.mmu, self.master_clock);

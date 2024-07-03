@@ -10,7 +10,6 @@ use crate::video::{
     TILESET_0_ADDRESS, TILESET_1_ADDRESS, WINDOW_X_REGISTER, WINDOW_Y_REGISTER,
 };
 use std::collections::HashMap;
-use std::hash::Hash;
 
 #[derive(Debug)]
 pub struct Ppu {

@@ -32,12 +32,12 @@ impl Cpu {
         }
     }
 
-    pub fn tick(&mut self, mmu: &mut Mmu, timer: &mut Timer) -> Result<(), AyyError> {
+    pub fn tick(&mut self, mmu: &mut Mmu, timer: &mut Timer) -> Result<usize, AyyError> {
         self.handle_interrupts(mmu)?;
 
         if self.halted {
             self.cycles += 4;
-            return Ok(());
+            return Ok(4);
         }
 
         let instruction = self.sm83.decode(mmu, self.registers.pc)?;
@@ -101,7 +101,7 @@ impl Cpu {
 
         self.cycles += cycles;
 
-        Ok(())
+        Ok(cycles)
     }
 
     pub fn read_register(&self, register: &Register) -> u8 {
