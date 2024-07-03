@@ -64,8 +64,8 @@ impl Ppu {
         }
 
         // Track visited OAMs for current scanline
-        // Key: tile index (as OAM identifier), Value: (x coordinate, sprite)
-        let mut visited_oams: HashMap<u8, Vec<(usize, Palette)>> = HashMap::new();
+        // Key: sprite number (as OAM identifier), Value: (x coordinate, sprite)
+        let mut visited_oams: HashMap<u16, Vec<(usize, Palette)>> = HashMap::new();
 
         for x in 0..SCREEN_WIDTH {
             let background_color = self.fetch_background_pixel(mmu, x, scanline);
@@ -77,16 +77,13 @@ impl Ppu {
             }
 
             // technically, this allows 11?
-            if visited_oams.len() <= 9
+            if visited_oams.len() <= 10
                 && mmu
                     .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
                     .contains(LcdControl::OBJ_DISPLAY)
-                && let Some((sprite, sprite_color)) = self.fetch_sprite_pixel(mmu, x, scanline)
+                && let Some((nr, sprite, sprite_color)) = self.fetch_sprite_pixel(mmu, x, scanline)
             {
-                visited_oams
-                    .entry(sprite.tile_index)
-                    .or_insert_with(Vec::new)
-                    .push((x, sprite_color));
+                visited_oams.entry(nr).or_insert_with(Vec::new).push((x, sprite_color));
             }
         }
 
@@ -172,6 +169,7 @@ impl Ppu {
 
     fn fetch_background_pixel(&self, mmu: &Mmu, x: usize, y: usize) -> Palette {
         // Handle case where background is disabled
+        // TODO: this break acid2 !
         if !mmu
             .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
             .contains(LcdControl::BG_DISPLAY)
@@ -208,7 +206,7 @@ impl Ppu {
         tile.pixels[tile_y as usize][tile_x as usize]
     }
 
-    fn fetch_sprite_pixel(&self, mmu: &Mmu, x: usize, y: usize) -> Option<(Sprite, Palette)> {
+    fn fetch_sprite_pixel(&self, mmu: &Mmu, x: usize, y: usize) -> Option<(u16, Sprite, Palette)> {
         let lcdc = mmu.read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER);
         let sprite_height = if lcdc.contains(LcdControl::OBJ_SIZE) { 16 } else { 8 };
 
@@ -247,7 +245,7 @@ impl Ppu {
                     let color = tile.pixels[tile_y as usize][tile_x as usize];
 
                     if !color.is_transparent() {
-                        return Some((sprite, color));
+                        return Some((i, sprite, color));
                     }
                 }
             }
