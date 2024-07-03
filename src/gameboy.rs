@@ -21,7 +21,6 @@ pub struct GameBoy<'a> {
     mmu: Mmu,
     ppu: Ppu,
     timer: Timer,
-    master_clock: usize,
     cpu_breakpoints: Vec<u16>,
     rhai: Option<RhaiEngine<'a>>,
 }
@@ -45,7 +44,6 @@ impl<'a> GameBoy<'a> {
             mmu,
             ppu,
             timer,
-            master_clock: 0,
             cpu_breakpoints: Vec::new(),
             rhai: None,
         }
@@ -60,11 +58,9 @@ impl<'a> GameBoy<'a> {
     pub fn run_frame(&mut self) {
         loop {
             loop {
-                self.master_clock += 1;
-
                 self.try_rhai_script();
-                match self.cpu.tick(&mut self.mmu, &mut self.timer) {
-                    Ok(_) => {}
+                let cycles = match self.cpu.tick(&mut self.mmu, &mut self.timer) {
+                    Ok(cycles) => cycles,
                     Err(WriteToReadOnlyMemory { address, data }) => {
                         warn!(
                             "PC @ {:04x} => Attempted to write {:02x} to unmapped read-only memory at {:04x}",
@@ -72,6 +68,7 @@ impl<'a> GameBoy<'a> {
                             data,
                             address
                         );
+                        0
                     }
                     Err(AyyError::OutOfBoundsMemoryAccess { address }) => {
                         warn!(
@@ -79,6 +76,7 @@ impl<'a> GameBoy<'a> {
                             self.cpu.read_register16(&Register::PC),
                             address
                         );
+                        0
                     }
                     Err(AyyError::WriteToDisabledExternalRam { address, data }) => {
                         error!(
@@ -87,11 +85,13 @@ impl<'a> GameBoy<'a> {
                             data,
                             address
                         );
+                        0
                     }
                     Err(e) => panic!("{}", e),
                 };
 
-                self.timer.tick(&mut self.mmu, self.master_clock);
+                self.timer.tick_div(&mut self.mmu, cycles);
+                self.timer.tick_tima(&mut self.mmu, cycles);
 
                 if self.cpu.elapsed_cycles() >= 456 {
                     self.cpu.reset_cycles(self.cpu.elapsed_cycles() - 456);
