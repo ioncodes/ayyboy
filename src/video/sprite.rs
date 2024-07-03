@@ -30,10 +30,4 @@ impl Sprite {
             attributes: SpriteAttributes::from_bits_truncate(mmu.read_unchecked(sprite_addr + 3)),
         }
     }
-
-    pub fn is_visible_on_scanline(&self, scanline: usize) -> bool {
-        let sprite_y = self.y.wrapping_sub(16);
-        let height = 8;
-        scanline >= sprite_y as usize && scanline < (sprite_y as usize + height)
-    }
 }

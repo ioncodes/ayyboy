@@ -217,40 +217,34 @@ impl Ppu {
         for i in 0..40 {
             let sprite = Sprite::from_oam(mmu, i);
 
-            if sprite.is_visible_on_scanline(y) {
-                let sprite_y = sprite.y.wrapping_sub(16);
-                let sprite_x = sprite.x.wrapping_sub(8);
+            let sprite_y = sprite.y.wrapping_sub(16);
+            let sprite_x = sprite.x.wrapping_sub(8);
 
-                if x >= sprite_x as usize
-                    && x < (sprite_x as usize + 8)
-                    && y >= sprite_y as usize
-                    && y < (sprite_y as usize + sprite_height)
-                {
-                    let tile_index = if sprite_height == 16 {
-                        if (y - sprite_y as usize) < 8 {
-                            sprite.tile_index & 0b1111_1110 // top tile
-                        } else {
-                            sprite.tile_index | 0b0000_0001 // bottom tile
-                        }
+            if x >= sprite_x as usize && x < (sprite_x as usize + 8) && y >= sprite_y as usize && y < (sprite_y as usize + sprite_height) {
+                let tile_index = if sprite_height == 16 {
+                    if (y - sprite_y as usize) < 8 {
+                        sprite.tile_index & 0b1111_1110 // top tile
                     } else {
-                        sprite.tile_index
-                    };
-
-                    let tile_addr = TILESET_0_ADDRESS + (tile_index as u16) * 16;
-                    let tile = Tile::from_sprite_addr(mmu, tile_addr, &sprite);
-
-                    let mut tile_x = (x - sprite_x as usize) as u8;
-                    let mut tile_y = (y - sprite_y as usize) as u8;
-
-                    if sprite_height == 16 && y - sprite_y as usize >= 8 {
-                        tile_y -= 8;
+                        sprite.tile_index | 0b0000_0001 // bottom tile
                     }
+                } else {
+                    sprite.tile_index
+                };
 
-                    let color = tile.pixels[tile_y as usize][tile_x as usize];
+                let tile_addr = TILESET_0_ADDRESS + (tile_index as u16) * 16;
+                let tile = Tile::from_sprite_addr(mmu, tile_addr, &sprite);
 
-                    if !color.is_transparent() {
-                        return Some((i, sprite, color));
-                    }
+                let mut tile_x = (x - sprite_x as usize) as u8;
+                let mut tile_y = (y - sprite_y as usize) as u8;
+
+                if sprite_height == 16 && y - sprite_y as usize >= 8 {
+                    tile_y -= 8;
+                }
+
+                let color = tile.pixels[tile_y as usize][tile_x as usize];
+
+                if !color.is_transparent() {
+                    return Some((i, sprite, color));
                 }
             }
         }

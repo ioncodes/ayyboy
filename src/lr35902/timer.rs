@@ -14,7 +14,7 @@ impl Timer {
     pub fn tick(&mut self, mmu: &mut Mmu, elapsed_cycles: usize) {
         self.cycles += elapsed_cycles;
 
-        if self.cycles % 256 == 0 {
+        if self.cycles >= 256 {
             let div = mmu.read_unchecked(DIV_REGISTER).wrapping_add(1);
             mmu.write_unchecked(DIV_REGISTER, div);
         }
@@ -34,7 +34,7 @@ impl Timer {
             _ => unreachable!(),
         };
 
-        if self.cycles % cycles == 0 {
+        if self.cycles >= cycles {
             if tima == 0xff {
                 mmu.write_unchecked(TIMA_REGISTER, tma);
                 mmu.write_unchecked(
