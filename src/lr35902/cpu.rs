@@ -223,6 +223,10 @@ impl Cpu {
         self.cycles
     }
 
+    pub fn reset_cycles(&mut self) {
+        self.cycles = 0;
+    }
+
     fn handle_interrupts(&mut self, mmu: &mut Mmu) -> Result<(), AyyError> {
         // "EI instruction enables IME the following cycle to its execution."
         //   - TCAGBD.pdf, chapter 3.3

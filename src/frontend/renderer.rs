@@ -1,6 +1,6 @@
+use crate::frontend::debugger::Debugger;
+use crate::frontend::settings::Settings;
 use crate::gameboy::GameBoy;
-use crate::ui::debugger::Debugger;
-use crate::ui::settings::Settings;
 use crate::video::palette::{Color, Palette};
 use crate::video::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use eframe::egui::{vec2, CentralPanel, Color32, ColorImage, Context, Image, Key, TextureHandle, TextureOptions};
@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 
 const TARGET_FPS: f64 = 59.73;
 const TARGET_FRAME_DURATION: Duration = Duration::from_nanos((1_000_000_000.0 / TARGET_FPS) as u64);
-pub const SCALE: usize = 1;
+pub const SCALE: usize = 4;
 
 pub struct Renderer<'a> {
     debugger: Debugger,

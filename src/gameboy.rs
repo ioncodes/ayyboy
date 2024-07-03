@@ -21,6 +21,7 @@ pub struct GameBoy<'a> {
     mmu: Mmu,
     ppu: Ppu,
     timer: Timer,
+    master_clock: usize,
     cpu_breakpoints: Vec<u16>,
     rhai: Option<RhaiEngine<'a>>,
 }
@@ -44,6 +45,7 @@ impl<'a> GameBoy<'a> {
             mmu,
             ppu,
             timer,
+            master_clock: 0,
             cpu_breakpoints: Vec::new(),
             rhai: None,
         }
@@ -87,12 +89,16 @@ impl<'a> GameBoy<'a> {
                     Err(e) => panic!("{}", e),
                 };
 
-                self.timer.tick(&mut self.mmu, self.cpu.elapsed_cycles());
+                self.master_clock += self.cpu.elapsed_cycles();
+
+                self.timer.tick(&mut self.mmu, (self.master_clock / 4) & !3);
 
                 if self.cpu.elapsed_cycles() % 456 == 0 {
                     break;
                 }
             }
+
+            self.cpu.reset_cycles();
 
             // H-Blank (Mode 0)
             // This mode takes up the remainder of the scanline after the Drawing Mode finishes,

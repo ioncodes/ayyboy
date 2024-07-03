@@ -3,18 +3,18 @@
 #![test_runner(datatest::runner)]
 
 mod error;
+mod frontend;
 mod gameboy;
 mod joypad;
 mod lr35902;
 mod memory;
 mod rhai_engine;
 mod tests;
-mod ui;
 mod video;
 
+use crate::frontend::renderer::{Renderer, SCALE};
+use crate::frontend::settings::Settings;
 use crate::gameboy::GameBoy;
-use crate::ui::renderer::{Renderer, SCALE};
-use crate::ui::settings::Settings;
 use crate::video::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use eframe::egui::{FontFamily, FontId, Style, TextStyle, ViewportBuilder, Visuals};
 use eframe::NativeOptions;
