@@ -59,7 +59,9 @@ impl<'a> GameBoy<'a> {
 
     pub fn run_frame(&mut self) {
         loop {
-            loop {
+            self.master_clock += 1;
+
+            if self.master_clock % 4 == 0 {
                 self.try_rhai_script();
                 match self.cpu.tick(&mut self.mmu, &mut self.timer) {
                     Ok(_) => {}
@@ -88,26 +90,16 @@ impl<'a> GameBoy<'a> {
                     }
                     Err(e) => panic!("{}", e),
                 };
-
-                self.master_clock += self.cpu.elapsed_cycles();
-
-                self.timer.tick(&mut self.mmu, (self.master_clock / 4) & !3);
-
-                if self.cpu.elapsed_cycles() % 456 == 0 {
-                    break;
-                }
             }
 
-            self.cpu.reset_cycles();
+            self.timer.tick(&mut self.mmu, self.master_clock);
 
-            // H-Blank (Mode 0)
-            // This mode takes up the remainder of the scanline after the Drawing Mode finishes,
-            // more or less “padding” the duration of the scanline to a total of 456 T-Cycles.
-            // The PPU effectively pauses during this mode.
-            self.ppu.tick(&mut self.mmu); // "does a scanline"
+            if self.master_clock % 456 == 0 {
+                self.ppu.tick(&mut self.mmu);
+            }
 
             // Do we have a frame to render?
-            if self.mmu.read_unchecked(SCANLINE_Y_REGISTER) == 0 {
+            if self.master_clock % 70224 == 0 {
                 break;
             }
         }

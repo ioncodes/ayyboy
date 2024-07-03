@@ -1,9 +1,8 @@
-use crate::lr35902::timer::Timer;
 use crate::memory::mmu::Mmu;
 use crate::memory::registers::{InterruptFlags, LcdControl, LcdStatus};
 use crate::memory::INTERRUPT_FLAGS_REGISTER;
 use crate::video::palette::Palette;
-use crate::video::sprite::{Sprite, SpriteAttributes};
+use crate::video::sprite::Sprite;
 use crate::video::tile::Tile;
 use crate::video::{
     BACKGROUND_HEIGHT, BACKGROUND_MAP_SIZE, BACKGROUND_WIDTH, LCD_CONTROL_REGISTER, LCD_STATUS_REGISTER, SCANLINE_Y_COMPARE_REGISTER,
@@ -26,35 +25,9 @@ impl Ppu {
     }
 
     pub fn tick(&mut self, mmu: &mut Mmu) {
-        // Render the scanline
         self.render_scanline(mmu);
-
-        // Increment scanline register
-        let mut scanline = mmu.read_unchecked(SCANLINE_Y_REGISTER);
-        scanline += 1;
-        if scanline >= 154 {
-            scanline = 0;
-        }
-        mmu.write_unchecked(SCANLINE_Y_REGISTER, scanline);
-
-        // Raise interrupts
-        let mut interrupt_flags = mmu.read_as_unchecked::<InterruptFlags>(INTERRUPT_FLAGS_REGISTER);
-
-        // Raise VBLANK IRQ
-        if scanline >= 144 {
-            interrupt_flags |= InterruptFlags::VBLANK;
-        }
-
-        // Raise STAT IRQ
-        // Emulate LYC=0 LY=153 quirk
-        let lcd_status = mmu.read_as_unchecked::<LcdStatus>(LCD_STATUS_REGISTER);
-        let lyc = mmu.read_unchecked(SCANLINE_Y_COMPARE_REGISTER);
-        if lcd_status.contains(LcdStatus::LYC_EQ_LY_ENABLE) && (scanline == lyc || (scanline == 153 && lyc == 0)) {
-            interrupt_flags |= InterruptFlags::STAT;
-        }
-
-        // Write back interrupt flags
-        mmu.write_unchecked(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits());
+        self.progress_scanline(mmu);
+        self.handle_interrupts(mmu);
     }
 
     pub fn render_scanline(&mut self, mmu: &Mmu) {
@@ -165,6 +138,37 @@ impl Ppu {
 
     pub fn is_vblank(&self, mmu: &Mmu) -> bool {
         mmu.read_unchecked(SCANLINE_Y_REGISTER) >= 144
+    }
+
+    fn progress_scanline(&self, mmu: &mut Mmu) {
+        let mut scanline = mmu.read_unchecked(SCANLINE_Y_REGISTER) + 1;
+        if scanline >= 154 {
+            scanline = 0;
+        }
+        mmu.write_unchecked(SCANLINE_Y_REGISTER, scanline);
+    }
+
+    fn handle_interrupts(&self, mmu: &mut Mmu) {
+        let scanline = mmu.read_unchecked(SCANLINE_Y_REGISTER);
+
+        // Raise interrupts
+        let mut interrupt_flags = mmu.read_as_unchecked::<InterruptFlags>(INTERRUPT_FLAGS_REGISTER);
+
+        // Raise VBLANK IRQ
+        if scanline >= 144 {
+            interrupt_flags |= InterruptFlags::VBLANK;
+        }
+
+        // Raise STAT IRQ
+        // Emulate LYC=0 LY=153 quirk
+        let lcd_status = mmu.read_as_unchecked::<LcdStatus>(LCD_STATUS_REGISTER);
+        let lyc = mmu.read_unchecked(SCANLINE_Y_COMPARE_REGISTER);
+        if lcd_status.contains(LcdStatus::LYC_EQ_LY_ENABLE) && (scanline == lyc || (scanline == 153 && lyc == 0)) {
+            interrupt_flags |= InterruptFlags::STAT;
+        }
+
+        // Write back interrupt flags
+        mmu.write_unchecked(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits());
     }
 
     fn fetch_background_pixel(&self, mmu: &Mmu, x: usize, y: usize) -> Palette {
