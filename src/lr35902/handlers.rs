@@ -786,12 +786,12 @@ impl Handlers {
         // interrupt vector (and clear the IF flag), while IME='0' will only make the CPU continue executing
         // instructions, but the jump won't be performed (and the IF flag won't be cleared).
 
-        let interrupt_enable = mmu.read_as::<InterruptEnable>(INTERRUPT_ENABLE_REGISTER)?;
-        let interrupt_flags = mmu.read_as::<InterruptFlags>(INTERRUPT_FLAGS_REGISTER)?;
-
-        if !cpu.interrupt_master_raised() && (interrupt_enable.bits() & interrupt_flags.bits() == 0) {
-            return Ok(instruction.cycles.0);
-        }
+        // let interrupt_enable = mmu.read_as::<InterruptEnable>(INTERRUPT_ENABLE_REGISTER)?;
+        // let interrupt_flags = mmu.read_as::<InterruptFlags>(INTERRUPT_FLAGS_REGISTER)?;
+        //
+        // if !cpu.interrupt_master_raised() && (interrupt_enable.bits() & interrupt_flags.bits() == 0) {
+        //     return Ok(instruction.cycles.0);
+        // }
 
         // We need to set the PC back to HALT to make sure we land here again or
         // the CPU jumps into a interrupt vector

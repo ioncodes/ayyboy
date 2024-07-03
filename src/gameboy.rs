@@ -59,6 +59,8 @@ impl<'a> GameBoy<'a> {
         loop {
             loop {
                 self.try_rhai_script();
+                // TODO: instead of relying on cycles being return after tick, we should
+                //       track total cycles before tick and then after tick subtract
                 let cycles = match self.cpu.tick(&mut self.mmu, &mut self.timer) {
                     Ok(cycles) => cycles,
                     Err(WriteToReadOnlyMemory { address, data }) => {
