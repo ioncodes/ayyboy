@@ -85,13 +85,11 @@ impl<'a> GameBoy<'a> {
                         );
                     }
                     Err(e) => panic!("{}", e),
-                }
+                };
 
-                if self.cpu.elapsed_cycles() >= 256 {
-                    self.timer.tick(&mut self.mmu);
-                }
+                self.timer.tick(&mut self.mmu, self.cpu.elapsed_cycles());
 
-                if self.cpu.elapsed_cycles() >= 456 {
+                if self.cpu.elapsed_cycles() % 456 == 0 {
                     break;
                 }
             }
@@ -101,11 +99,9 @@ impl<'a> GameBoy<'a> {
             // more or less “padding” the duration of the scanline to a total of 456 T-Cycles.
             // The PPU effectively pauses during this mode.
             self.ppu.tick(&mut self.mmu); // "does a scanline"
-            let vblank_done = self.mmu.read_unchecked(SCANLINE_Y_REGISTER);
-            self.cpu.reset_cycles(); // TODO: Some cycles are lost here
 
             // Do we have a frame to render?
-            if vblank_done == 0 {
+            if self.mmu.read_unchecked(SCANLINE_Y_REGISTER) == 0 {
                 break;
             }
         }

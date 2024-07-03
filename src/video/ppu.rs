@@ -210,6 +210,10 @@ impl Ppu {
         let lcdc = mmu.read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER);
         let sprite_height = if lcdc.contains(LcdControl::OBJ_SIZE) { 16 } else { 8 };
 
+        // TODO: this aborts as soon as it finds a sprite, but there may be a sprite later
+        // TODO: with higher priority that should be drawn instead i think?
+        // TODO: this also does not account for overlapping sprites where one may have higher priority
+
         for i in 0..40 {
             let sprite = Sprite::from_oam(mmu, i);
 
