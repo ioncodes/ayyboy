@@ -40,6 +40,7 @@ impl Mbc1 {
 }
 
 impl Mapper for Mbc1 {
+    #[inline]
     fn read(&self, addr: u16) -> Result<u8, AyyError> {
         match addr {
             addr if ROM_SLOT_0_RANGE.contains(&addr) => Ok(self.rom[addr as usize]),
@@ -60,6 +61,7 @@ impl Mapper for Mbc1 {
         }
     }
 
+    #[inline]
     fn write(&mut self, addr: u16, data: u8) -> Result<(), AyyError> {
         match addr {
             addr if RAM_ENABLE_RANGE.contains(&addr) => {
@@ -114,14 +116,17 @@ impl Mapper for Mbc1 {
         Ok(())
     }
 
+    #[inline]
     fn current_rom_bank(&self) -> u8 {
         self.rom_bank
     }
 
+    #[inline]
     fn current_ram_bank(&self) -> u8 {
         self.ram_bank
     }
 
+    #[inline]
     fn name(&self) -> String {
         String::from("MBC1")
     }

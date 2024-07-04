@@ -23,6 +23,7 @@ impl Mbc3 {
 }
 
 impl Mapper for Mbc3 {
+    #[inline]
     fn read(&self, addr: u16) -> Result<u8, crate::error::AyyError> {
         match addr {
             0x0000..=0x3fff => Ok(self.rom[addr as usize]),
@@ -43,6 +44,7 @@ impl Mapper for Mbc3 {
         }
     }
 
+    #[inline]
     fn write(&mut self, addr: u16, data: u8) -> Result<(), crate::error::AyyError> {
         match addr {
             0x0000..=0x1fff => {
@@ -76,14 +78,17 @@ impl Mapper for Mbc3 {
         }
     }
 
+    #[inline]
     fn current_rom_bank(&self) -> u8 {
         self.rom_bank
     }
 
+    #[inline]
     fn current_ram_bank(&self) -> u8 {
         self.ram_bank
     }
 
+    #[inline]
     fn name(&self) -> String {
         String::from("MBC3")
     }

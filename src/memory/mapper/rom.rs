@@ -13,23 +13,28 @@ impl Rom {
 }
 
 impl Mapper for Rom {
+    #[inline]
     fn read(&self, addr: u16) -> Result<u8, AyyError> {
         Ok(self.memory[addr as usize])
     }
 
+    #[inline]
     fn write(&mut self, addr: u16, data: u8) -> Result<(), AyyError> {
         // We simply only have a ROM. Writing to it is not allowed.
         Err(AyyError::WriteToReadOnlyMemory { address: addr, data })
     }
 
+    #[inline]
     fn current_rom_bank(&self) -> u8 {
         0
     }
 
+    #[inline]
     fn current_ram_bank(&self) -> u8 {
         0
     }
 
+    #[inline]
     fn name(&self) -> String {
         String::from("ROM")
     }

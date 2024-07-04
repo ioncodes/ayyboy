@@ -38,6 +38,7 @@ pub struct Handlers {}
 
 #[allow(unused_variables)]
 impl Handlers {
+    #[inline]
     pub fn load(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         ensure!(lhs_rhs => instruction);
 
@@ -152,10 +153,12 @@ impl Handlers {
         Ok(instruction.cycles.0)
     }
 
+    #[inline]
     pub fn nop(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         Ok(instruction.cycles.0)
     }
 
+    #[inline]
     pub fn xor(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         ensure!(lhs_rhs => instruction);
 
@@ -173,6 +176,7 @@ impl Handlers {
         Ok(instruction.cycles.0)
     }
 
+    #[inline]
     pub fn complement(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         match instruction {
             Instruction { opcode: Opcode::Cpl, .. } => {
@@ -204,6 +208,7 @@ impl Handlers {
         }
     }
 
+    #[inline]
     pub fn decimal_adjust_accumulator(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         let mut a = cpu.read_register(&Register::A);
         let mut adjust = 0;
@@ -233,6 +238,7 @@ impl Handlers {
         Ok(instruction.cycles.0)
     }
 
+    #[inline]
     pub fn add(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         ensure!(lhs_rhs => instruction);
 
@@ -275,6 +281,7 @@ impl Handlers {
         Ok(instruction.cycles.0)
     }
 
+    #[inline]
     pub fn sub(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         ensure!(lhs_rhs => instruction);
 
@@ -306,6 +313,7 @@ impl Handlers {
         Ok(instruction.cycles.0)
     }
 
+    #[inline]
     pub fn and(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         ensure!(lhs_rhs => instruction);
 
@@ -323,6 +331,7 @@ impl Handlers {
         Ok(instruction.cycles.0)
     }
 
+    #[inline]
     pub fn or(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         ensure!(lhs_rhs => instruction);
 
@@ -340,6 +349,7 @@ impl Handlers {
         Ok(instruction.cycles.0)
     }
 
+    #[inline]
     pub fn rotate_left(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         match instruction {
             Instruction {
@@ -439,6 +449,7 @@ impl Handlers {
         }
     }
 
+    #[inline]
     pub fn rotate_right(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         match instruction {
             Instruction {
@@ -538,6 +549,7 @@ impl Handlers {
         }
     }
 
+    #[inline]
     pub fn shift_left(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         ensure!(lhs => instruction);
 
@@ -579,6 +591,7 @@ impl Handlers {
         }
     }
 
+    #[inline]
     pub fn shift_right(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         ensure!(lhs => instruction);
 
@@ -653,6 +666,7 @@ impl Handlers {
         }
     }
 
+    #[inline]
     pub fn swap(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         ensure!(lhs => instruction);
 
@@ -689,6 +703,7 @@ impl Handlers {
         Ok(instruction.cycles.0)
     }
 
+    #[inline]
     pub fn reset_bit(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         ensure!(lhs_rhs => instruction);
 
@@ -720,6 +735,7 @@ impl Handlers {
         }
     }
 
+    #[inline]
     pub fn set_bit(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         ensure!(lhs_rhs => instruction);
 
@@ -751,6 +767,7 @@ impl Handlers {
         }
     }
 
+    #[inline]
     pub fn compare(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         ensure!(lhs_rhs => instruction);
 
@@ -766,6 +783,7 @@ impl Handlers {
         Ok(instruction.cycles.0)
     }
 
+    #[inline]
     pub fn test_bit(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         ensure!(lhs_rhs => instruction);
 
@@ -780,6 +798,7 @@ impl Handlers {
         Ok(instruction.cycles.0)
     }
 
+    #[inline]
     pub fn halt(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         // HALT mode is exited when a flag in register IF is set and the corresponding flag in IE is also set,
         // regardless of the value of IME. The only difference is that IME='1' will make the CPU jump to the
@@ -800,6 +819,7 @@ impl Handlers {
         Ok(instruction.cycles.0)
     }
 
+    #[inline]
     pub fn jump(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         ensure!(lhs_rhs => instruction);
 
@@ -847,6 +867,7 @@ impl Handlers {
         invalid_handler!(instruction)
     }
 
+    #[inline]
     pub fn restart(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         ensure!(lhs => instruction);
 
@@ -858,6 +879,7 @@ impl Handlers {
         Ok(instruction.cycles.0)
     }
 
+    #[inline]
     pub fn ret(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         match instruction.opcode {
             Opcode::Ret => {
@@ -882,6 +904,7 @@ impl Handlers {
         }
     }
 
+    #[inline]
     pub fn push(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         ensure!(lhs => instruction);
 
@@ -897,6 +920,7 @@ impl Handlers {
         Ok(instruction.cycles.0)
     }
 
+    #[inline]
     pub fn pop(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         ensure!(lhs => instruction);
 
@@ -912,6 +936,7 @@ impl Handlers {
         Ok(instruction.cycles.0)
     }
 
+    #[inline]
     pub fn increment(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         ensure!(lhs => instruction);
 
@@ -948,6 +973,7 @@ impl Handlers {
         Ok(instruction.cycles.0)
     }
 
+    #[inline]
     pub fn decrement(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         ensure!(lhs => instruction);
 
@@ -984,6 +1010,7 @@ impl Handlers {
         Ok(instruction.cycles.0)
     }
 
+    #[inline]
     pub fn add_with_carry(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         ensure!(lhs_rhs => instruction);
 
@@ -1002,6 +1029,7 @@ impl Handlers {
         Ok(instruction.cycles.0)
     }
 
+    #[inline]
     pub fn sub_with_carry(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         ensure!(lhs_rhs => instruction);
 
@@ -1020,6 +1048,7 @@ impl Handlers {
         Ok(instruction.cycles.0)
     }
 
+    #[inline]
     pub fn handle_interrupt(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         if instruction.opcode == Opcode::Ei {
             cpu.enable_interrupts(true);
@@ -1030,6 +1059,7 @@ impl Handlers {
         Ok(instruction.cycles.0)
     }
 
+    #[inline]
     fn resolve_operand(cpu: &mut Cpu, mmu: &Mmu, operand: &Operand, is_ldh: bool) -> Result<usize, AyyError> {
         match operand {
             Operand::Reg16(reg, mode) if mode.contains(AddressingMode::Direct) => Ok(cpu.read_register16(&reg) as usize),
@@ -1061,6 +1091,7 @@ impl Handlers {
         }
     }
 
+    #[inline]
     fn process_additional_address_mode(cpu: &mut Cpu, reg: &Register, addr: u16, mode: &AddressingMode) {
         if mode.contains(AddressingMode::Increment) {
             cpu.write_register16(&reg, addr.wrapping_add(1));
@@ -1069,6 +1100,7 @@ impl Handlers {
         }
     }
 
+    #[inline]
     fn check_condition(cpu: &Cpu, condition: &Condition) -> bool {
         match condition {
             Condition::Z => cpu.read_flag(Flags::ZERO),

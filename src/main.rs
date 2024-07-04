@@ -18,15 +18,20 @@ use crate::gameboy::GameBoy;
 use crate::video::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use eframe::egui::{FontFamily, FontId, Style, TextStyle, ViewportBuilder, Visuals};
 use eframe::NativeOptions;
+use log::info;
+use std::fs::File;
+use std::io::Read;
+use zip::ZipArchive;
+
+const BOOTROM: &[u8] = include_bytes!("../external/roms/dmg_boot.bin");
 
 fn main() {
     setup_logging();
 
     let args: Vec<String> = std::env::args().collect();
-    let bootrom = include_bytes!("../external/roms/dmg_boot.bin").to_vec();
-    let cartridge = std::fs::read(&args[1]).expect("Failed to read ROM file");
-    let gameboy = GameBoy::new(bootrom, cartridge);
     let uncapped = args.iter().any(|arg| arg == "--uncapped");
+    let filepath = args.get(1).expect("No ROM file provided");
+    let gameboy = GameBoy::new(BOOTROM.to_vec(), load_rom(filepath));
 
     let native_options = NativeOptions {
         viewport: ViewportBuilder::default()
@@ -42,19 +47,48 @@ fn main() {
         Box::new(move |cc| {
             let style = Style {
                 visuals: Visuals::light(),
-                text_styles: [
-                    (TextStyle::Body, FontId::new(14.0, FontFamily::Monospace)),
-                    (TextStyle::Button, FontId::new(14.0, FontFamily::Monospace)),
-                    (TextStyle::Heading, FontId::new(16.0, FontFamily::Monospace)),
-                    (TextStyle::Monospace, FontId::new(14.0, FontFamily::Monospace)),
-                ]
-                .into(),
+                // text_styles: [
+                //     (TextStyle::Body, FontId::new(14.0, FontFamily::Monospace)),
+                //     (TextStyle::Button, FontId::new(14.0, FontFamily::Monospace)),
+                //     (TextStyle::Heading, FontId::new(16.0, FontFamily::Monospace)),
+                //     (TextStyle::Monospace, FontId::new(14.0, FontFamily::Monospace)),
+                // ]
+                // .into(),
                 ..Style::default()
             };
             cc.egui_ctx.set_style(style);
             Box::new(Renderer::new(cc, gameboy, Settings { uncapped }))
         }),
     );
+}
+
+fn load_rom(filepath: &str) -> Vec<u8> {
+    if filepath.ends_with(".zip") {
+        let file = File::open(&filepath).unwrap();
+        let unzipped_filepath = unzip_rom(file);
+        info!("Unzipped {} to {}", &filepath, unzipped_filepath);
+        std::fs::read(&unzipped_filepath).expect("Failed to read ROM file")
+    } else {
+        std::fs::read(&filepath).expect("Failed to read ROM file")
+    }
+}
+
+fn unzip_rom(file: File) -> String {
+    let mut archive = ZipArchive::new(file).unwrap();
+    let mut rom = archive.by_index(0).unwrap();
+
+    let filepath = match rom.enclosed_name() {
+        Some(name) => name.to_owned(),
+        None => panic!("No file found in zip archive"),
+    };
+    let tempfolder = std::env::temp_dir();
+    let filepath = tempfolder.join(&filepath);
+    let filepath = filepath.to_str().unwrap().to_owned();
+
+    let mut unpacked_file = File::create(&filepath).unwrap();
+    std::io::copy(&mut rom, &mut unpacked_file).unwrap();
+
+    filepath
 }
 
 fn setup_logging() {

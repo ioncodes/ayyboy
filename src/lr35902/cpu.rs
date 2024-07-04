@@ -104,6 +104,7 @@ impl Cpu {
         Ok(cycles)
     }
 
+    #[inline]
     pub fn read_register(&self, register: &Register) -> u8 {
         match register {
             Register::A => self.registers.a,
@@ -118,6 +119,7 @@ impl Cpu {
         }
     }
 
+    #[inline]
     pub fn read_register16(&self, register: &Register) -> u16 {
         match register {
             Register::AF => (self.registers.a as u16) << 8 | self.registers.f.bits() as u16,
@@ -130,6 +132,7 @@ impl Cpu {
         }
     }
 
+    #[inline]
     pub fn write_register(&mut self, register: &Register, data: u8) {
         match register {
             Register::A => self.registers.a = data,
@@ -144,6 +147,7 @@ impl Cpu {
         }
     }
 
+    #[inline]
     pub fn write_register16(&mut self, register: &Register, value: u16) {
         let lo = (value & 0xff) as u8;
         let hi = (value >> 8) as u8;
@@ -171,6 +175,7 @@ impl Cpu {
         }
     }
 
+    #[inline]
     pub fn update_flag(&mut self, flag: Flags, value: bool) {
         if value {
             self.set_flag(flag);
@@ -179,30 +184,36 @@ impl Cpu {
         }
     }
 
+    #[inline]
     pub fn read_flag(&self, flag: Flags) -> bool {
         self.registers.f.contains(flag)
     }
 
+    #[inline]
     pub fn set_flag(&mut self, flag: Flags) {
         self.registers.f |= flag;
     }
 
+    #[inline]
     pub fn clear_flag(&mut self, flag: Flags) {
         self.registers.f &= !flag;
     }
 
+    #[inline]
     pub fn push_stack(&mut self, mmu: &mut Mmu, value: u16) -> Result<(), AyyError> {
         self.registers.sp -= 2;
         mmu.write16(self.registers.sp, value)?;
         Ok(())
     }
 
+    #[inline]
     pub fn pop_stack(&mut self, mmu: &Mmu) -> Result<u16, AyyError> {
         let value = mmu.read16(self.registers.sp)?;
         self.registers.sp += 2;
         Ok(value)
     }
 
+    #[inline]
     pub fn enable_interrupts(&mut self, delayed: bool) {
         if delayed {
             self.ime.enable_pending = true;
@@ -211,18 +222,22 @@ impl Cpu {
         }
     }
 
+    #[inline]
     pub fn disable_interrupts(&mut self) {
         self.ime.enabled = false;
     }
 
+    #[inline]
     pub fn interrupt_master_raised(&self) -> bool {
         self.ime.enabled
     }
 
+    #[inline]
     pub fn elapsed_cycles(&self) -> usize {
         self.cycles
     }
 
+    #[inline]
     pub fn reset_cycles(&mut self, to: usize) {
         self.cycles = to;
     }
