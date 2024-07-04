@@ -43,14 +43,6 @@ impl Tile {
             }
         }
 
-        if sprite.attributes.contains(SpriteAttributes::FLIP_X) {
-            pixels.iter_mut().for_each(|row| row.reverse());
-        }
-
-        if sprite.attributes.contains(SpriteAttributes::FLIP_Y) {
-            pixels.reverse();
-        }
-
         Tile { pixels }
     }
 }

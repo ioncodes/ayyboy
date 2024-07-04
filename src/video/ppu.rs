@@ -2,7 +2,7 @@ use crate::memory::mmu::Mmu;
 use crate::memory::registers::{InterruptFlags, LcdControl, LcdStatus};
 use crate::memory::INTERRUPT_FLAGS_REGISTER;
 use crate::video::palette::Palette;
-use crate::video::sprite::Sprite;
+use crate::video::sprite::{Sprite, SpriteAttributes};
 use crate::video::tile::Tile;
 use crate::video::{
     BACKGROUND_HEIGHT, BACKGROUND_MAP_SIZE, BACKGROUND_WIDTH, LCD_CONTROL_REGISTER, LCD_STATUS_REGISTER, SCANLINE_Y_COMPARE_REGISTER,
@@ -241,6 +241,14 @@ impl Ppu {
 
                 if sprite_height == 16 && y - sprite_y as usize >= 8 {
                     tile_y -= 8;
+                }
+
+                if sprite.attributes.contains(SpriteAttributes::FLIP_X) {
+                    tile_x = 7 - tile_x;
+                }
+
+                if sprite.attributes.contains(SpriteAttributes::FLIP_Y) {
+                    tile_y = 7 - tile_y;
                 }
 
                 let color = tile.pixels[tile_y as usize][tile_x as usize];
