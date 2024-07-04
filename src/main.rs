@@ -2,6 +2,7 @@
 #![feature(custom_test_frameworks)]
 #![test_runner(datatest::runner)]
 
+mod apu;
 mod error;
 mod frontend;
 mod gameboy;

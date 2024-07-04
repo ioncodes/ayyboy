@@ -1,5 +1,5 @@
+use crate::apu::Apu;
 use crate::error::AyyError;
-use crate::error::AyyError::WriteToReadOnlyMemory;
 use crate::lr35902::cpu::Cpu;
 use crate::lr35902::sm83::Register;
 use crate::lr35902::timer::Timer;
@@ -13,6 +13,8 @@ use crate::video::palette::Palette;
 use crate::video::ppu::Ppu;
 use crate::video::tile::Tile;
 use crate::video::{SCANLINE_Y_REGISTER, SCREEN_HEIGHT, SCREEN_WIDTH};
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use cpal::{SampleFormat, StreamConfig};
 use eframe::egui::Key;
 use log::{error, info, warn};
 use std::path::PathBuf;
@@ -21,6 +23,7 @@ pub struct GameBoy<'a> {
     cpu: Cpu,
     mmu: Mmu,
     ppu: Ppu,
+    apu: Apu,
     timer: Timer,
     cpu_breakpoints: Vec<u16>,
     rhai: Option<RhaiEngine<'a>>,
@@ -39,12 +42,14 @@ impl<'a> GameBoy<'a> {
         let cpu = Cpu::new();
         let mmu = Mmu::new(bootrom, cartridge);
         let ppu = Ppu::new();
+        let apu = Apu::new();
         let timer = Timer::new();
 
         GameBoy {
             cpu,
             mmu,
             ppu,
+            apu,
             timer,
             cpu_breakpoints: Vec::new(),
             rhai: None,
@@ -65,7 +70,7 @@ impl<'a> GameBoy<'a> {
                 //       track total cycles before tick and then after tick subtract
                 let cycles = match self.cpu.tick(&mut self.mmu, &mut self.timer) {
                     Ok(cycles) => cycles,
-                    Err(WriteToReadOnlyMemory { address, data }) => {
+                    Err(AyyError::WriteToReadOnlyMemory { address, data }) => {
                         warn!(
                             "PC @ {:04x} => Attempted to write {:02x} to unmapped read-only memory at {:04x}",
                             self.cpu.read_register16(&Register::PC),
@@ -93,6 +98,8 @@ impl<'a> GameBoy<'a> {
                     }
                     Err(e) => panic!("{}", e),
                 };
+
+                self.apu.tick(&mut self.mmu, cycles);
 
                 self.timer.tick_div(&mut self.mmu, cycles);
                 self.timer.tick_tima(&mut self.mmu, cycles);
