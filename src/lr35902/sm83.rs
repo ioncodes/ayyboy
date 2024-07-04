@@ -1,7 +1,6 @@
 use crate::error::AyyError;
 use crate::memory::mmu::Mmu;
 use bitflags::bitflags;
-use rhai::{CustomType, TypeBuilder};
 use std::cmp::PartialEq;
 use std::collections::HashMap;
 
@@ -120,12 +119,13 @@ macro_rules! define_decoder {
     }};
 }
 
-#[derive(Clone, CustomType)]
+#[derive(Clone)]
 pub struct Sm83 {
     decoder_lut: Vec<(String, Opcode, FDecode)>,
     decoder_lut_prefixed: Vec<(String, Opcode, FDecode)>,
     cached_lut: HashMap<u8, Instruction>,
     cached_lut_prefixed: HashMap<u8, Instruction>,
+    #[cfg(debug_assertions)]
     invalid_opcodes_lut: Vec<u8>,
 }
 
@@ -143,6 +143,7 @@ impl Sm83 {
             decoder_lut_prefixed,
             cached_lut: HashMap::new(),
             cached_lut_prefixed: HashMap::new(),
+            #[cfg(debug_assertions)]
             invalid_opcodes_lut: vec![0xd3, 0xdb, 0xdd, 0xe3, 0xe4, 0xeb, 0xec, 0xed, 0xf4, 0xfc, 0xfd],
         }
     }
