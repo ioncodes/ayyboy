@@ -17,6 +17,8 @@ pub struct Renderer<'a> {
     screen_texture: TextureHandle,
     gameboy: GameBoy<'a>,
     settings: Settings,
+    time_delta: Duration,
+    throttle_timer: Instant,
 }
 
 impl<'a> Renderer<'a> {
@@ -32,6 +34,8 @@ impl<'a> Renderer<'a> {
             screen_texture,
             gameboy,
             settings,
+            time_delta: Duration::from_secs(0),
+            throttle_timer: Instant::now(),
         }
     }
 
@@ -112,8 +116,6 @@ impl<'a> Renderer<'a> {
 
 impl App for Renderer<'_> {
     fn update(&mut self, ctx: &Context, _frame: &mut Frame) {
-        let throttle_timer = Instant::now();
-
         self.handle_input(ctx);
 
         self.gameboy.run_frame();
@@ -130,16 +132,18 @@ impl App for Renderer<'_> {
         ctx.request_repaint();
 
         if !self.settings.uncapped {
-            let frame_duration = throttle_timer.elapsed();
-            if frame_duration < TARGET_FRAME_DURATION {
-                spin_sleep::sleep(TARGET_FRAME_DURATION - frame_duration);
+            let frame_duration = self.throttle_timer.elapsed();
+            let adjusted_duration = frame_duration + self.time_delta;
+
+            if adjusted_duration < TARGET_FRAME_DURATION {
+                spin_sleep::sleep(TARGET_FRAME_DURATION - adjusted_duration);
+                self.time_delta = Duration::from_secs(0);
             } else {
-                warn!(
-                    "Frame took too long: {:?} with a delta of {:?}",
-                    frame_duration,
-                    frame_duration - TARGET_FRAME_DURATION
-                );
+                self.time_delta = adjusted_duration - TARGET_FRAME_DURATION;
+                warn!("Frame took too long: {:?} with a delta of {:?}", adjusted_duration, self.time_delta);
             }
         }
+
+        self.throttle_timer = Instant::now();
     }
 }
