@@ -1,3 +1,4 @@
+mod oam;
 pub mod palette;
 pub mod ppu;
 mod sprite;

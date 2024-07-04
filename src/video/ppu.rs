@@ -1,6 +1,7 @@
 use crate::memory::mmu::Mmu;
 use crate::memory::registers::{InterruptFlags, LcdControl, LcdStatus};
 use crate::memory::INTERRUPT_FLAGS_REGISTER;
+use crate::video::oam::Oam;
 use crate::video::palette::Palette;
 use crate::video::sprite::{Sprite, SpriteAttributes};
 use crate::video::tile::Tile;
@@ -35,6 +36,10 @@ impl Ppu {
             return;
         }
 
+        let lcdc = mmu.read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER);
+        let sprite_height = if lcdc.contains(LcdControl::OBJ_SIZE) { 16 } else { 8 };
+        let oams = self.fetch_oams(mmu, sprite_height);
+
         // Track visited OAMs for current scanline
         // Key: sprite address (as OAM identifier), Value: (x coordinate, pixel color)
         let mut visited_oams: HashMap<u16, Vec<(usize, Palette)>> = HashMap::new();
@@ -43,16 +48,16 @@ impl Ppu {
             let background_color = self.fetch_background_pixel(mmu, x, scanline);
             self.emulated_frame[scanline][x] = background_color;
 
-            // let window_color = self.fetch_window_pixel(mmu, x, scanline);
-            // if !window_color.is_transparent() {
-            //     self.emulated_frame[scanline][x] = window_color;
-            // }
+            let window_color = self.fetch_window_pixel(mmu, x, scanline);
+            if !window_color.is_transparent() {
+                self.emulated_frame[scanline][x] = window_color;
+            }
 
             if visited_oams.len() <= 10
                 && mmu
                     .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
                     .contains(LcdControl::OBJ_DISPLAY)
-                && let Some((sprite, sprite_color)) = self.fetch_sprite_pixel(mmu, x, scanline)
+                && let Some((sprite, sprite_color)) = self.fetch_sprite_pixel(mmu, &oams, x, scanline, sprite_height)
             {
                 visited_oams
                     .entry(sprite.oam_addr)
@@ -210,16 +215,49 @@ impl Ppu {
         tile.pixels[tile_y as usize][tile_x as usize]
     }
 
-    // TODO: We can optimize this by a lot by fetching all OAMs first and then using the list
-    //       to fetch the pixels
-    fn fetch_sprite_pixel(&self, mmu: &Mmu, x: usize, y: usize) -> Option<(Sprite, Palette)> {
-        let lcdc = mmu.read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER);
-        let sprite_height = if lcdc.contains(LcdControl::OBJ_SIZE) { 16 } else { 8 };
-
-        let mut sprites: Vec<(Sprite, Palette)> = Vec::new();
+    fn fetch_oams(&self, mmu: &Mmu, sprite_height: usize) -> Vec<Oam> {
+        let mut oams: Vec<Oam> = Vec::new();
 
         for i in 0..40 {
             let sprite = Sprite::from_oam(mmu, i);
+
+            if sprite_height == 16 {
+                // 16px sprite
+                let tile_index_top = sprite.tile_index & 0b1111_1110;
+                let tile_index_bot = tile_index_top + 1;
+
+                let tile_addr_top = TILESET_0_ADDRESS + (tile_index_top as u16) * 16;
+                let tile_addr_bot = TILESET_0_ADDRESS + (tile_index_bot as u16) * 16;
+
+                let tile_top = Tile::from_sprite_addr(mmu, tile_addr_top, &sprite);
+                let tile_bot = Tile::from_sprite_addr(mmu, tile_addr_bot, &sprite);
+
+                oams.push(Oam {
+                    sprite,
+                    tile1: tile_top,
+                    tile2: Some(tile_bot),
+                });
+            } else {
+                // 8px sprite
+                let tile_addr = TILESET_0_ADDRESS + (sprite.tile_index as u16) * 16;
+                let tile = Tile::from_sprite_addr(mmu, tile_addr, &sprite);
+
+                oams.push(Oam {
+                    sprite,
+                    tile1: tile,
+                    tile2: None,
+                });
+            }
+        }
+
+        oams
+    }
+
+    fn fetch_sprite_pixel(&self, mmu: &Mmu, oams: &Vec<Oam>, x: usize, y: usize, sprite_height: usize) -> Option<(Sprite, Palette)> {
+        let mut sprites: Vec<(Sprite, Palette)> = Vec::new();
+
+        for oam in oams {
+            let sprite = &oam.sprite;
 
             let sprite_y = sprite.y.wrapping_sub(16);
             let sprite_x = sprite.x.wrapping_sub(8);
@@ -227,14 +265,8 @@ impl Ppu {
             if x >= sprite_x as usize && x < (sprite_x as usize + 8) && y >= sprite_y as usize && y < (sprite_y as usize + sprite_height) {
                 if sprite_height == 16 {
                     // 16px sprite
-                    let tile_index_top = sprite.tile_index & 0b1111_1110;
-                    let tile_index_bot = tile_index_top + 1;
-
-                    let tile_addr_top = TILESET_0_ADDRESS + (tile_index_top as u16) * 16;
-                    let tile_addr_bot = TILESET_0_ADDRESS + (tile_index_bot as u16) * 16;
-
-                    let tile_top = Tile::from_sprite_addr(mmu, tile_addr_top, &sprite);
-                    let tile_bot = Tile::from_sprite_addr(mmu, tile_addr_bot, &sprite);
+                    let tile_top = &oam.tile1;
+                    let tile_bot = oam.tile2.as_ref().unwrap();
 
                     let mut tile_x = (x - sprite_x as usize) as u8;
                     let mut tile_y = (y - sprite_y as usize) as u8;
@@ -254,12 +286,11 @@ impl Ppu {
                     };
 
                     if !color.is_transparent() {
-                        sprites.push((sprite, color));
+                        sprites.push((sprite.clone(), color));
                     }
                 } else {
                     // 8px sprite
-                    let tile_addr = TILESET_0_ADDRESS + (sprite.tile_index as u16) * 16;
-                    let tile = Tile::from_sprite_addr(mmu, tile_addr, &sprite);
+                    let tile = &oam.tile1;
 
                     let mut tile_x = (x - sprite_x as usize) as u8;
                     let mut tile_y = (y - sprite_y as usize) as u8;
@@ -275,13 +306,13 @@ impl Ppu {
                     let color = tile.pixels[tile_y as usize][tile_x as usize];
 
                     if !color.is_transparent() {
-                        sprites.push((sprite, color));
+                        sprites.push((sprite.clone(), color));
                     }
                 };
             }
         }
 
-        // Return sprite pixel with highest X-priority
+        // Return sprite pixel
         sprites.sort_by(|a, b| a.0.x.cmp(&b.0.x));
         if let Some((sprite, color)) = sprites.first() {
             return Some((sprite.clone(), *color));
