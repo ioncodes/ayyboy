@@ -143,10 +143,6 @@ impl Ppu {
         background
     }
 
-    pub fn is_vblank(&self, mmu: &Mmu) -> bool {
-        mmu.read_unchecked(SCANLINE_Y_REGISTER) >= 144
-    }
-
     fn progress_scanline(&self, mmu: &mut Mmu) {
         let mut scanline = mmu.read_unchecked(SCANLINE_Y_REGISTER) + 1;
         if scanline >= 154 {
@@ -162,7 +158,7 @@ impl Ppu {
         let mut interrupt_flags = mmu.read_as_unchecked::<InterruptFlags>(INTERRUPT_FLAGS_REGISTER);
 
         // Raise VBLANK IRQ
-        if scanline >= 144 {
+        if scanline == 144 {
             interrupt_flags |= InterruptFlags::VBLANK;
         }
 
