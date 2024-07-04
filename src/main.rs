@@ -18,7 +18,8 @@ use crate::gameboy::GameBoy;
 use crate::video::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use eframe::egui::{FontFamily, FontId, Style, TextStyle, ViewportBuilder, Visuals};
 use eframe::NativeOptions;
-use log::info;
+use fern::Dispatch;
+use log::{info, LevelFilter};
 use std::fs::File;
 use std::io::Read;
 use zip::ZipArchive;
@@ -26,9 +27,11 @@ use zip::ZipArchive;
 const BOOTROM: &[u8] = include_bytes!("../external/roms/dmg_boot.bin");
 
 fn main() {
-    setup_logging();
-
     let args: Vec<String> = std::env::args().collect();
+    let log_to_file = args.iter().any(|arg| arg == "--log-to-file");
+
+    setup_logging(log_to_file);
+
     let uncapped = args.iter().any(|arg| arg == "--uncapped");
     let filepath = args.get(1).expect("No ROM file provided");
     let gameboy = GameBoy::new(BOOTROM.to_vec(), load_rom(filepath));
@@ -47,13 +50,13 @@ fn main() {
         Box::new(move |cc| {
             let style = Style {
                 visuals: Visuals::light(),
-                // text_styles: [
-                //     (TextStyle::Body, FontId::new(14.0, FontFamily::Monospace)),
-                //     (TextStyle::Button, FontId::new(14.0, FontFamily::Monospace)),
-                //     (TextStyle::Heading, FontId::new(16.0, FontFamily::Monospace)),
-                //     (TextStyle::Monospace, FontId::new(14.0, FontFamily::Monospace)),
-                // ]
-                // .into(),
+                text_styles: [
+                    (TextStyle::Body, FontId::new(14.0, FontFamily::Monospace)),
+                    (TextStyle::Button, FontId::new(14.0, FontFamily::Monospace)),
+                    (TextStyle::Heading, FontId::new(16.0, FontFamily::Monospace)),
+                    (TextStyle::Monospace, FontId::new(14.0, FontFamily::Monospace)),
+                ]
+                .into(),
                 ..Style::default()
             };
             cc.egui_ctx.set_style(style);
@@ -91,12 +94,9 @@ fn unzip_rom(file: File) -> String {
     filepath
 }
 
-fn setup_logging() {
-    use fern::Dispatch;
-    use log::LevelFilter;
-
+fn setup_logging(log_to_file: bool) {
     // Setup logger
-    const LOG_PATH: &str = "./external/ayyboy_trace.log";
+    const LOG_PATH: &str = "./ayyboy_trace.log";
     std::fs::remove_file(LOG_PATH).unwrap_or_default();
 
     let mut base_config = Dispatch::new()
@@ -104,8 +104,7 @@ fn setup_logging() {
         .chain(Dispatch::new().level(LevelFilter::Info).chain(std::io::stdout()))
         .format(move |out, message, record| out.finish(format_args!("[{}] {}", record.level(), message)));
 
-    #[cfg(debug_assertions)]
-    {
+    if log_to_file {
         base_config = base_config.chain(
             Dispatch::new()
                 .level(LevelFilter::Trace)
