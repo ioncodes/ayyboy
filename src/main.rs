@@ -9,7 +9,6 @@ mod gameboy;
 mod joypad;
 mod lr35902;
 mod memory;
-mod rhai_engine;
 mod tests;
 mod video;
 
@@ -22,7 +21,6 @@ use eframe::NativeOptions;
 use fern::Dispatch;
 use log::{info, LevelFilter};
 use std::fs::File;
-use std::io::Read;
 use zip::ZipArchive;
 
 const BOOTROM: &[u8] = include_bytes!("../external/roms/dmg_boot.bin");

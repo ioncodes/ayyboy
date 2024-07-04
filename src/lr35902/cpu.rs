@@ -228,6 +228,7 @@ impl Cpu {
     }
 
     #[inline]
+    #[cfg(test)]
     pub fn interrupt_master_raised(&self) -> bool {
         self.ime.enabled
     }

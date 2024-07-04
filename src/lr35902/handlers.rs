@@ -4,8 +4,6 @@ use crate::lr35902::cpu::Cpu;
 use crate::lr35902::registers::Flags;
 use crate::lr35902::sm83::{AddressingMode, Condition, Instruction, Opcode, Operand, Register};
 use crate::memory::mmu::Mmu;
-use crate::memory::registers::{InterruptEnable, InterruptFlags};
-use crate::memory::{INTERRUPT_ENABLE_REGISTER, INTERRUPT_FLAGS_REGISTER};
 
 macro_rules! invalid_handler {
     ($instruction:expr) => {

@@ -1,5 +1,4 @@
 use crate::memory::mapper::Mapper;
-use log::error;
 
 #[derive(Clone)]
 pub struct Mbc3 {

@@ -1,6 +1,6 @@
 use crate::memory::mmu::Mmu;
 use crate::video::palette::Palette;
-use crate::video::sprite::{Sprite, SpriteAttributes};
+use crate::video::sprite::Sprite;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Tile {

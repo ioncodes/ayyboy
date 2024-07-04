@@ -7,9 +7,9 @@ impl Apu {
         Apu {}
     }
 
-    pub fn tick(&mut self, mmu: &mut Mmu, cycles: usize) {}
+    pub fn tick(&mut self, _mmu: &mut Mmu, _cycles: usize) {}
 
-    pub fn sample(&self) -> f32 {
+    pub fn _sample(&self) -> f32 {
         0.0
     }
 }

@@ -12,17 +12,17 @@ const TARGET_FPS: f64 = 59.73;
 const TARGET_FRAME_DURATION: Duration = Duration::from_nanos((1_000_000_000.0 / TARGET_FPS) as u64);
 pub const SCALE: usize = 4;
 
-pub struct Renderer<'a> {
+pub struct Renderer {
     debugger: Debugger,
     screen_texture: TextureHandle,
-    gameboy: GameBoy<'a>,
+    gb: GameBoy,
     settings: Settings,
     time_delta: Duration,
     throttle_timer: Instant,
 }
 
-impl<'a> Renderer<'a> {
-    pub fn new(cc: &CreationContext, gameboy: GameBoy<'a>, settings: Settings) -> Renderer<'a> {
+impl Renderer {
+    pub fn new(cc: &CreationContext, gameboy: GameBoy, settings: Settings) -> Renderer {
         let screen_texture = cc.egui_ctx.load_texture(
             "screen_texture",
             ColorImage::new([SCREEN_WIDTH, SCREEN_HEIGHT], Color32::BLACK),
@@ -32,7 +32,7 @@ impl<'a> Renderer<'a> {
         Renderer {
             debugger: Debugger::new(),
             screen_texture,
-            gameboy,
+            gb: gameboy,
             settings,
             time_delta: Duration::from_secs(0),
             throttle_timer: Instant::now(),
@@ -64,62 +64,62 @@ impl<'a> Renderer<'a> {
 
         ctx.input(|i| {
             if i.key_down(Key::Enter) {
-                self.gameboy.update_button(Key::Enter, true);
+                self.gb.mmu.joypad.update_button(Key::Enter, true);
             } else {
-                self.gameboy.update_button(Key::Enter, false);
+                self.gb.mmu.joypad.update_button(Key::Enter, false);
             }
 
             if i.key_down(Key::Backspace) {
-                self.gameboy.update_button(Key::Backspace, true);
+                self.gb.mmu.joypad.update_button(Key::Backspace, true);
             } else {
-                self.gameboy.update_button(Key::Backspace, false);
+                self.gb.mmu.joypad.update_button(Key::Backspace, false);
             }
 
             if i.key_down(Key::A) {
-                self.gameboy.update_button(Key::A, true);
+                self.gb.mmu.joypad.update_button(Key::A, true);
             } else {
-                self.gameboy.update_button(Key::A, false);
+                self.gb.mmu.joypad.update_button(Key::A, false);
             }
 
             if i.key_down(Key::S) {
-                self.gameboy.update_button(Key::S, true);
+                self.gb.mmu.joypad.update_button(Key::S, true);
             } else {
-                self.gameboy.update_button(Key::S, false);
+                self.gb.mmu.joypad.update_button(Key::S, false);
             }
 
             if i.key_down(Key::ArrowUp) {
-                self.gameboy.update_button(Key::ArrowUp, true);
+                self.gb.mmu.joypad.update_button(Key::ArrowUp, true);
             } else {
-                self.gameboy.update_button(Key::ArrowUp, false);
+                self.gb.mmu.joypad.update_button(Key::ArrowUp, false);
             }
 
             if i.key_down(Key::ArrowDown) {
-                self.gameboy.update_button(Key::ArrowDown, true);
+                self.gb.mmu.joypad.update_button(Key::ArrowDown, true);
             } else {
-                self.gameboy.update_button(Key::ArrowDown, false);
+                self.gb.mmu.joypad.update_button(Key::ArrowDown, false);
             }
 
             if i.key_down(Key::ArrowLeft) {
-                self.gameboy.update_button(Key::ArrowLeft, true);
+                self.gb.mmu.joypad.update_button(Key::ArrowLeft, true);
             } else {
-                self.gameboy.update_button(Key::ArrowLeft, false);
+                self.gb.mmu.joypad.update_button(Key::ArrowLeft, false);
             }
 
             if i.key_down(Key::ArrowRight) {
-                self.gameboy.update_button(Key::ArrowRight, true);
+                self.gb.mmu.joypad.update_button(Key::ArrowRight, true);
             } else {
-                self.gameboy.update_button(Key::ArrowRight, false);
+                self.gb.mmu.joypad.update_button(Key::ArrowRight, false);
             }
         });
     }
 }
 
-impl App for Renderer<'_> {
+impl App for Renderer {
     fn update(&mut self, ctx: &Context, _frame: &mut Frame) {
         self.handle_input(ctx);
 
-        self.gameboy.run_frame();
-        self.update_screen(&self.gameboy.emulated_frame());
+        self.gb.run_frame();
+        self.update_screen(&self.gb.ppu.pull_frame());
 
         CentralPanel::default().show(ctx, |ui| {
             let image = Image::new(&self.screen_texture);

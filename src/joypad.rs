@@ -1,5 +1,3 @@
-use crate::memory::mmu::Mmu;
-use crate::memory::JOYPAD_REGISTER;
 use eframe::egui::Key;
 use log::warn;
 

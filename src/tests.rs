@@ -14,6 +14,8 @@ mod tests {
         input in r"^.*\.json" if !is_ignore
     })]
     fn test_cpu(input: &str) {
+        use crate::lr35902::timer::Timer;
+
         let tests: Value = serde_json::from_str(&input).unwrap();
 
         for test in tests.as_array().unwrap() {
@@ -22,6 +24,7 @@ mod tests {
             mmu.resize_memory(0xffff * 4);
             let mut sm83 = Sm83::new();
             let mut cpu = Cpu::new();
+            let mut timer = Timer::new();
 
             let test = test.as_object().unwrap();
             let name = test.get("name").unwrap().as_str().unwrap();
@@ -49,7 +52,7 @@ mod tests {
                 let addr = value.as_array().unwrap()[0].as_u64().unwrap() as u16;
                 let value = value.as_array().unwrap()[1].as_u64().unwrap() as u8;
 
-                mmu.write(addr, value);
+                mmu.write_unchecked(addr, value);
             }
 
             if let Ok(instruction) = sm83.decode(&mut mmu, cpu.read_register16(&Register::PC)) {
@@ -58,7 +61,7 @@ mod tests {
                 panic!("Failed to decode instruction");
             };
 
-            match cpu.tick(&mut mmu) {
+            match cpu.tick(&mut mmu, &mut timer) {
                 Ok(_) => {}
                 Err(e) => panic!("{}", e),
             }
@@ -135,7 +138,7 @@ mod tests {
                 let addr = value.as_array().unwrap()[0].as_u64().unwrap() as u16;
                 let value = value.as_array().unwrap()[1].as_u64().unwrap() as u8;
 
-                assert_eq!(mmu.read(addr), value, "Comparison with RAM failed for {}", name);
+                assert_eq!(mmu.read_unchecked(addr), value, "Comparison with RAM failed for {}", name);
             }
         }
     }

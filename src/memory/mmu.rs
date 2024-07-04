@@ -69,12 +69,12 @@ impl Mmu {
     }
 
     #[inline]
-    pub fn read16_unchecked(&self, addr: u16) -> u16 {
+    pub fn _read16_unchecked(&self, addr: u16) -> u16 {
         self.read16(addr).unwrap()
     }
 
     #[inline]
-    pub fn write16_unchecked(&mut self, addr: u16, data: u16) {
+    pub fn _write16_unchecked(&mut self, addr: u16, data: u16) {
         self.write16(addr, data).unwrap();
     }
 

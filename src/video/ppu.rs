@@ -8,10 +8,12 @@ use crate::video::palette::Palette;
 use crate::video::sprite::{Sprite, SpriteAttributes};
 use crate::video::tile::Tile;
 use crate::video::{
-    BACKGROUND_HEIGHT, BACKGROUND_MAP_SIZE, BACKGROUND_WIDTH, LCD_CONTROL_REGISTER, LCD_STATUS_REGISTER, SCANLINE_Y_COMPARE_REGISTER,
-    SCANLINE_Y_REGISTER, SCREEN_HEIGHT, SCREEN_WIDTH, SCROLL_X_REGISTER, SCROLL_Y_REGISTER, TILEMAP_0_ADDRESS, TILEMAP_1_ADDRESS,
-    TILESET_0_ADDRESS, TILESET_1_ADDRESS, WINDOW_X_REGISTER, WINDOW_Y_REGISTER,
+    LCD_CONTROL_REGISTER, LCD_STATUS_REGISTER, SCANLINE_Y_COMPARE_REGISTER, SCANLINE_Y_REGISTER, SCREEN_HEIGHT, SCREEN_WIDTH,
+    SCROLL_X_REGISTER, SCROLL_Y_REGISTER, TILEMAP_0_ADDRESS, TILEMAP_1_ADDRESS, TILESET_0_ADDRESS, TILESET_1_ADDRESS, WINDOW_X_REGISTER,
+    WINDOW_Y_REGISTER,
 };
+
+use super::{_BACKGROUND_HEIGHT, _BACKGROUND_MAP_SIZE, _BACKGROUND_WIDTH};
 
 #[derive(Debug)]
 pub struct Ppu {
@@ -58,7 +60,7 @@ impl Ppu {
                 && mmu
                     .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
                     .contains(LcdControl::OBJ_DISPLAY)
-                && let Some((sprite, sprite_color)) = self.fetch_sprite_pixel(mmu, &oams, x, scanline, sprite_height)
+                && let Some((sprite, sprite_color)) = self.fetch_sprite_pixel(&oams, x, scanline, sprite_height)
             // TODO: && !sprite.attributes.contains(SpriteAttributes::PRIORITY)
             {
                 visited_oams
@@ -79,25 +81,25 @@ impl Ppu {
         self.emulated_frame
     }
 
-    // pub fn render_tilemap(&mut self, mmu: &Mmu) -> Vec<Tile> {
-    //     let mut tiles: Vec<Tile> = Vec::new();
-    //
-    //     let tile_map_addr = if mmu.read_unchecked(LCD_CONTROL_REGISTER) & 0b0001_0000 == 0 {
-    //         TILEMAP_1_ADDRESS
-    //     } else {
-    //         TILESET_0_ADDRESS
-    //     };
-    //
-    //     for tile_nr in 0..384 {
-    //         let addr = tile_map_addr + (tile_nr as u16 * 16);
-    //         let tile = Tile::from_background_addr(mmu, addr, false);
-    //         tiles.push(tile);
-    //     }
-    //
-    //     tiles
-    // }
+    pub fn _render_tilemap(&mut self, mmu: &Mmu) -> Vec<Tile> {
+        let mut tiles: Vec<Tile> = Vec::new();
 
-    pub fn render_backgroundmap(&self, mmu: &Mmu) -> Vec<Tile> {
+        let tile_map_addr = if mmu.read_unchecked(LCD_CONTROL_REGISTER) & 0b0001_0000 == 0 {
+            TILEMAP_1_ADDRESS
+        } else {
+            TILESET_0_ADDRESS
+        };
+
+        for tile_nr in 0..384 {
+            let addr = tile_map_addr + (tile_nr as u16 * 16);
+            let tile = Tile::from_background_addr(mmu, addr, false);
+            tiles.push(tile);
+        }
+
+        tiles
+    }
+
+    pub fn _render_backgroundmap(&self, mmu: &Mmu) -> Vec<Tile> {
         let mut tiles: Vec<Tile> = Vec::new();
 
         let bg_map_addr = if mmu.read_unchecked(LCD_CONTROL_REGISTER) & 0b1000 == 0 {
@@ -112,7 +114,7 @@ impl Ppu {
             TILESET_0_ADDRESS
         };
 
-        for idx in 0..BACKGROUND_MAP_SIZE {
+        for idx in 0.._BACKGROUND_MAP_SIZE {
             let tile_nr = mmu.read_unchecked(bg_map_addr + idx as u16);
             let addr = tile_map_addr + (tile_nr as u16 * 16);
             let tile = Tile::from_background_addr(mmu, addr, false);
@@ -122,16 +124,16 @@ impl Ppu {
         tiles
     }
 
-    pub fn render_background(&self, mmu: &Mmu) -> [[Palette; SCREEN_WIDTH]; SCREEN_HEIGHT] {
+    pub fn _render_background(&self, mmu: &Mmu) -> [[Palette; SCREEN_WIDTH]; SCREEN_HEIGHT] {
         let mut background: [[Palette; SCREEN_WIDTH]; SCREEN_HEIGHT] = [[Palette::White; SCREEN_WIDTH]; SCREEN_HEIGHT];
-        let bg_map = self.render_backgroundmap(mmu);
+        let bg_map = self._render_backgroundmap(mmu);
         let scroll_y = mmu.read_unchecked(SCROLL_Y_REGISTER);
         let scroll_x = mmu.read_unchecked(SCROLL_X_REGISTER);
 
         for y in 0..SCREEN_HEIGHT {
             for x in 0..SCREEN_WIDTH {
-                let tile_x = (x + scroll_x as usize) % BACKGROUND_WIDTH;
-                let tile_y = (y + scroll_y as usize) % BACKGROUND_HEIGHT;
+                let tile_x = (x + scroll_x as usize) % _BACKGROUND_WIDTH;
+                let tile_y = (y + scroll_y as usize) % _BACKGROUND_HEIGHT;
                 let tile_nr = (tile_y / 8) * 32 + (tile_x / 8);
                 let tile = &bg_map[tile_nr];
                 let pixel_x = tile_x % 8;
@@ -251,7 +253,7 @@ impl Ppu {
         oams
     }
 
-    fn fetch_sprite_pixel(&self, mmu: &Mmu, oams: &Vec<Oam>, x: usize, y: usize, sprite_height: usize) -> Option<(Sprite, Palette)> {
+    fn fetch_sprite_pixel(&self, oams: &Vec<Oam>, x: usize, y: usize, sprite_height: usize) -> Option<(Sprite, Palette)> {
         let mut sprites: Vec<(Sprite, Palette)> = Vec::new();
 
         for oam in oams {
