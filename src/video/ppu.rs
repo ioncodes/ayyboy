@@ -36,7 +36,7 @@ impl Ppu {
         }
 
         // Track visited OAMs for current scanline
-        // Key: sprite number (as OAM identifier), Value: (x coordinate, sprite)
+        // Key: sprite address (as OAM identifier), Value: (x coordinate, pixel color)
         let mut visited_oams: HashMap<u16, Vec<(usize, Palette)>> = HashMap::new();
 
         for x in 0..SCREEN_WIDTH {
@@ -48,18 +48,19 @@ impl Ppu {
                 self.emulated_frame[scanline][x] = window_color;
             }
 
-            // technically, this allows 11?
             if visited_oams.len() <= 10
                 && mmu
                     .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
                     .contains(LcdControl::OBJ_DISPLAY)
-                && let Some((nr, sprite, sprite_color)) = self.fetch_sprite_pixel(mmu, x, scanline)
+                && let Some((sprite, sprite_color)) = self.fetch_sprite_pixel(mmu, x, scanline)
             {
-                visited_oams.entry(nr).or_insert_with(Vec::new).push((x, sprite_color));
+                visited_oams
+                    .entry(sprite.oam_addr)
+                    .or_insert_with(Vec::new)
+                    .push((x, sprite_color));
             }
         }
 
-        // TODO: Draw sprites, by X-prio
         for (_, oam) in visited_oams {
             for (x, color) in oam {
                 self.emulated_frame[scanline][x] = color;
@@ -209,13 +210,11 @@ impl Ppu {
         tile.pixels[tile_y as usize][tile_x as usize]
     }
 
-    fn fetch_sprite_pixel(&self, mmu: &Mmu, x: usize, y: usize) -> Option<(u16, Sprite, Palette)> {
+    fn fetch_sprite_pixel(&self, mmu: &Mmu, x: usize, y: usize) -> Option<(Sprite, Palette)> {
         let lcdc = mmu.read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER);
         let sprite_height = if lcdc.contains(LcdControl::OBJ_SIZE) { 16 } else { 8 };
 
-        // TODO: this aborts as soon as it finds a sprite, but there may be a sprite later
-        // TODO: with higher priority that should be drawn instead i think?
-        // TODO: this also does not account for overlapping sprites where one may have higher priority
+        let mut sprites: Vec<(Sprite, Palette)> = Vec::new();
 
         for i in 0..40 {
             let sprite = Sprite::from_oam(mmu, i);
@@ -247,9 +246,15 @@ impl Ppu {
                 let color = tile.pixels[tile_y as usize][tile_x as usize];
 
                 if !color.is_transparent() {
-                    return Some((i, sprite, color));
+                    sprites.push((sprite, color));
                 }
             }
+        }
+
+        // Return sprite pixel with highest X-priority
+        sprites.sort_by(|a, b| a.0.x.cmp(&b.0.x));
+        if let Some((sprite, color)) = sprites.first() {
+            return Some((sprite.clone(), *color));
         }
 
         None

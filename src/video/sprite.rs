@@ -3,6 +3,7 @@ use crate::video::OAM_ADDRESS;
 use bitflags::bitflags;
 
 bitflags! {
+    #[derive(Clone)]
     pub struct SpriteAttributes: u8 {
         // CGB ONLY FLAGS HERE
         const PALETTE = 0b0001_0000;
@@ -12,11 +13,13 @@ bitflags! {
     }
 }
 
+#[derive(Clone)]
 pub struct Sprite {
     pub x: u8,
     pub y: u8,
     pub tile_index: u8,
     pub attributes: SpriteAttributes,
+    pub oam_addr: u16,
 }
 
 impl Sprite {
@@ -28,6 +31,7 @@ impl Sprite {
             x: mmu.read_unchecked(sprite_addr + 1),
             tile_index: mmu.read_unchecked(sprite_addr + 2),
             attributes: SpriteAttributes::from_bits_truncate(mmu.read_unchecked(sprite_addr + 3)),
+            oam_addr: sprite_addr,
         }
     }
 }
