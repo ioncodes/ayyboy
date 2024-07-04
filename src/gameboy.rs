@@ -4,6 +4,7 @@ use crate::lr35902::cpu::Cpu;
 use crate::lr35902::sm83::Register;
 use crate::lr35902::timer::Timer;
 use crate::memory::mapper::mbc1::Mbc1;
+use crate::memory::mapper::mbc3::Mbc3;
 use crate::memory::mapper::rom::Rom;
 use crate::memory::mapper::Mapper;
 use crate::memory::mmu::Mmu;
@@ -29,7 +30,8 @@ impl<'a> GameBoy<'a> {
     pub fn new(bootrom: Vec<u8>, cartridge: Vec<u8>) -> GameBoy<'a> {
         let cartridge: Box<dyn Mapper> = match cartridge[0x0147] {
             0x00 => Box::new(Rom::new(cartridge)),
-            0x01 | 0x02 | 0x03 => Box::new(Mbc1::new(cartridge)), // TODO: RAM + BATTERY is not supported
+            0x01 | 0x02 | 0x03 => Box::new(Mbc1::new(cartridge)),
+            0x0f | 0x10 | 0x11 | 0x12 | 0x13 => Box::new(Mbc3::new(cartridge)),
             _ => panic!("Unsupported cartridge type: {:02x}", cartridge[0x0147]),
         };
         info!("Cartridge type: {}", cartridge.name());

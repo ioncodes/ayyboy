@@ -2,6 +2,7 @@ use crate::error::AyyError;
 use dyn_clone::DynClone;
 
 pub mod mbc1;
+pub mod mbc3;
 pub mod rom;
 
 pub trait Mapper: DynClone {
