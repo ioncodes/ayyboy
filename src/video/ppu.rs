@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::memory::mmu::Mmu;
 use crate::memory::registers::{InterruptFlags, LcdControl, LcdStatus};
 use crate::memory::INTERRUPT_FLAGS_REGISTER;
@@ -10,7 +12,6 @@ use crate::video::{
     SCANLINE_Y_REGISTER, SCREEN_HEIGHT, SCREEN_WIDTH, SCROLL_X_REGISTER, SCROLL_Y_REGISTER, TILEMAP_0_ADDRESS, TILEMAP_1_ADDRESS,
     TILESET_0_ADDRESS, TILESET_1_ADDRESS, WINDOW_X_REGISTER, WINDOW_Y_REGISTER,
 };
-use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct Ppu {
@@ -58,6 +59,7 @@ impl Ppu {
                     .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
                     .contains(LcdControl::OBJ_DISPLAY)
                 && let Some((sprite, sprite_color)) = self.fetch_sprite_pixel(mmu, &oams, x, scanline, sprite_height)
+            // TODO: && !sprite.attributes.contains(SpriteAttributes::PRIORITY)
             {
                 visited_oams
                     .entry(sprite.oam_addr)
