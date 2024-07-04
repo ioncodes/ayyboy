@@ -43,10 +43,10 @@ impl Ppu {
             let background_color = self.fetch_background_pixel(mmu, x, scanline);
             self.emulated_frame[scanline][x] = background_color;
 
-            let window_color = self.fetch_window_pixel(mmu, x, scanline);
-            if !window_color.is_transparent() {
-                self.emulated_frame[scanline][x] = window_color;
-            }
+            // let window_color = self.fetch_window_pixel(mmu, x, scanline);
+            // if !window_color.is_transparent() {
+            //     self.emulated_frame[scanline][x] = window_color;
+            // }
 
             if visited_oams.len() <= 10
                 && mmu
@@ -72,23 +72,23 @@ impl Ppu {
         self.emulated_frame
     }
 
-    pub fn render_tilemap(&mut self, mmu: &Mmu) -> Vec<Tile> {
-        let mut tiles: Vec<Tile> = Vec::new();
-
-        let tile_map_addr = if mmu.read_unchecked(LCD_CONTROL_REGISTER) & 0b0001_0000 == 0 {
-            TILEMAP_1_ADDRESS
-        } else {
-            TILESET_0_ADDRESS
-        };
-
-        for tile_nr in 0..384 {
-            let addr = tile_map_addr + (tile_nr as u16 * 16);
-            let tile = Tile::from_background_addr(mmu, addr, false);
-            tiles.push(tile);
-        }
-
-        tiles
-    }
+    // pub fn render_tilemap(&mut self, mmu: &Mmu) -> Vec<Tile> {
+    //     let mut tiles: Vec<Tile> = Vec::new();
+    //
+    //     let tile_map_addr = if mmu.read_unchecked(LCD_CONTROL_REGISTER) & 0b0001_0000 == 0 {
+    //         TILEMAP_1_ADDRESS
+    //     } else {
+    //         TILESET_0_ADDRESS
+    //     };
+    //
+    //     for tile_nr in 0..384 {
+    //         let addr = tile_map_addr + (tile_nr as u16 * 16);
+    //         let tile = Tile::from_background_addr(mmu, addr, false);
+    //         tiles.push(tile);
+    //     }
+    //
+    //     tiles
+    // }
 
     pub fn render_backgroundmap(&self, mmu: &Mmu) -> Vec<Tile> {
         let mut tiles: Vec<Tile> = Vec::new();
@@ -210,6 +210,8 @@ impl Ppu {
         tile.pixels[tile_y as usize][tile_x as usize]
     }
 
+    // TODO: We can optimize this by a lot by fetching all OAMs first and then using the list
+    //       to fetch the pixels
     fn fetch_sprite_pixel(&self, mmu: &Mmu, x: usize, y: usize) -> Option<(Sprite, Palette)> {
         let lcdc = mmu.read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER);
         let sprite_height = if lcdc.contains(LcdControl::OBJ_SIZE) { 16 } else { 8 };
@@ -223,39 +225,59 @@ impl Ppu {
             let sprite_x = sprite.x.wrapping_sub(8);
 
             if x >= sprite_x as usize && x < (sprite_x as usize + 8) && y >= sprite_y as usize && y < (sprite_y as usize + sprite_height) {
-                let tile_index = if sprite_height == 16 {
-                    if (y - sprite_y as usize) < 8 {
-                        sprite.tile_index & 0b1111_1110 // top tile
+                if sprite_height == 16 {
+                    // 16px sprite
+                    let tile_index_top = sprite.tile_index & 0b1111_1110;
+                    let tile_index_bot = tile_index_top + 1;
+
+                    let tile_addr_top = TILESET_0_ADDRESS + (tile_index_top as u16) * 16;
+                    let tile_addr_bot = TILESET_0_ADDRESS + (tile_index_bot as u16) * 16;
+
+                    let tile_top = Tile::from_sprite_addr(mmu, tile_addr_top, &sprite);
+                    let tile_bot = Tile::from_sprite_addr(mmu, tile_addr_bot, &sprite);
+
+                    let mut tile_x = (x - sprite_x as usize) as u8;
+                    let mut tile_y = (y - sprite_y as usize) as u8;
+
+                    if sprite.attributes.contains(SpriteAttributes::FLIP_X) {
+                        tile_x = 7 - tile_x;
+                    }
+
+                    if sprite.attributes.contains(SpriteAttributes::FLIP_Y) {
+                        tile_y = 15 - tile_y;
+                    }
+
+                    let color = if tile_y < 8 {
+                        tile_top.pixels[tile_y as usize][tile_x as usize]
                     } else {
-                        sprite.tile_index | 0b0000_0001 // bottom tile
+                        tile_bot.pixels[(tile_y - 8) as usize][tile_x as usize]
+                    };
+
+                    if !color.is_transparent() {
+                        sprites.push((sprite, color));
                     }
                 } else {
-                    sprite.tile_index
+                    // 8px sprite
+                    let tile_addr = TILESET_0_ADDRESS + (sprite.tile_index as u16) * 16;
+                    let tile = Tile::from_sprite_addr(mmu, tile_addr, &sprite);
+
+                    let mut tile_x = (x - sprite_x as usize) as u8;
+                    let mut tile_y = (y - sprite_y as usize) as u8;
+
+                    if sprite.attributes.contains(SpriteAttributes::FLIP_X) {
+                        tile_x = 7 - tile_x;
+                    }
+
+                    if sprite.attributes.contains(SpriteAttributes::FLIP_Y) {
+                        tile_y = 7 - tile_y;
+                    }
+
+                    let color = tile.pixels[tile_y as usize][tile_x as usize];
+
+                    if !color.is_transparent() {
+                        sprites.push((sprite, color));
+                    }
                 };
-
-                let tile_addr = TILESET_0_ADDRESS + (tile_index as u16) * 16;
-                let tile = Tile::from_sprite_addr(mmu, tile_addr, &sprite);
-
-                let mut tile_x = (x - sprite_x as usize) as u8;
-                let mut tile_y = (y - sprite_y as usize) as u8;
-
-                if sprite_height == 16 && y - sprite_y as usize >= 8 {
-                    tile_y -= 8;
-                }
-
-                if sprite.attributes.contains(SpriteAttributes::FLIP_X) {
-                    tile_x = 7 - tile_x;
-                }
-
-                if sprite.attributes.contains(SpriteAttributes::FLIP_Y) {
-                    tile_y = 7 - tile_y;
-                }
-
-                let color = tile.pixels[tile_y as usize][tile_x as usize];
-
-                if !color.is_transparent() {
-                    sprites.push((sprite, color));
-                }
             }
         }
 

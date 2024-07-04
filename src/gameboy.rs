@@ -120,10 +120,6 @@ impl<'a> GameBoy<'a> {
         self.mmu.joypad.update_button(key, pressed);
     }
 
-    pub fn render_tilemap(&mut self) -> Vec<Tile> {
-        self.ppu.render_tilemap(&self.mmu)
-    }
-
     pub fn render_background(&mut self) -> [[Palette; SCREEN_WIDTH]; SCREEN_HEIGHT] {
         self.ppu.render_background(&self.mmu)
     }
