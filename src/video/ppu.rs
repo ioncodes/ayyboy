@@ -40,6 +40,13 @@ impl Ppu {
         }
 
         let lcdc = mmu.read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER);
+        if !lcdc.contains(LcdControl::LCD_DISPLAY) {
+            for x in 0..SCREEN_WIDTH {
+                self.emulated_frame[scanline][x] = Palette::White;
+            }
+            return;
+        }
+
         let sprite_height = if lcdc.contains(LcdControl::OBJ_SIZE) { 16 } else { 8 };
         let oams = self.fetch_oams(mmu, sprite_height);
 
