@@ -2,13 +2,13 @@
 #![feature(custom_test_frameworks)]
 #![test_runner(datatest::runner)]
 
-mod apu;
 mod error;
 mod frontend;
 mod gameboy;
 mod joypad;
 mod lr35902;
 mod memory;
+mod sound;
 mod tests;
 mod video;
 

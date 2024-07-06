@@ -44,6 +44,16 @@ bitflags! {
     }
 }
 
+bitflags! {
+    pub struct AudioMasterControl: u8 {
+        const ENABLED  = 0b1000_0000;
+        const CHANNEL4 = 0b0000_1000;
+        const CHANNEL3 = 0b0000_0100;
+        const CHANNEL2 = 0b0000_0010;
+        const CHANNEL1 = 0b0000_0001;
+    }
+}
+
 impl From<u8> for InterruptFlags {
     fn from(byte: u8) -> Self {
         Self::from_bits_truncate(byte)
@@ -63,6 +73,12 @@ impl From<u8> for LcdControl {
 }
 
 impl From<u8> for LcdStatus {
+    fn from(byte: u8) -> Self {
+        Self::from_bits_truncate(byte)
+    }
+}
+
+impl From<u8> for AudioMasterControl {
     fn from(byte: u8) -> Self {
         Self::from_bits_truncate(byte)
     }

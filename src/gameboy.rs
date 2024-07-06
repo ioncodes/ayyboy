@@ -1,4 +1,3 @@
-use crate::apu::Apu;
 use crate::error::AyyError;
 use crate::lr35902::cpu::Cpu;
 use crate::lr35902::sm83::Register;
@@ -8,6 +7,7 @@ use crate::memory::mapper::mbc3::Mbc3;
 use crate::memory::mapper::rom::Rom;
 use crate::memory::mapper::Mapper;
 use crate::memory::mmu::Mmu;
+use crate::sound::apu::Apu;
 use crate::video::ppu::Ppu;
 use crate::video::SCANLINE_Y_REGISTER;
 use log::{error, info, warn};
@@ -33,7 +33,7 @@ impl GameBoy {
         let cpu = Cpu::new();
         let mmu = Mmu::new(bootrom, cartridge);
         let ppu = Ppu::new();
-        let apu = Apu::new();
+        let apu = Apu::new(Apu::setup_audio_thread());
         let timer = Timer::new();
 
         GameBoy { cpu, mmu, ppu, apu, timer }
@@ -75,7 +75,9 @@ impl GameBoy {
                     Err(e) => panic!("{}", e),
                 };
 
-                self.apu.tick(&mut self.mmu, cycles);
+                for _ in 0..cycles {
+                    self.apu.tick(&mut self.mmu);
+                }
 
                 self.timer.tick_div(&mut self.mmu, cycles);
                 self.timer.tick_tima(&mut self.mmu, cycles);
