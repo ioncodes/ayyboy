@@ -6,17 +6,17 @@ pub type Color = [u8; 3];
 
 #[derive(PartialEq, Debug, Clone, Copy)]
 pub enum Palette {
-    White,
-    LightGray,
-    DarkGray,
-    Black,
-    Transparent,
+    White(u8),
+    LightGray(u8),
+    DarkGray(u8),
+    Black(u8),
+    Transparent(u8),
 }
 
 impl Palette {
     pub fn from_background(value: u8, mmu: &Mmu, allow_transparency: bool) -> Palette {
         if allow_transparency && value == 0b00 {
-            return Palette::Transparent;
+            return Palette::Transparent(0);
         }
 
         let bgp_shade = mmu.read_unchecked(BG_PALETTE_REGISTER);
@@ -30,17 +30,17 @@ impl Palette {
         };
 
         match shade {
-            0b00 => Palette::White,
-            0b01 => Palette::LightGray,
-            0b10 => Palette::DarkGray,
-            0b11 => Palette::Black,
+            0b00 => Palette::White(value),
+            0b01 => Palette::LightGray(value),
+            0b10 => Palette::DarkGray(value),
+            0b11 => Palette::Black(value),
             _ => panic!("Invalid shade value: {}", shade),
         }
     }
 
     pub fn from_object(value: u8, mmu: &Mmu, sprite: &Sprite, allow_transparency: bool) -> Palette {
         if allow_transparency && value == 0 {
-            return Palette::Transparent;
+            return Palette::Transparent(0);
         }
 
         let objp_shade = if !sprite.attributes.contains(SpriteAttributes::PALETTE) {
@@ -58,33 +58,43 @@ impl Palette {
         };
 
         match shade {
-            0b00 => Palette::White,
-            0b01 => Palette::LightGray,
-            0b10 => Palette::DarkGray,
-            0b11 => Palette::Black,
+            0b00 => Palette::White(value),
+            0b01 => Palette::LightGray(value),
+            0b10 => Palette::DarkGray(value),
+            0b11 => Palette::Black(value),
             _ => panic!("Invalid shade value: {}", shade),
         }
     }
 
     pub fn is_transparent(&self) -> bool {
-        *self == Palette::Transparent
+        *self == Palette::Transparent(0)
+    }
+
+    pub fn is_index(&self, index: u8) -> bool {
+        match self {
+            Palette::White(i) => *i == index,
+            Palette::LightGray(i) => *i == index,
+            Palette::DarkGray(i) => *i == index,
+            Palette::Black(i) => *i == index,
+            Palette::Transparent(i) => *i == index,
+        }
     }
 }
 
 impl Into<Color> for Palette {
     fn into(self) -> Color {
         match self {
-            Palette::White => [0xff, 0xff, 0xff],
-            Palette::LightGray => [0xaa, 0xaa, 0xaa],
-            Palette::DarkGray => [0x55, 0x55, 0x55],
-            Palette::Black => [0x00, 0x00, 0x00],
-            Palette::Transparent => [0x00, 0x00, 0x00],
+            Palette::White(_) => [0xff, 0xff, 0xff],
+            Palette::LightGray(_) => [0xaa, 0xaa, 0xaa],
+            Palette::DarkGray(_) => [0x55, 0x55, 0x55],
+            Palette::Black(_) => [0x00, 0x00, 0x00],
+            Palette::Transparent(_) => [0x00, 0x00, 0x00],
         }
     }
 }
 
 impl Default for Palette {
     fn default() -> Palette {
-        Palette::White
+        Palette::White(0)
     }
 }

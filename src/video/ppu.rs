@@ -23,7 +23,7 @@ pub struct Ppu {
 impl Ppu {
     pub fn new() -> Ppu {
         Ppu {
-            emulated_frame: [[Palette::White; SCREEN_WIDTH]; SCREEN_HEIGHT],
+            emulated_frame: [[Palette::default(); SCREEN_WIDTH]; SCREEN_HEIGHT],
         }
     }
 
@@ -42,7 +42,7 @@ impl Ppu {
         let lcdc = mmu.read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER);
         if !lcdc.contains(LcdControl::LCD_DISPLAY) {
             for x in 0..SCREEN_WIDTH {
-                self.emulated_frame[scanline][x] = Palette::White;
+                self.emulated_frame[scanline][x] = Palette::White(0);
             }
             return;
         }
@@ -68,7 +68,7 @@ impl Ppu {
                     .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
                     .contains(LcdControl::OBJ_DISPLAY)
                 && let Some((sprite, sprite_color)) = self.fetch_sprite_pixel(&oams, x, scanline, sprite_height)
-            // TODO: && !sprite.attributes.contains(SpriteAttributes::PRIORITY)
+                && (!sprite.attributes.contains(SpriteAttributes::PRIORITY) || background_color.is_index(0))
             {
                 visited_oams
                     .entry(sprite.oam_addr)
@@ -132,7 +132,7 @@ impl Ppu {
     }
 
     pub fn _render_background(&self, mmu: &Mmu) -> [[Palette; SCREEN_WIDTH]; SCREEN_HEIGHT] {
-        let mut background: [[Palette; SCREEN_WIDTH]; SCREEN_HEIGHT] = [[Palette::White; SCREEN_WIDTH]; SCREEN_HEIGHT];
+        let mut background: [[Palette; SCREEN_WIDTH]; SCREEN_HEIGHT] = [[Palette::default(); SCREEN_WIDTH]; SCREEN_HEIGHT];
         let bg_map = self._render_backgroundmap(mmu);
         let scroll_y = mmu.read_unchecked(SCROLL_Y_REGISTER);
         let scroll_x = mmu.read_unchecked(SCROLL_X_REGISTER);
@@ -190,7 +190,7 @@ impl Ppu {
             .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
             .contains(LcdControl::BG_DISPLAY)
         {
-            return Palette::White;
+            return Palette::White(0);
         }
 
         // Read scroll values from memory
@@ -336,7 +336,7 @@ impl Ppu {
                 .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
                 .contains(LcdControl::WINDOW_DISPLAY)
         {
-            return Palette::Transparent;
+            return Palette::Transparent(0);
         }
 
         // Read renderer values from memory
@@ -345,7 +345,7 @@ impl Ppu {
 
         // Return transparent color if renderer is disabled or not on screen yet
         if y < wy as usize || x + 7 < wx as usize {
-            return Palette::Transparent;
+            return Palette::Transparent(0);
         }
 
         // Adjust the coordinates based on renderer position
