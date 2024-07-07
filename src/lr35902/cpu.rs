@@ -6,7 +6,7 @@ use crate::lr35902::sm83::{Opcode, Register, Sm83};
 use crate::lr35902::timer::Timer;
 use crate::memory::mmu::Mmu;
 use crate::memory::registers::{InterruptEnable, InterruptFlags};
-use crate::memory::{INTERRUPT_ENABLE_REGISTER, INTERRUPT_FLAGS_REGISTER};
+use crate::memory::{DIV_REGISTER, INTERRUPT_ENABLE_REGISTER, INTERRUPT_FLAGS_REGISTER};
 use log::{debug, trace};
 
 #[derive(Clone)]
@@ -15,6 +15,7 @@ pub struct Cpu {
     registers: Registers,
     cycles: usize,
     ime: Ime,
+    div_cycles: usize,
     pub halted: bool,
 }
 
@@ -28,6 +29,7 @@ impl Cpu {
                 enabled: false,
                 enable_pending: false,
             },
+            div_cycles: 0,
             halted: false,
         }
     }
@@ -100,8 +102,20 @@ impl Cpu {
         }?;
 
         self.cycles += cycles;
+        self.div_cycles += cycles;
+
+        self.tick_div(mmu);
 
         Ok(cycles)
+    }
+
+    #[inline]
+    pub fn tick_div(&mut self, mmu: &mut Mmu) {
+        if self.div_cycles >= 256 {
+            let div = mmu.read_unchecked(DIV_REGISTER).wrapping_add(1);
+            mmu.write_unchecked(DIV_REGISTER, div);
+            self.div_cycles -= 256;
+        }
     }
 
     #[inline]

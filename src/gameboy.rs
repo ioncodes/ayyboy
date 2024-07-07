@@ -73,9 +73,7 @@ impl GameBoy {
                 };
 
                 self.mmu.apu.tick(cycles);
-
-                self.timer.tick_div(&mut self.mmu, cycles);
-                self.timer.tick_tima(&mut self.mmu, cycles);
+                self.timer.tick(&mut self.mmu, cycles);
 
                 if self.cpu.elapsed_cycles() >= 456 {
                     self.cpu.reset_cycles(self.cpu.elapsed_cycles() - 456);

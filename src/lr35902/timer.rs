@@ -3,34 +3,20 @@ use crate::memory::registers::InterruptFlags;
 use crate::memory::{DIV_REGISTER, INTERRUPT_FLAGS_REGISTER, TAC_REGISTER, TIMA_REGISTER, TMA_REGISTER};
 
 pub struct Timer {
-    div_cycles: usize,
-    tima_cycles: usize,
+    cycles: usize,
 }
 
 impl Timer {
     pub fn new() -> Timer {
-        Timer {
-            div_cycles: 0,
-            tima_cycles: 0,
-        }
+        Timer { cycles: 0 }
     }
 
-    pub fn tick_div(&mut self, mmu: &mut Mmu, cycles: usize) {
-        self.div_cycles += cycles;
-
-        if self.div_cycles >= 256 {
-            let div = mmu.read_unchecked(DIV_REGISTER).wrapping_add(1);
-            mmu.write_unchecked(DIV_REGISTER, div);
-            self.div_cycles -= 256;
-        }
-    }
-
-    pub fn tick_tima(&mut self, mmu: &mut Mmu, cycles: usize) {
+    pub fn tick(&mut self, mmu: &mut Mmu, cycles: usize) {
         if self.read_tac(mmu) & 0b100 == 0 {
             return;
         }
 
-        self.tima_cycles += cycles;
+        self.cycles += cycles;
 
         let tima = self.read_tima(mmu);
         let tma = self.read_tma(mmu);
@@ -43,7 +29,7 @@ impl Timer {
             _ => unreachable!(),
         };
 
-        if self.tima_cycles >= cycles {
+        if self.cycles >= cycles {
             if tima == 0xff {
                 mmu.write_unchecked(TIMA_REGISTER, tma);
                 mmu.write_unchecked(
@@ -54,7 +40,7 @@ impl Timer {
                 mmu.write_unchecked(TIMA_REGISTER, tima.wrapping_add(1));
             }
 
-            self.tima_cycles -= cycles;
+            self.cycles -= cycles;
         }
     }
 

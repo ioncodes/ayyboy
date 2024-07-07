@@ -121,6 +121,11 @@ impl App for Renderer {
                 .anchor(Align2::CENTER_CENTER, vec2(0.0, 0.0))
                 .collapsible(false)
                 .show(ctx, |ui| {
+                    ui.label("Arrow keys to move");
+                    ui.label("A and S to interact");
+                    ui.label("Enter to start");
+                    ui.label("Backspace to select");
+                    ui.separator();
                     ui.label("Press Space to start/stop emulation");
                     ui.label("Press F1 to open debugger");
                 });
