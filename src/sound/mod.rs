@@ -1,7 +1,8 @@
-pub mod apu;
+//pub mod apu;
+pub mod audio;
 mod channels;
 
-pub const SAMPLE_RATE: u32 = 44_100;
+pub const SAMPLE_RATE: u32 = 48_000;
 
 pub const NR10: u16 = 0xff10;
 pub const NR11: u16 = 0xff11;

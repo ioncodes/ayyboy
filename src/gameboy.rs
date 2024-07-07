@@ -72,7 +72,7 @@ impl GameBoy {
                     Err(e) => panic!("{}", e),
                 };
 
-                self.mmu.apu.tick(cycles);
+                self.mmu.apu.tick(cycles as u32);
 
                 self.timer.tick_div(&mut self.mmu, cycles);
                 self.timer.tick_tima(&mut self.mmu, cycles);
