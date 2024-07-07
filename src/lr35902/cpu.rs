@@ -270,24 +270,26 @@ impl Cpu {
         let interrupt_enable = mmu.read_as::<InterruptEnable>(INTERRUPT_ENABLE_REGISTER)?;
         let interrupt_flags = mmu.read_as::<InterruptFlags>(INTERRUPT_FLAGS_REGISTER)?;
 
-        if self.ime.enabled && interrupt_enable.bits() & interrupt_flags.bits() != 0 {
-            // handle interrupt vector
-            let vector = Vector::from_flags(&interrupt_flags);
-            debug!("Handling interrupt: {} => ${:04x}", vector, vector.to_address());
+        if interrupt_enable.bits() & interrupt_flags.bits() != 0 {
+            if self.ime.enabled {
+                // handle interrupt vector
+                let vector = Vector::from_flags(&interrupt_flags);
+                debug!("Handling interrupt: {} => ${:04x}", vector, vector.to_address());
 
-            // save $pc, jump to interrupt vector
-            self.push_stack(mmu, self.registers.pc)?;
-            self.registers.pc = vector.to_address();
+                // save $pc, jump to interrupt vector
+                self.push_stack(mmu, self.registers.pc)?;
+                self.registers.pc = vector.to_address();
 
-            // clear interrupt flag
-            match vector {
-                Vector::VBlank => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::VBLANK.bits())?,
-                Vector::Stat => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::STAT.bits())?,
-                Vector::Timer => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::TIMER.bits())?,
-                Vector::Serial => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::SERIAL.bits())?,
-                Vector::Joypad => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::JOYPAD.bits())?,
+                // clear interrupt flag
+                match vector {
+                    Vector::VBlank => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::VBLANK.bits())?,
+                    Vector::Stat => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::STAT.bits())?,
+                    Vector::Timer => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::TIMER.bits())?,
+                    Vector::Serial => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::SERIAL.bits())?,
+                    Vector::Joypad => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::JOYPAD.bits())?,
+                }
+                self.ime.enabled = false;
             }
-            self.ime.enabled = false;
 
             // unhalt the CPU
             self.halted = false;
