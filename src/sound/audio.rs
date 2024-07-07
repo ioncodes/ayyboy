@@ -22,6 +22,8 @@ const WAVE_DUTY: [[u8; 8]; 4] = [
     [0, 1, 1, 1, 1, 1, 1, 0], // 75%
 ];
 
+// TODO: Mostly taken from https://github.com/NightShade256/Argentum/
+
 pub trait Channel {
     /// Tick the channel by 4 T-cycles.
     fn tick_channel(&mut self);

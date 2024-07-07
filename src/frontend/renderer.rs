@@ -17,8 +17,8 @@ pub struct Renderer {
     screen_texture: TextureHandle,
     gb: GameBoy,
     settings: Settings,
-    time_delta: Duration,
     throttle_timer: Instant,
+    running: bool,
 }
 
 impl Renderer {
@@ -34,8 +34,8 @@ impl Renderer {
             screen_texture,
             gb: gameboy,
             settings,
-            time_delta: Duration::from_secs(0),
             throttle_timer: Instant::now(),
+            running: false,
         }
     }
 
@@ -63,6 +63,10 @@ impl Renderer {
         }
 
         ctx.input(|i| {
+            if i.key_pressed(Key::Space) {
+                self.running = !self.running;
+            }
+
             if i.key_down(Key::Enter) {
                 self.gb.mmu.joypad.update_button(Key::Enter, true);
             } else {
@@ -118,8 +122,10 @@ impl App for Renderer {
     fn update(&mut self, ctx: &Context, _frame: &mut Frame) {
         self.handle_input(ctx);
 
-        self.gb.run_frame();
-        self.update_screen(&self.gb.ppu.pull_frame());
+        if self.running {
+            self.gb.run_frame();
+            self.update_screen(&self.gb.ppu.pull_frame());
+        }
 
         CentralPanel::default().show(ctx, |ui| {
             let image = Image::new(&self.screen_texture);
@@ -133,14 +139,15 @@ impl App for Renderer {
 
         if !self.settings.uncapped {
             let frame_duration = self.throttle_timer.elapsed();
-            let adjusted_duration = frame_duration + self.time_delta;
 
-            if adjusted_duration < TARGET_FRAME_DURATION {
-                spin_sleep::sleep(TARGET_FRAME_DURATION - adjusted_duration);
-                self.time_delta = Duration::from_secs(0);
+            if frame_duration < TARGET_FRAME_DURATION {
+                spin_sleep::sleep(TARGET_FRAME_DURATION - frame_duration);
             } else {
-                self.time_delta = adjusted_duration - TARGET_FRAME_DURATION;
-                warn!("Frame took too long: {:?} with a delta of {:?}", adjusted_duration, self.time_delta);
+                warn!(
+                    "Frame took too long: {:?} with a delta of {:?}",
+                    frame_duration,
+                    frame_duration - TARGET_FRAME_DURATION
+                );
             }
         }
 
