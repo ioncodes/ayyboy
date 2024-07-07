@@ -13,7 +13,6 @@ mod tests;
 mod video;
 
 use crate::frontend::renderer::{Renderer, SCALE};
-use crate::frontend::settings::Settings;
 use crate::gameboy::GameBoy;
 use crate::video::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use eframe::egui::{FontFamily, FontId, Style, TextStyle, ViewportBuilder, Visuals};
@@ -31,7 +30,6 @@ fn main() {
 
     setup_logging(log_to_file);
 
-    let uncapped = args.iter().any(|arg| arg == "--uncapped");
     let filepath = args.get(1).expect("No ROM file provided");
     let gameboy = GameBoy::new(BOOTROM.to_vec(), load_rom(filepath));
 
@@ -59,7 +57,7 @@ fn main() {
                 ..Style::default()
             };
             cc.egui_ctx.set_style(style);
-            Box::new(Renderer::new(cc, gameboy, Settings { uncapped }))
+            Box::new(Renderer::new(cc, gameboy))
         }),
     );
 }

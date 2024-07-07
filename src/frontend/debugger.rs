@@ -2,7 +2,7 @@ use eframe::egui;
 use egui::Context;
 
 pub struct Debugger {
-    window_open: bool,
+    pub window_open: bool,
 }
 
 impl Debugger {

@@ -1,8 +1,15 @@
-//pub mod apu;
-pub mod audio;
+pub mod apu;
 mod channels;
+mod stereo;
 
-pub const SAMPLE_RATE: u32 = 48_000;
+// The audio sample rate
+pub const SAMPLE_RATE: usize = 48_000;
+
+// The size of the audio sample buffer
+pub const BUFFER_SIZE: usize = 1024;
+
+// The rate at which the CPU is ticked
+pub const CPU_CLOCK: usize = 4194304;
 
 pub const NR10: u16 = 0xff10;
 pub const NR11: u16 = 0xff11;

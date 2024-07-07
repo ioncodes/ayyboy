@@ -1,28 +1,21 @@
 use crate::frontend::debugger::Debugger;
-use crate::frontend::settings::Settings;
 use crate::gameboy::GameBoy;
 use crate::video::palette::{Color, Palette};
 use crate::video::{SCREEN_HEIGHT, SCREEN_WIDTH};
-use eframe::egui::{vec2, CentralPanel, Color32, ColorImage, Context, Image, Key, TextureHandle, TextureOptions};
+use eframe::egui::{vec2, Align2, CentralPanel, Color32, ColorImage, Context, Image, Key, TextureHandle, TextureOptions, Window};
 use eframe::{App, CreationContext, Frame};
-use log::warn;
-use std::time::{Duration, Instant};
 
-const TARGET_FPS: f64 = 59.73;
-const TARGET_FRAME_DURATION: Duration = Duration::from_nanos((1_000_000_000.0 / TARGET_FPS) as u64);
 pub const SCALE: usize = 4;
 
 pub struct Renderer {
     debugger: Debugger,
     screen_texture: TextureHandle,
     gb: GameBoy,
-    settings: Settings,
-    throttle_timer: Instant,
     running: bool,
 }
 
 impl Renderer {
-    pub fn new(cc: &CreationContext, gameboy: GameBoy, settings: Settings) -> Renderer {
+    pub fn new(cc: &CreationContext, gameboy: GameBoy) -> Renderer {
         let screen_texture = cc.egui_ctx.load_texture(
             "screen_texture",
             ColorImage::new([SCREEN_WIDTH, SCREEN_HEIGHT], Color32::BLACK),
@@ -33,8 +26,6 @@ impl Renderer {
             debugger: Debugger::new(),
             screen_texture,
             gb: gameboy,
-            settings,
-            throttle_timer: Instant::now(),
             running: false,
         }
     }
@@ -125,6 +116,14 @@ impl App for Renderer {
         if self.running {
             self.gb.run_frame();
             self.update_screen(&self.gb.ppu.pull_frame());
+        } else if !self.running && !self.debugger.window_open {
+            Window::new("Controls")
+                .anchor(Align2::CENTER_CENTER, vec2(0.0, 0.0))
+                .collapsible(false)
+                .show(ctx, |ui| {
+                    ui.label("Press Space to start/stop emulation");
+                    ui.label("Press F1 to open debugger");
+                });
         }
 
         CentralPanel::default().show(ctx, |ui| {
@@ -136,21 +135,5 @@ impl App for Renderer {
         self.debugger.update_ui(ctx);
 
         ctx.request_repaint();
-
-        if !self.settings.uncapped {
-            let frame_duration = self.throttle_timer.elapsed();
-
-            if frame_duration < TARGET_FRAME_DURATION {
-                spin_sleep::sleep(TARGET_FRAME_DURATION - frame_duration);
-            } else {
-                warn!(
-                    "Frame took too long: {:?} with a delta of {:?}",
-                    frame_duration,
-                    frame_duration - TARGET_FRAME_DURATION
-                );
-            }
-        }
-
-        self.throttle_timer = Instant::now();
     }
 }

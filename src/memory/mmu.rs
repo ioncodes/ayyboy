@@ -2,14 +2,12 @@ use crate::error::AyyError;
 use crate::joypad::Joypad;
 use crate::memory::mapper::Mapper;
 use crate::memory::{BOOTROM_MAPPER_REGISTER, EXTERNAL_RAM_END, EXTERNAL_RAM_START, JOYPAD_REGISTER, OAM_DMA_REGISTER, ROM_END, ROM_START};
-use crate::sound::audio::Apu;
+use crate::sound::apu::Apu;
 use crate::sound::{
     NR10, NR11, NR12, NR13, NR14, NR21, NR22, NR23, NR24, NR30, NR31, NR32, NR33, NR34, NR41, NR42, NR43, NR44, NR50, NR51, NR52,
     WAVE_PATTERN_RAM_END, WAVE_PATTERN_RAM_START,
 };
 use log::debug;
-use rodio::buffer::SamplesBuffer;
-use rodio::{OutputStream, OutputStreamHandle, Sink};
 
 use super::addressable::Addressable;
 
@@ -23,29 +21,16 @@ pub struct Mmu {
     bootrom: Vec<u8>,
     pub joypad: Joypad,
     pub apu: Apu,
-    stream: OutputStream,
-    stream_handle: OutputStreamHandle,
 }
 
 impl Mmu {
     pub fn new(bootrom: Vec<u8>, cartridge: Box<dyn Mapper>) -> Mmu {
-        let (stream, stream_handle) = OutputStream::try_default().unwrap();
-        let sink = Sink::try_new(&stream_handle).unwrap();
-
         Mmu {
             cartridge,
             memory: vec![0; 0x10000],
             bootrom,
             joypad: Joypad::new(),
-            apu: Apu::new(Box::new(move |buffer| {
-                while sink.len() > 2 {
-                    std::thread::sleep(std::time::Duration::from_millis(1));
-                }
-
-                sink.append(SamplesBuffer::new(2, 48000, buffer));
-            })),
-            stream,
-            stream_handle,
+            apu: Apu::new(),
         }
     }
 
