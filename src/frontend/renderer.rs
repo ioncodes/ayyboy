@@ -1,5 +1,6 @@
 use crate::frontend::debugger::Debugger;
 use crate::gameboy::GameBoy;
+use crate::sound::CPU_CLOCK;
 use crate::video::palette::{Color, Palette};
 use crate::video::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use eframe::egui::{vec2, Align2, CentralPanel, Color32, ColorImage, Context, Image, Key, TextureHandle, TextureOptions, Window};
@@ -54,8 +55,16 @@ impl Renderer {
         }
 
         ctx.input(|i| {
-            if i.key_pressed(Key::Space) {
+            if i.key_released(Key::Space) {
                 self.running = !self.running;
+            }
+
+            if i.key_released(Key::F2) {
+                self.gb.mmu.apu.update_cpu_clock(CPU_CLOCK * 4);
+            }
+
+            if i.key_released(Key::F3) {
+                self.gb.mmu.apu.reset_cpu_clock();
             }
 
             if i.key_down(Key::Enter) {
@@ -128,6 +137,8 @@ impl App for Renderer {
                     ui.separator();
                     ui.label("Press Space to start/stop emulation");
                     ui.label("Press F1 to open debugger");
+                    ui.label("Press F2 to increase APU clock speed");
+                    ui.label("Press F3 to reset APU clock speed");
                 });
         }
 

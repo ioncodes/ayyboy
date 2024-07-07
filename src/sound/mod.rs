@@ -11,6 +11,7 @@ pub const BUFFER_SIZE: usize = 1024;
 // The rate at which the CPU is ticked
 pub const CPU_CLOCK: usize = 4194304;
 
+// APU registers
 pub const NR10: u16 = 0xff10;
 pub const NR11: u16 = 0xff11;
 pub const NR12: u16 = 0xff12;

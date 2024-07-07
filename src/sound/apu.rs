@@ -43,6 +43,9 @@ pub struct Apu {
     // Used to clock FS and sample generation
     sample_clock: usize,
 
+    // Current CPU clock rate
+    cpu_clock: usize,
+
     // The audio buffer which contains 32-bit float samples
     pub buffer: [f32; BUFFER_SIZE],
 
@@ -80,6 +83,7 @@ impl Apu {
             wave: WaveChannel::default(),
             noise: NoiseChannel::default(),
             sample_clock: 0,
+            cpu_clock: CPU_CLOCK,
             buffer: [0.0; BUFFER_SIZE],
             buffer_position: 0,
             frame_sequencer_position: 0,
@@ -122,7 +126,7 @@ impl Apu {
 
             // Each (CPU CLOCK / SAMPLE RATE) cycles one sample is generated
             // and pushed to the buffer
-            if self.sample_clock % (CPU_CLOCK / SAMPLE_RATE) == 0 {
+            if self.sample_clock % (self.cpu_clock / SAMPLE_RATE) == 0 {
                 let left_amplitude = self.get_amplitude_for_channel(0, StereoSide::Left)
                     + self.get_amplitude_for_channel(1, StereoSide::Left)
                     + self.get_amplitude_for_channel(2, StereoSide::Left)
@@ -144,6 +148,14 @@ impl Apu {
                 self.buffer_position = 0;
             }
         }
+    }
+
+    pub fn update_cpu_clock(&mut self, cpu_clock: usize) {
+        self.cpu_clock = cpu_clock;
+    }
+
+    pub fn reset_cpu_clock(&mut self) {
+        self.cpu_clock = CPU_CLOCK;
     }
 
     fn clock_components(&mut self) {
