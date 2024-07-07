@@ -1,3 +1,4 @@
+pub mod addressable;
 pub mod mapper;
 pub mod mmu;
 pub mod registers;

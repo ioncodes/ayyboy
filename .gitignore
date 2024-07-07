@@ -3,3 +3,4 @@
 *trace*.log
 .DS_Store
 *.sav
+.vscode/

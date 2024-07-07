@@ -2,7 +2,14 @@ use crate::error::AyyError;
 use crate::joypad::Joypad;
 use crate::memory::mapper::Mapper;
 use crate::memory::{BOOTROM_MAPPER_REGISTER, EXTERNAL_RAM_END, EXTERNAL_RAM_START, JOYPAD_REGISTER, OAM_DMA_REGISTER, ROM_END, ROM_START};
+use crate::sound::apu::Apu;
+use crate::sound::{
+    NR10, NR11, NR12, NR13, NR14, NR21, NR22, NR23, NR24, NR30, NR31, NR32, NR33, NR34, NR41, NR42, NR43, NR44, NR50, NR51, NR52,
+    WAVE_PATTERN_RAM_END, WAVE_PATTERN_RAM_START,
+};
 use log::debug;
+
+use super::addressable::Addressable;
 
 // The last instruction unmaps the boot ROM. Execution continues normally,
 // thus entering cartridge entrypoint at $100
@@ -14,6 +21,7 @@ pub struct Mmu {
     memory: Vec<u8>,
     bootrom: Vec<u8>,
     pub joypad: Joypad,
+    pub apu: Apu,
 }
 
 impl Mmu {
@@ -23,6 +31,7 @@ impl Mmu {
             memory: vec![0; 0x10000],
             bootrom,
             joypad: Joypad::new(),
+            apu: Apu::new(),
         }
     }
 
@@ -36,6 +45,28 @@ impl Mmu {
             ROM_START..=ROM_END => self.cartridge.read(addr),
             EXTERNAL_RAM_START..=EXTERNAL_RAM_END => self.cartridge.read(addr),
             JOYPAD_REGISTER => Ok(self.joypad.as_u8(self.memory[addr as usize])),
+            NR10
+            | NR11
+            | NR12
+            | NR13
+            | NR14
+            | NR21
+            | NR22
+            | NR23
+            | NR24
+            | NR30
+            | NR31
+            | NR32
+            | NR33
+            | NR34
+            | NR41
+            | NR42
+            | NR43
+            | NR44
+            | NR50
+            | NR51
+            | NR52
+            | WAVE_PATTERN_RAM_START..=WAVE_PATTERN_RAM_END => Ok(self.apu.read(addr)),
             _ => Ok(self.memory[addr as usize]),
         }
     }
@@ -85,6 +116,28 @@ impl Mmu {
             ROM_START..=ROM_END => self.cartridge.write(addr, data)?,
             EXTERNAL_RAM_START..=EXTERNAL_RAM_END => self.cartridge.write(addr, data)?,
             OAM_DMA_REGISTER => self.start_dma_transfer(data)?,
+            NR10
+            | NR11
+            | NR12
+            | NR13
+            | NR14
+            | NR21
+            | NR22
+            | NR23
+            | NR24
+            | NR30
+            | NR31
+            | NR32
+            | NR33
+            | NR34
+            | NR41
+            | NR42
+            | NR43
+            | NR44
+            | NR50
+            | NR51
+            | NR52
+            | WAVE_PATTERN_RAM_START..=WAVE_PATTERN_RAM_END => self.apu.write(addr, data),
             _ => self.memory[addr as usize] = data,
         }
 
