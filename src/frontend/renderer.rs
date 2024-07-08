@@ -166,3 +166,13 @@ impl App for Renderer {
         ctx.request_repaint();
     }
 }
+
+impl Drop for Renderer {
+    fn drop(&mut self) {
+        // save battery-backed RAM
+        let cart_ram = self.gb.mmu.cartridge.dump_ram();
+        let save_path = format!("{}.sav", self.settings.rom_path);
+        std::fs::write(&save_path, &cart_ram).expect("Failed to save RAM");
+        info!("Saved cartridge RAM to {}", save_path);
+    }
+}
