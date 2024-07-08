@@ -95,8 +95,16 @@ impl Ppu {
                     .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
                     .contains(LcdControl::OBJ_DISPLAY)
                 && let Some((sprite, sprite_color)) = self.fetch_sprite_pixel(&oams, x, scanline, sprite_height)
-                && (!sprite.attributes.contains(SpriteAttributes::PRIORITY) || background_color.is_color(0))
             {
+                let sprite_over_bg = background_color.is_color(0);
+                let sprite_over_win = window_color.is_transparent() || window_color.is_color(0);
+
+                if (sprite.attributes.contains(SpriteAttributes::PRIORITY) && !sprite_over_bg)
+                    || (sprite.attributes.contains(SpriteAttributes::PRIORITY) && !sprite_over_win)
+                {
+                    continue;
+                }
+
                 visited_oams
                     .entry(sprite.oam_addr)
                     .or_insert_with(Vec::new)
