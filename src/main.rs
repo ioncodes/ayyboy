@@ -15,6 +15,7 @@ mod video;
 use crate::frontend::renderer::{Renderer, SCALE};
 use crate::gameboy::GameBoy;
 use crate::video::{SCREEN_HEIGHT, SCREEN_WIDTH};
+use dark_light::Mode;
 use eframe::egui::{FontFamily, FontId, Style, TextStyle, ViewportBuilder, Visuals};
 use eframe::NativeOptions;
 use fern::Dispatch;
@@ -54,14 +55,11 @@ fn main() {
         native_options,
         Box::new(move |cc| {
             let style = Style {
-                visuals: Visuals::light(),
-                text_styles: [
-                    (TextStyle::Body, FontId::new(14.0, FontFamily::Monospace)),
-                    (TextStyle::Button, FontId::new(14.0, FontFamily::Monospace)),
-                    (TextStyle::Heading, FontId::new(16.0, FontFamily::Monospace)),
-                    (TextStyle::Monospace, FontId::new(14.0, FontFamily::Monospace)),
-                ]
-                .into(),
+                visuals: match dark_light::detect() {
+                    Mode::Dark => Visuals::dark(),
+                    Mode::Light => Visuals::light(),
+                    Mode::Default => Visuals::dark(),
+                },
                 ..Style::default()
             };
             cc.egui_ctx.set_style(style);

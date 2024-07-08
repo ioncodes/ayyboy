@@ -141,6 +141,7 @@ impl App for Renderer {
             Window::new("Controls")
                 .anchor(Align2::CENTER_CENTER, vec2(0.0, 0.0))
                 .collapsible(false)
+                .resizable(false)
                 .show(ctx, |ui| {
                     ui.label("Arrow keys to move");
                     ui.label("A and S to interact");
