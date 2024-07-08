@@ -16,7 +16,7 @@ use crate::frontend::renderer::{Renderer, SCALE};
 use crate::gameboy::GameBoy;
 use crate::video::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use dark_light::Mode;
-use eframe::egui::{FontFamily, FontId, Style, TextStyle, ViewportBuilder, Visuals};
+use eframe::egui::{Style, ViewportBuilder, Visuals};
 use eframe::NativeOptions;
 use fern::Dispatch;
 use frontend::settings::Settings;
