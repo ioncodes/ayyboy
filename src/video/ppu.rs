@@ -225,7 +225,7 @@ impl Ppu {
             .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
             .contains(LcdControl::BG_AND_WIN_DISPLAY)
         {
-            return Palette::White(0);
+            return Palette::from_background(0, mmu);
         }
 
         // Read scroll values from memory
