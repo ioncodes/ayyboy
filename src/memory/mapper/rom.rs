@@ -24,6 +24,12 @@ impl Mapper for Rom {
         Err(AyyError::WriteToReadOnlyMemory { address: addr, data })
     }
 
+    fn dump_ram(&self) -> Vec<u8> {
+        Vec::new()
+    }
+
+    fn load_ram(&mut self, _ram: Vec<u8>) {}
+
     #[inline]
     fn current_rom_bank(&self) -> u8 {
         0

@@ -77,6 +77,14 @@ impl Mapper for Mbc3 {
         }
     }
 
+    fn dump_ram(&self) -> Vec<u8> {
+        self.ram.clone()
+    }
+
+    fn load_ram(&mut self, ram: Vec<u8>) {
+        self.ram = ram;
+    }
+
     #[inline]
     fn current_rom_bank(&self) -> u8 {
         self.rom_bank

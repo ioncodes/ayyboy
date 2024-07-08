@@ -8,6 +8,8 @@ pub mod rom;
 pub trait Mapper: DynClone {
     fn read(&self, addr: u16) -> Result<u8, AyyError>;
     fn write(&mut self, addr: u16, data: u8) -> Result<(), AyyError>;
+    fn dump_ram(&self) -> Vec<u8>;
+    fn load_ram(&mut self, ram: Vec<u8>);
     fn current_rom_bank(&self) -> u8;
     fn current_ram_bank(&self) -> u8;
     fn name(&self) -> String;

@@ -16,11 +16,11 @@ use super::addressable::Addressable;
 const BOOTROM_SIZE: u16 = 0xff;
 
 pub struct Mmu {
-    cartridge: Box<dyn Mapper>,
-    memory: Vec<u8>,
-    bootrom: Vec<u8>,
+    pub cartridge: Box<dyn Mapper>,
     pub joypad: Joypad,
     pub apu: Apu,
+    memory: Vec<u8>,
+    bootrom: Vec<u8>,
 }
 
 impl Mmu {

@@ -18,6 +18,7 @@ use crate::video::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use eframe::egui::{FontFamily, FontId, Style, TextStyle, ViewportBuilder, Visuals};
 use eframe::NativeOptions;
 use fern::Dispatch;
+use frontend::settings::Settings;
 use log::{info, LevelFilter};
 use std::fs::File;
 use zip::ZipArchive;
@@ -30,8 +31,15 @@ fn main() {
 
     setup_logging(log_to_file);
 
-    let filepath = args.get(1).expect("No ROM file provided");
-    let gameboy = GameBoy::new(BOOTROM.to_vec(), load_rom(filepath));
+    let filepath = args.get(1).expect("No ROM file provided").to_owned();
+    let mut gameboy = GameBoy::new(BOOTROM.to_vec(), load_rom(&filepath));
+
+    // if there's a sav file, load into cart
+    let save_path = format!("{}.sav", &filepath);
+    if let Ok(cart_ram) = std::fs::read(&save_path) {
+        gameboy.mmu.cartridge.load_ram(cart_ram);
+        info!("Loaded cartridge RAM from {}", save_path);
+    }
 
     let native_options = NativeOptions {
         viewport: ViewportBuilder::default()
@@ -57,7 +65,13 @@ fn main() {
                 ..Style::default()
             };
             cc.egui_ctx.set_style(style);
-            Box::new(Renderer::new(cc, gameboy))
+            Box::new(Renderer::new(
+                cc,
+                gameboy,
+                Settings {
+                    rom_path: filepath.clone(),
+                },
+            ))
         }),
     );
 }

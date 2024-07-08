@@ -5,6 +5,9 @@ use crate::video::palette::{Color, Palette};
 use crate::video::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use eframe::egui::{vec2, Align2, CentralPanel, Color32, ColorImage, Context, Image, Key, TextureHandle, TextureOptions, Window};
 use eframe::{App, CreationContext, Frame};
+use log::info;
+
+use super::settings::Settings;
 
 pub const SCALE: usize = 4;
 
@@ -12,11 +15,12 @@ pub struct Renderer {
     debugger: Debugger,
     screen_texture: TextureHandle,
     gb: GameBoy,
+    settings: Settings,
     running: bool,
 }
 
 impl Renderer {
-    pub fn new(cc: &CreationContext, gameboy: GameBoy) -> Renderer {
+    pub fn new(cc: &CreationContext, gameboy: GameBoy, settings: Settings) -> Renderer {
         let screen_texture = cc.egui_ctx.load_texture(
             "screen_texture",
             ColorImage::new([SCREEN_WIDTH, SCREEN_HEIGHT], Color32::BLACK),
@@ -27,6 +31,7 @@ impl Renderer {
             debugger: Debugger::new(),
             screen_texture,
             gb: gameboy,
+            settings,
             running: false,
         }
     }
@@ -65,6 +70,13 @@ impl Renderer {
 
             if i.key_released(Key::F3) {
                 self.gb.mmu.apu.reset_cpu_clock();
+            }
+
+            if i.key_released(Key::F5) {
+                let cart_ram = self.gb.mmu.cartridge.dump_ram();
+                let save_path = format!("{}.sav", self.settings.rom_path);
+                std::fs::write(&save_path, &cart_ram).expect("Failed to save RAM");
+                info!("Saved cartridge RAM to {}", save_path);
             }
 
             if i.key_down(Key::Enter) {
@@ -139,6 +151,7 @@ impl App for Renderer {
                     ui.label("Press F1 to open debugger");
                     ui.label("Press F2 to increase APU clock speed");
                     ui.label("Press F3 to reset APU clock speed");
+                    ui.label("Press F5 to save RAM to disk");
                 });
         }
 
