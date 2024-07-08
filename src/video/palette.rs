@@ -14,11 +14,7 @@ pub enum Palette {
 }
 
 impl Palette {
-    pub fn from_background(value: u8, mmu: &Mmu, allow_transparency: bool) -> Palette {
-        if allow_transparency && value == 0b00 {
-            return Palette::Transparent(0);
-        }
-
+    pub fn from_background(value: u8, mmu: &Mmu) -> Palette {
         let bgp_shade = mmu.read_unchecked(BG_PALETTE_REGISTER);
 
         let shade = match value {

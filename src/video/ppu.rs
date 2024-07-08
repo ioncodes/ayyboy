@@ -86,8 +86,7 @@ impl Ppu {
             self.emulated_frame[scanline][x] = background_color;
 
             let window_color = self.fetch_window_pixel(mmu, x, scanline);
-            if !window_color.is_color(0) && !window_color.is_transparent() {
-                // TODO: this was is_transparent before, is this correct now?
+            if !window_color.is_transparent() {
                 self.emulated_frame[scanline][x] = window_color;
             }
 
@@ -127,7 +126,7 @@ impl Ppu {
 
         for tile_nr in 0..384 {
             let addr = tile_map_addr + (tile_nr as u16 * 16);
-            let tile = Tile::from_background_addr(mmu, addr, false);
+            let tile = Tile::from_bg_or_win_addr(mmu, addr);
             tiles.push(tile);
         }
 
@@ -152,7 +151,7 @@ impl Ppu {
         for idx in 0.._BACKGROUND_MAP_SIZE {
             let tile_nr = mmu.read_unchecked(bg_map_addr + idx as u16);
             let addr = tile_map_addr + (tile_nr as u16 * 16);
-            let tile = Tile::from_background_addr(mmu, addr, false);
+            let tile = Tile::from_bg_or_win_addr(mmu, addr);
             tiles.push(tile);
         }
 
@@ -216,7 +215,7 @@ impl Ppu {
         // TODO: this break acid2 !
         if !mmu
             .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
-            .contains(LcdControl::BG_DISPLAY)
+            .contains(LcdControl::BG_AND_WIN_DISPLAY)
         {
             return Palette::White(0);
         }
@@ -240,7 +239,7 @@ impl Ppu {
         } else {
             tileset.wrapping_add_signed((tile_number as i8 as i16 + 128) * 16)
         };
-        let tile = Tile::from_background_addr(mmu, tile_addr, false);
+        let tile = Tile::from_bg_or_win_addr(mmu, tile_addr);
 
         // Calculate the pixel coordinates in the tile
         let tile_x = ((x as u8).wrapping_add(scx)) % 8;
@@ -359,7 +358,7 @@ impl Ppu {
     fn fetch_window_pixel(&self, mmu: &Mmu, x: usize, y: usize) -> Palette {
         if !mmu
             .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
-            .contains(LcdControl::BG_DISPLAY)
+            .contains(LcdControl::BG_AND_WIN_DISPLAY)
             || !mmu
                 .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
                 .contains(LcdControl::WINDOW_DISPLAY)
@@ -395,7 +394,7 @@ impl Ppu {
         } else {
             tileset.wrapping_add_signed((tile_number as i8 as i16 + 128) * 16)
         };
-        let tile = Tile::from_background_addr(mmu, tile_addr, true);
+        let tile = Tile::from_bg_or_win_addr(mmu, tile_addr);
 
         // Calculate the pixel coordinates in the tile
         let tile_x = window_x % 8;
