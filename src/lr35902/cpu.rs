@@ -273,7 +273,7 @@ impl Cpu {
         if interrupt_enable.bits() & interrupt_flags.bits() != 0 {
             if self.ime.enabled {
                 // handle interrupt vector
-                let vector = Vector::from_flags(&interrupt_flags);
+                let vector = Vector::from_flags(&interrupt_enable, &interrupt_flags);
                 debug!("Handling interrupt: {} => ${:04x}", vector, vector.to_address());
 
                 // save $pc, jump to interrupt vector

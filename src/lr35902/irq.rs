@@ -1,4 +1,4 @@
-use crate::memory::registers::InterruptFlags;
+use crate::memory::registers::{InterruptEnable, InterruptFlags};
 
 #[derive(Clone)]
 pub struct Ime {
@@ -15,16 +15,24 @@ pub enum Vector {
 }
 
 impl Vector {
-    pub fn from_flags(flags: &InterruptFlags) -> Vector {
-        if flags.contains(InterruptFlags::VBLANK) {
+    pub fn from_flags(interrupt_enable: &InterruptEnable, interrupt_flags: &InterruptFlags) -> Vector {
+        if interrupt_enable.contains(InterruptEnable::VBLANK) && interrupt_flags.contains(InterruptFlags::VBLANK) {
             return Vector::VBlank;
-        } else if flags.contains(InterruptFlags::STAT) {
+        }
+
+        if interrupt_enable.contains(InterruptEnable::STAT) && interrupt_flags.contains(InterruptFlags::STAT) {
             return Vector::Stat;
-        } else if flags.contains(InterruptFlags::TIMER) {
+        }
+
+        if interrupt_enable.contains(InterruptEnable::TIMER) && interrupt_flags.contains(InterruptFlags::TIMER) {
             return Vector::Timer;
-        } else if flags.contains(InterruptFlags::SERIAL) {
+        }
+
+        if interrupt_enable.contains(InterruptEnable::SERIAL) && interrupt_flags.contains(InterruptFlags::SERIAL) {
             return Vector::Serial;
-        } else if flags.contains(InterruptFlags::JOYPAD) {
+        }
+
+        if interrupt_enable.contains(InterruptEnable::JOYPAD) && interrupt_flags.contains(InterruptFlags::JOYPAD) {
             return Vector::Joypad;
         }
 
