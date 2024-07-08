@@ -70,7 +70,7 @@ impl Palette {
         *self == Palette::Transparent(0)
     }
 
-    pub fn is_index(&self, index: u8) -> bool {
+    pub fn is_color(&self, index: u8) -> bool {
         match self {
             Palette::White(i) => *i == index,
             Palette::LightGray(i) => *i == index,

@@ -26,7 +26,7 @@ bitflags! {
         const OBJ_DISPLAY     = 0b0000_0010;
         const OBJ_SIZE        = 0b0000_0100;
         const BG_TILE_MAP     = 0b0000_1000;
-        const BG_TILE_DATA    = 0b0001_0000;
+        const BG_AND_WIN_TILE_DATA    = 0b0001_0000;
         const WINDOW_DISPLAY  = 0b0010_0000;
         const WINDOW_TILE_MAP = 0b0100_0000;
         const LCD_DISPLAY     = 0b1000_0000;

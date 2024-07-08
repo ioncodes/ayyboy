@@ -18,19 +18,46 @@ use super::{_BACKGROUND_HEIGHT, _BACKGROUND_MAP_SIZE, _BACKGROUND_WIDTH};
 #[derive(Debug)]
 pub struct Ppu {
     emulated_frame: [[Palette; SCREEN_WIDTH]; SCREEN_HEIGHT],
+    window_line_counter: usize,
 }
 
 impl Ppu {
     pub fn new() -> Ppu {
         Ppu {
             emulated_frame: [[Palette::default(); SCREEN_WIDTH]; SCREEN_HEIGHT],
+            window_line_counter: 0,
         }
     }
 
     pub fn tick(&mut self, mmu: &mut Mmu) {
+        self.handle_window_line_counter(mmu);
         self.render_scanline(mmu);
         self.progress_scanline(mmu);
         self.handle_interrupts(mmu);
+    }
+
+    pub fn handle_window_line_counter(&mut self, mmu: &mut Mmu) {
+        let scanline = mmu.read_unchecked(SCANLINE_Y_REGISTER);
+
+        // Reset window line counter if we start a new frame
+        if scanline == 0 {
+            self.window_line_counter = 0;
+        }
+
+        let wx = mmu.read_unchecked(WINDOW_X_REGISTER);
+        let wy = mmu.read_unchecked(WINDOW_Y_REGISTER);
+        let lcdc = mmu.read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER);
+
+        // Check if the window is enabled and the scanline is within valid range
+        if lcdc.contains(LcdControl::WINDOW_DISPLAY) && wx <= 166 && wy <= 143 {
+            if scanline == wy {
+                // Reset window line counter if scanline matches WY
+                self.window_line_counter = 0;
+            } else if scanline > wy {
+                // Increment window line counter if scanline is greater than WY
+                self.window_line_counter += 1;
+            }
+        }
     }
 
     pub fn render_scanline(&mut self, mmu: &Mmu) {
@@ -59,7 +86,8 @@ impl Ppu {
             self.emulated_frame[scanline][x] = background_color;
 
             let window_color = self.fetch_window_pixel(mmu, x, scanline);
-            if !window_color.is_transparent() {
+            if !window_color.is_color(0) && !window_color.is_transparent() {
+                // TODO: this was is_transparent before, is this correct now?
                 self.emulated_frame[scanline][x] = window_color;
             }
 
@@ -68,7 +96,7 @@ impl Ppu {
                     .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
                     .contains(LcdControl::OBJ_DISPLAY)
                 && let Some((sprite, sprite_color)) = self.fetch_sprite_pixel(&oams, x, scanline, sprite_height)
-                && (!sprite.attributes.contains(SpriteAttributes::PRIORITY) || background_color.is_index(0))
+                && (!sprite.attributes.contains(SpriteAttributes::PRIORITY) || background_color.is_color(0))
             {
                 visited_oams
                     .entry(sprite.oam_addr)
@@ -343,20 +371,20 @@ impl Ppu {
         let wy = mmu.read_unchecked(WINDOW_Y_REGISTER);
         let wx = mmu.read_unchecked(WINDOW_X_REGISTER);
 
-        // Return transparent color if renderer is disabled or not on screen yet
+        // Return transparent color if window is not on screen
         if y < wy as usize || x + 7 < wx as usize {
             return Palette::Transparent(0);
         }
 
         // Adjust the coordinates based on renderer position
-        let window_x = x as u8 + 7 - wx;
-        let window_y = y as u8 - wy;
+        let window_x = x.wrapping_add(7).wrapping_sub(wx as usize);
+        let window_y = self.window_line_counter;
 
         // Read the renderer map and tile data addresses from memory
         let tilemap = self.get_window_tilemap_address(mmu);
         let tileset = self.get_tileset_address(mmu);
 
-        // Calculate the tile coordinates in the renderer map
+        // Calculate the tile coordinates in the window map
         let win_map_x = (window_x / 8) as u16;
         let win_map_y = (window_y / 8) as u16;
         let tile_number = mmu.read_unchecked((tilemap + (win_map_y * 32)) + win_map_x);
@@ -402,7 +430,7 @@ impl Ppu {
     fn get_tileset_address(&self, mmu: &Mmu) -> u16 {
         if !mmu
             .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
-            .contains(LcdControl::BG_TILE_DATA)
+            .contains(LcdControl::BG_AND_WIN_TILE_DATA)
         {
             TILESET_1_ADDRESS
         } else {
