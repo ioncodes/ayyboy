@@ -268,7 +268,7 @@ impl Cpu {
         }
 
         let interrupt_enable = mmu.read_as::<InterruptEnable>(INTERRUPT_ENABLE_REGISTER)?;
-        let interrupt_flags = mmu.read_as::<InterruptFlags>(INTERRUPT_FLAGS_REGISTER)?;
+        let mut interrupt_flags = mmu.read_as::<InterruptFlags>(INTERRUPT_FLAGS_REGISTER)?;
 
         if interrupt_enable.bits() & interrupt_flags.bits() != 0 {
             if self.ime.enabled {
@@ -281,13 +281,8 @@ impl Cpu {
                 self.registers.pc = vector.to_address();
 
                 // clear interrupt flag
-                match vector {
-                    Vector::VBlank => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::VBLANK.bits())?,
-                    Vector::Stat => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::STAT.bits())?,
-                    Vector::Timer => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::TIMER.bits())?,
-                    Vector::Serial => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::SERIAL.bits())?,
-                    Vector::Joypad => mmu.write(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits() & !InterruptFlags::JOYPAD.bits())?,
-                }
+                vector.clear_flag(&mut interrupt_flags);
+                mmu.write_unchecked(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits());
                 self.ime.enabled = false;
             }
 

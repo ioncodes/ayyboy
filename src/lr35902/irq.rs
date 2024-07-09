@@ -48,6 +48,16 @@ impl Vector {
             Vector::Joypad => 0x0060,
         }
     }
+
+    pub fn clear_flag(&self, flags: &mut InterruptFlags) {
+        match self {
+            Vector::VBlank => flags.remove(InterruptFlags::VBLANK),
+            Vector::Stat => flags.remove(InterruptFlags::STAT),
+            Vector::Timer => flags.remove(InterruptFlags::TIMER),
+            Vector::Serial => flags.remove(InterruptFlags::SERIAL),
+            Vector::Joypad => flags.remove(InterruptFlags::JOYPAD),
+        }
+    }
 }
 
 impl std::fmt::Display for Vector {
