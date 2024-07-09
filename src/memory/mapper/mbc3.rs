@@ -4,7 +4,7 @@ use crate::memory::mapper::Mapper;
 pub struct Mbc3 {
     rom: Vec<u8>,
     ram: Vec<u8>,
-    rom_bank: u8,
+    rom_bank: u16,
     ram_bank: u8,
     ram_enabled: bool,
 }
@@ -52,7 +52,7 @@ impl Mapper for Mbc3 {
                 Ok(())
             }
             0x2000..=0x3fff => {
-                self.rom_bank = data & 0b0111_1111;
+                self.rom_bank = (data & 0b0111_1111) as u16;
                 if self.rom_bank == 0 {
                     self.rom_bank = 1;
                 }
@@ -86,7 +86,7 @@ impl Mapper for Mbc3 {
     }
 
     #[inline]
-    fn current_rom_bank(&self) -> u8 {
+    fn current_rom_bank(&self) -> u16 {
         self.rom_bank
     }
 

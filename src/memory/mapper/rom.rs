@@ -31,7 +31,7 @@ impl Mapper for Rom {
     fn load_ram(&mut self, _ram: Vec<u8>) {}
 
     #[inline]
-    fn current_rom_bank(&self) -> u8 {
+    fn current_rom_bank(&self) -> u16 {
         0
     }
 

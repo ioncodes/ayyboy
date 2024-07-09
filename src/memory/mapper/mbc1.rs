@@ -19,7 +19,7 @@ const BANKING_MODE_END: u16 = 0x7fff;
 #[derive(Clone)]
 pub struct Mbc1 {
     rom: Vec<u8>,
-    rom_bank: u8,
+    rom_bank: u16,
     ram: Vec<u8>,
     ram_bank: u8,
     ram_enabled: bool,
@@ -73,7 +73,7 @@ impl Mapper for Mbc1 {
                 debug!("MBC1: RAM enabled: {}", self.ram_enabled);
             }
             ROM_BANK_START..=ROM_BANK_END => {
-                self.rom_bank = data & 0b0001_1111;
+                self.rom_bank = (data & 0b0001_1111) as u16;
                 if self.rom_bank == 0 {
                     self.rom_bank = 1;
                 }
@@ -81,7 +81,7 @@ impl Mapper for Mbc1 {
             }
             SECONDARY_BANK_REGISTER_START..=SECONDARY_BANK_REGISTER_END if self.banking_mode => {
                 if self.secondary_banking_allowed {
-                    self.rom_bank = (self.rom_bank & 0b0001_1111) | ((data & 0b11) << 5);
+                    self.rom_bank = ((self.rom_bank as u8 & 0b0001_1111) | ((data & 0b11) << 5)) as u16;
                     debug!("MBC1: Switched to ROM bank {}", self.rom_bank);
                 } else {
                     warn!("MBC1: Attempted to switch to ROM bank, but not allowed");
@@ -119,7 +119,7 @@ impl Mapper for Mbc1 {
     }
 
     #[inline]
-    fn current_rom_bank(&self) -> u8 {
+    fn current_rom_bank(&self) -> u16 {
         self.rom_bank
     }
 

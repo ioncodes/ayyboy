@@ -164,16 +164,6 @@ impl Mmu {
     }
 
     #[inline]
-    pub fn current_rom_bank(&self) -> u8 {
-        self.cartridge.current_rom_bank()
-    }
-
-    #[inline]
-    pub fn current_ram_bank(&self) -> u8 {
-        self.cartridge.current_ram_bank()
-    }
-
-    #[inline]
     pub fn is_bootrom_mapped(&self) -> bool {
         self.read(BOOTROM_MAPPER_REGISTER).unwrap() == 0x00
     }

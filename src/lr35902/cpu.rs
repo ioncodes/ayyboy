@@ -55,8 +55,8 @@ impl Cpu {
             self,
             mmu.read(self.registers.sp)?,
             self.ime.enabled,
-            mmu.current_rom_bank(),
-            mmu.current_ram_bank()
+            mmu.cartridge.current_rom_bank(),
+            mmu.cartridge.current_ram_bank()
         );
 
         self.registers.pc = self.registers.pc.wrapping_add(instruction.length as u16);

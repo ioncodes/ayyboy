@@ -3,6 +3,7 @@ use dyn_clone::DynClone;
 
 pub mod mbc1;
 pub mod mbc3;
+pub mod mbc5;
 pub mod rom;
 
 pub trait Mapper: DynClone {
@@ -10,7 +11,7 @@ pub trait Mapper: DynClone {
     fn write(&mut self, addr: u16, data: u8) -> Result<(), AyyError>;
     fn dump_ram(&self) -> Vec<u8>;
     fn load_ram(&mut self, ram: Vec<u8>);
-    fn current_rom_bank(&self) -> u8;
+    fn current_rom_bank(&self) -> u16;
     fn current_ram_bank(&self) -> u8;
     fn name(&self) -> String;
 
