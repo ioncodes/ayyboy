@@ -1,5 +1,5 @@
 /target
-/.idea/*
+/.idea
 *trace*.log
 .DS_Store
 *.sav
