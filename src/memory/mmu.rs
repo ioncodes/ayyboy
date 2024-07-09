@@ -34,6 +34,7 @@ impl Mmu {
         }
     }
 
+    #[cfg(not(test))]
     #[inline]
     pub fn read(&self, addr: u16) -> Result<u8, AyyError> {
         // if joypad is read, spoof no buttons pressed
@@ -68,6 +69,12 @@ impl Mmu {
             | WAVE_PATTERN_RAM_START..=WAVE_PATTERN_RAM_END => Ok(self.apu.read(addr)),
             _ => Ok(self.memory[addr as usize]),
         }
+    }
+
+    #[cfg(test)]
+    #[inline]
+    pub fn read(&self, addr: u16) -> Result<u8, AyyError> {
+        Ok(self.memory[addr as usize])
     }
 
     #[inline]
@@ -108,6 +115,7 @@ impl Mmu {
         self.write16(addr, data).unwrap();
     }
 
+    #[cfg(not(test))]
     #[inline]
     pub fn write(&mut self, addr: u16, data: u8) -> Result<(), AyyError> {
         match addr {
@@ -140,6 +148,13 @@ impl Mmu {
             _ => self.memory[addr as usize] = data,
         }
 
+        Ok(())
+    }
+
+    #[cfg(test)]
+    #[inline]
+    pub fn write(&mut self, addr: u16, data: u8) -> Result<(), AyyError> {
+        self.memory[addr as usize] = data;
         Ok(())
     }
 

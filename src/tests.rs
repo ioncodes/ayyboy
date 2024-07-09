@@ -2,6 +2,7 @@
 mod tests {
     use crate::lr35902::cpu::*;
     use crate::lr35902::sm83::*;
+    use crate::lr35902::timer::Timer;
     use crate::memory::mapper::rom::Rom;
     use crate::memory::mmu::*;
     use serde_json::Value;
@@ -14,8 +15,6 @@ mod tests {
         input in r"^.*\.json" if !is_ignore
     })]
     fn test_cpu(input: &str) {
-        use crate::lr35902::timer::Timer;
-
         let tests: Value = serde_json::from_str(&input).unwrap();
 
         for test in tests.as_array().unwrap() {
