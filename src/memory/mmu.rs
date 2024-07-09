@@ -34,11 +34,11 @@ impl Mmu {
         }
     }
 
-    #[cfg(not(test))]
     #[inline]
     pub fn read(&self, addr: u16) -> Result<u8, AyyError> {
-        // if joypad is read, spoof no buttons pressed
-        // THIS MAY CAUSE ISSUES WITH THE UNIT TESTS
+        if cfg!(test) {
+            return Ok(self.memory[addr as usize]);
+        }
 
         match addr {
             ROM_START..=BOOTROM_SIZE if self.is_bootrom_mapped() => Ok(self.bootrom[addr as usize]),
@@ -69,12 +69,6 @@ impl Mmu {
             | WAVE_PATTERN_RAM_START..=WAVE_PATTERN_RAM_END => Ok(self.apu.read(addr)),
             _ => Ok(self.memory[addr as usize]),
         }
-    }
-
-    #[cfg(test)]
-    #[inline]
-    pub fn read(&self, addr: u16) -> Result<u8, AyyError> {
-        Ok(self.memory[addr as usize])
     }
 
     #[inline]
@@ -115,9 +109,13 @@ impl Mmu {
         self.write16(addr, data).unwrap();
     }
 
-    #[cfg(not(test))]
     #[inline]
     pub fn write(&mut self, addr: u16, data: u8) -> Result<(), AyyError> {
+        if cfg!(test) {
+            self.memory[addr as usize] = data;
+            return Ok(());
+        }
+
         match addr {
             ROM_START..=BOOTROM_SIZE if self.is_bootrom_mapped() => self.bootrom[addr as usize] = data,
             ROM_START..=ROM_END => self.cartridge.write(addr, data)?,
@@ -148,13 +146,6 @@ impl Mmu {
             _ => self.memory[addr as usize] = data,
         }
 
-        Ok(())
-    }
-
-    #[cfg(test)]
-    #[inline]
-    pub fn write(&mut self, addr: u16, data: u8) -> Result<(), AyyError> {
-        self.memory[addr as usize] = data;
         Ok(())
     }
 
