@@ -44,7 +44,7 @@ impl GameBoy {
             _ => Mode::Dmg,
         };
         info!(
-            "Emulating GameBoy console: {}",
+            "Emulating GameBoy: {}",
             if mode == Mode::Dmg { "DMG" } else { "CGB" }
         );
 

@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod tests {
+    use crate::gameboy::Mode;
     use crate::lr35902::cpu::*;
     use crate::lr35902::sm83::*;
     use crate::lr35902::timer::Timer;
@@ -18,7 +19,7 @@ mod tests {
         let tests: Value = serde_json::from_str(&input).unwrap();
 
         for test in tests.as_array().unwrap() {
-            let mut mmu = Mmu::new(vec![], Box::new(Rom::new(vec![0u8; 0xffff])));
+            let mut mmu = Mmu::new(vec![], Box::new(Rom::new(vec![0u8; 0xffff])), Mode::Dmg);
             mmu.unmap_bootrom();
             mmu.resize_memory(0xffff * 4);
             let mut sm83 = Sm83::new();
@@ -30,16 +31,46 @@ mod tests {
             let initial = test.get("initial").unwrap().as_object().unwrap();
             let final_state = test.get("final").unwrap().as_object().unwrap();
 
-            cpu.write_register(&Register::A, initial.get("a").unwrap().as_u64().unwrap() as u8);
-            cpu.write_register(&Register::F, initial.get("f").unwrap().as_u64().unwrap() as u8);
-            cpu.write_register(&Register::B, initial.get("b").unwrap().as_u64().unwrap() as u8);
-            cpu.write_register(&Register::C, initial.get("c").unwrap().as_u64().unwrap() as u8);
-            cpu.write_register(&Register::D, initial.get("d").unwrap().as_u64().unwrap() as u8);
-            cpu.write_register(&Register::E, initial.get("e").unwrap().as_u64().unwrap() as u8);
-            cpu.write_register(&Register::H, initial.get("h").unwrap().as_u64().unwrap() as u8);
-            cpu.write_register(&Register::L, initial.get("l").unwrap().as_u64().unwrap() as u8);
-            cpu.write_register16(&Register::SP, initial.get("sp").unwrap().as_u64().unwrap() as u16);
-            cpu.write_register16(&Register::PC, initial.get("pc").unwrap().as_u64().unwrap() as u16);
+            cpu.write_register(
+                &Register::A,
+                initial.get("a").unwrap().as_u64().unwrap() as u8,
+            );
+            cpu.write_register(
+                &Register::F,
+                initial.get("f").unwrap().as_u64().unwrap() as u8,
+            );
+            cpu.write_register(
+                &Register::B,
+                initial.get("b").unwrap().as_u64().unwrap() as u8,
+            );
+            cpu.write_register(
+                &Register::C,
+                initial.get("c").unwrap().as_u64().unwrap() as u8,
+            );
+            cpu.write_register(
+                &Register::D,
+                initial.get("d").unwrap().as_u64().unwrap() as u8,
+            );
+            cpu.write_register(
+                &Register::E,
+                initial.get("e").unwrap().as_u64().unwrap() as u8,
+            );
+            cpu.write_register(
+                &Register::H,
+                initial.get("h").unwrap().as_u64().unwrap() as u8,
+            );
+            cpu.write_register(
+                &Register::L,
+                initial.get("l").unwrap().as_u64().unwrap() as u8,
+            );
+            cpu.write_register16(
+                &Register::SP,
+                initial.get("sp").unwrap().as_u64().unwrap() as u16,
+            );
+            cpu.write_register16(
+                &Register::PC,
+                initial.get("pc").unwrap().as_u64().unwrap() as u16,
+            );
             if initial.get("ime").unwrap().as_u64().unwrap() == 1 {
                 cpu.enable_interrupts(false);
             } else {
@@ -137,7 +168,12 @@ mod tests {
                 let addr = value.as_array().unwrap()[0].as_u64().unwrap() as u16;
                 let value = value.as_array().unwrap()[1].as_u64().unwrap() as u8;
 
-                assert_eq!(mmu.read_unchecked(addr), value, "Comparison with RAM failed for {}", name);
+                assert_eq!(
+                    mmu.read_unchecked(addr),
+                    value,
+                    "Comparison with RAM failed for {}",
+                    name
+                );
             }
         }
     }
