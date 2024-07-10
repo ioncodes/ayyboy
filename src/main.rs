@@ -15,6 +15,7 @@ mod video;
 use crate::frontend::renderer::{Renderer, SCALE};
 use crate::gameboy::GameBoy;
 use crate::video::{SCREEN_HEIGHT, SCREEN_WIDTH};
+use clap::Parser;
 use dark_light::Mode;
 use eframe::egui::{Style, ViewportBuilder, Visuals};
 use eframe::NativeOptions;
@@ -24,19 +25,29 @@ use log::{info, LevelFilter};
 use std::fs::File;
 use zip::ZipArchive;
 
-const BOOTROM: &[u8] = include_bytes!("../external/roms/dmg_boot.bin");
+#[derive(Parser, Debug)]
+struct Args {
+    rom: String,
+    #[arg(long)]
+    bios: Option<String>,
+    #[arg(long, default_value_t = false)]
+    log_to_file: bool,
+}
 
 fn main() {
-    let args: Vec<String> = std::env::args().collect();
-    let log_to_file = args.iter().any(|arg| arg == "--log-to-file");
+    let args = Args::parse();
 
-    setup_logging(log_to_file);
+    setup_logging(args.log_to_file);
 
-    let filepath = args.get(1).expect("No ROM file provided").to_owned();
-    let mut gameboy = GameBoy::new(BOOTROM.to_vec(), load_rom(&filepath));
+    let bootrom = match &args.bios {
+        Some(bios) => Some(std::fs::read(bios).expect("Failed to read BIOS file")),
+        None => None,
+    };
+
+    let mut gameboy = GameBoy::new(bootrom, load_rom(&args.rom));
 
     // if there's a sav file, load into cart
-    let save_path = format!("{}.sav", &filepath);
+    let save_path = format!("{}.sav", &args.rom);
     if let Ok(cart_ram) = std::fs::read(&save_path) {
         gameboy.mmu.cartridge.load_ram(cart_ram);
         info!("Loaded cartridge RAM from {}", save_path);
@@ -44,7 +55,10 @@ fn main() {
 
     let native_options = NativeOptions {
         viewport: ViewportBuilder::default()
-            .with_inner_size([(SCREEN_WIDTH * SCALE) as f32, (SCREEN_HEIGHT * SCALE) as f32])
+            .with_inner_size([
+                (SCREEN_WIDTH * SCALE) as f32,
+                (SCREEN_HEIGHT * SCALE) as f32,
+            ])
             .with_resizable(true),
         vsync: false,
         ..Default::default()
@@ -63,13 +77,7 @@ fn main() {
                 ..Style::default()
             };
             cc.egui_ctx.set_style(style);
-            Box::new(Renderer::new(
-                cc,
-                gameboy,
-                Settings {
-                    rom_path: filepath.clone(),
-                },
-            ))
+            Box::new(Renderer::new(cc, gameboy, Settings { rom_path: args.rom }))
         }),
     );
 }
@@ -104,22 +112,25 @@ fn unzip_rom(file: File) -> String {
 }
 
 fn setup_logging(log_to_file: bool) {
-    // Setup logger
     const LOG_PATH: &str = "./ayyboy_trace.log";
     std::fs::remove_file(LOG_PATH).unwrap_or_default();
 
-    let mut base_config = Dispatch::new()
-        .level(LevelFilter::Trace)
-        .chain(Dispatch::new().level(LevelFilter::Info).chain(std::io::stdout()))
-        .format(move |out, message, record| out.finish(format_args!("[{}] {}", record.level(), message)));
+    let base_config = if !log_to_file {
+        Dispatch::new()
+            .level(LevelFilter::Off)
+            .level_for("ayyboy", LevelFilter::Info)
+            .chain(std::io::stdout())
+    } else {
+        Dispatch::new()
+            .level(LevelFilter::Off)
+            .level_for("ayyboy", LevelFilter::Trace)
+            .chain(fern::log_file(LOG_PATH).unwrap())
+    };
 
-    if log_to_file {
-        base_config = base_config.chain(
-            Dispatch::new()
-                .level(LevelFilter::Trace)
-                .chain(fern::log_file(LOG_PATH).unwrap()),
-        );
-    }
-
-    base_config.apply().unwrap();
+    base_config
+        .format(move |out, message, record| {
+            out.finish(format_args!("[{}] {}", record.level(), message))
+        })
+        .apply()
+        .unwrap();
 }

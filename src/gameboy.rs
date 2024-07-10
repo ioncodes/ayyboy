@@ -12,15 +12,41 @@ use crate::video::ppu::Ppu;
 use crate::video::SCANLINE_Y_REGISTER;
 use log::{error, info, warn};
 
+const BOOTROM_DMG: &[u8] = include_bytes!("../external/roms/boot/bootix_dmg.bin");
+const BOOTROM_CGB: &[u8] = include_bytes!("../external/roms/boot/sameboy_cgb.bin");
+
+#[derive(PartialEq)]
+pub enum Mode {
+    Dmg,
+    Cgb,
+}
+
 pub struct GameBoy {
     pub cpu: Cpu,
     pub mmu: Mmu,
     pub ppu: Ppu,
     pub timer: Timer,
+    pub mode: Mode,
 }
 
 impl GameBoy {
-    pub fn new(bootrom: Vec<u8>, cartridge: Vec<u8>) -> GameBoy {
+    pub fn new(bootrom: Option<Vec<u8>>, cartridge: Vec<u8>) -> GameBoy {
+        let title = cartridge[0x0134..=0x0142]
+            .iter()
+            .map(|&c| c as char)
+            .collect::<String>();
+        info!("ROM Title: {}", title);
+
+        let mode = match cartridge[0x0143] {
+            0xc0 => Mode::Cgb,
+            0x80 => Mode::Dmg, // TODO: CGB enhancements, but backwards compatible with DMG
+            _ => Mode::Dmg,
+        };
+        info!(
+            "Emulating GameBoy console: {}",
+            if mode == Mode::Dmg { "DMG" } else { "CGB" }
+        );
+
         let cartridge: Box<dyn Mapper> = match cartridge[0x0147] {
             0x00 => Box::new(Rom::new(cartridge)),
             0x01 | 0x02 | 0x03 => Box::new(Mbc1::new(cartridge)),
@@ -30,12 +56,23 @@ impl GameBoy {
         };
         info!("Cartridge type: {}", cartridge.name());
 
+        let bootrom = bootrom.unwrap_or_else(|| match mode {
+            Mode::Dmg => BOOTROM_DMG.to_vec(),
+            Mode::Cgb => BOOTROM_CGB.to_vec(),
+        });
+
         let cpu = Cpu::new();
         let mmu = Mmu::new(bootrom, cartridge);
         let ppu = Ppu::new();
         let timer = Timer::new();
 
-        GameBoy { cpu, mmu, ppu, timer }
+        GameBoy {
+            cpu,
+            mmu,
+            ppu,
+            timer,
+            mode,
+        }
     }
 
     pub fn run_frame(&mut self) {

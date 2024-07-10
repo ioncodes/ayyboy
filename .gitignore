@@ -4,3 +4,5 @@
 .DS_Store
 *.sav
 .vscode/
+/external/roms/boot/cgb_boot.bin
+/external/roms/boot/dmg_boot.bin
