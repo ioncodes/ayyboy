@@ -1,11 +1,15 @@
 use crate::error::AyyError;
+use crate::gameboy::Mode;
 use crate::joypad::Joypad;
 use crate::memory::mapper::Mapper;
-use crate::memory::{BOOTROM_MAPPER_REGISTER, EXTERNAL_RAM_END, EXTERNAL_RAM_START, JOYPAD_REGISTER, OAM_DMA_REGISTER, ROM_END, ROM_START};
+use crate::memory::{
+    BOOTROM_MAPPER_REGISTER, EXTERNAL_RAM_END, EXTERNAL_RAM_START, JOYPAD_REGISTER,
+    OAM_DMA_REGISTER, ROM_END, ROM_START,
+};
 use crate::sound::apu::Apu;
 use crate::sound::{
-    NR10, NR11, NR12, NR13, NR14, NR21, NR22, NR23, NR24, NR30, NR31, NR32, NR33, NR34, NR41, NR42, NR43, NR44, NR50, NR51, NR52,
-    WAVE_PATTERN_RAM_END, WAVE_PATTERN_RAM_START,
+    NR10, NR11, NR12, NR13, NR14, NR21, NR22, NR23, NR24, NR30, NR31, NR32, NR33, NR34, NR41, NR42,
+    NR43, NR44, NR50, NR51, NR52, WAVE_PATTERN_RAM_END, WAVE_PATTERN_RAM_START,
 };
 use log::debug;
 
@@ -13,7 +17,8 @@ use super::addressable::Addressable;
 
 // The last instruction unmaps the boot ROM. Execution continues normally,
 // thus entering cartridge entrypoint at $100
-const BOOTROM_SIZE: u16 = 0xff;
+const DMG_BOOTROM_SIZE: u16 = 0xff;
+const CGB_BOOTROM_SIZE: u16 = 0x8ff;
 
 pub struct Mmu {
     pub cartridge: Box<dyn Mapper>,
@@ -21,16 +26,18 @@ pub struct Mmu {
     pub apu: Apu,
     memory: Vec<u8>,
     bootrom: Vec<u8>,
+    mode: Mode,
 }
 
 impl Mmu {
-    pub fn new(bootrom: Vec<u8>, cartridge: Box<dyn Mapper>) -> Mmu {
+    pub fn new(bootrom: Vec<u8>, cartridge: Box<dyn Mapper>, mode: Mode) -> Mmu {
         Mmu {
             cartridge,
             memory: vec![0; 0x10000],
             bootrom,
             joypad: Joypad::new(),
             apu: Apu::new(),
+            mode,
         }
     }
 
@@ -40,8 +47,15 @@ impl Mmu {
             return Ok(self.memory[addr as usize]);
         }
 
+        let bootrom_size = match self.mode {
+            Mode::Dmg => DMG_BOOTROM_SIZE,
+            Mode::Cgb => CGB_BOOTROM_SIZE,
+        };
+
         match addr {
-            ROM_START..=BOOTROM_SIZE if self.is_bootrom_mapped() => Ok(self.bootrom[addr as usize]),
+            ROM_START..=ROM_END if self.is_bootrom_mapped() && addr <= bootrom_size => {
+                Ok(self.bootrom[addr as usize])
+            }
             ROM_START..=ROM_END => self.cartridge.read(addr),
             EXTERNAL_RAM_START..=EXTERNAL_RAM_END => self.cartridge.read(addr),
             JOYPAD_REGISTER => Ok(self.joypad.as_u8(self.memory[addr as usize])),
@@ -116,8 +130,16 @@ impl Mmu {
             return Ok(());
         }
 
+        let bootrom_size = match self.mode {
+            Mode::Dmg => DMG_BOOTROM_SIZE,
+            Mode::Cgb => CGB_BOOTROM_SIZE,
+        };
+
         match addr {
-            ROM_START..=BOOTROM_SIZE if self.is_bootrom_mapped() => self.bootrom[addr as usize] = data,
+            ROM_START..=ROM_END if self.is_bootrom_mapped() && addr <= bootrom_size => {
+                // TODO: We prob don't want to write to bootrom, but whatever
+                self.bootrom[addr as usize] = data
+            }
             ROM_START..=ROM_END => self.cartridge.write(addr, data)?,
             EXTERNAL_RAM_START..=EXTERNAL_RAM_END => self.cartridge.write(addr, data)?,
             OAM_DMA_REGISTER => self.start_dma_transfer(data)?,

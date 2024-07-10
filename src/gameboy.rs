@@ -15,7 +15,7 @@ use log::{error, info, warn};
 const BOOTROM_DMG: &[u8] = include_bytes!("../external/roms/boot/bootix_dmg.bin");
 const BOOTROM_CGB: &[u8] = include_bytes!("../external/roms/boot/sameboy_cgb.bin");
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub enum Mode {
     Dmg,
     Cgb,
@@ -63,7 +63,7 @@ impl GameBoy {
         });
 
         let cpu = Cpu::new();
-        let mmu = Mmu::new(bootrom, cartridge);
+        let mmu = Mmu::new(bootrom, cartridge, mode.clone());
         let ppu = Ppu::new();
         let timer = Timer::new();
 
