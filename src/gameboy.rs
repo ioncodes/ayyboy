@@ -33,6 +33,7 @@ impl GameBoy {
     pub fn new(bootrom: Option<Vec<u8>>, cartridge: Vec<u8>) -> GameBoy {
         let title = cartridge[0x0134..=0x0142]
             .iter()
+            .take_while(|&&c| c != 0)
             .map(|&c| c as char)
             .collect::<String>();
         info!("ROM Title: {}", title);
