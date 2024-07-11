@@ -8,7 +8,7 @@ pub struct Tile {
 }
 
 impl Tile {
-    pub fn from_bg_or_win_addr(mmu: &Mmu, address: u16) -> Tile {
+    pub fn from(mmu: &Mmu, address: u16) -> Tile {
         let mut pixels = [[Palette::default(); 8]; 8];
 
         for y in 0..8 {
@@ -27,7 +27,7 @@ impl Tile {
         Tile { pixels }
     }
 
-    pub fn from_sprite_addr(mmu: &Mmu, address: u16, sprite: &Sprite) -> Tile {
+    pub fn from_sprite(mmu: &Mmu, address: u16, sprite: &Sprite) -> Tile {
         let mut pixels = [[Palette::default(); 8]; 8];
 
         for y in 0..8 {

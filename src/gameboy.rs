@@ -9,6 +9,7 @@ use crate::memory::mapper::rom::Rom;
 use crate::memory::mapper::Mapper;
 use crate::memory::mmu::Mmu;
 use crate::video::ppu::Ppu;
+use crate::video::tile::Tile;
 use crate::video::SCANLINE_Y_REGISTER;
 use log::{error, info, warn};
 
@@ -132,5 +133,17 @@ impl GameBoy {
                 break;
             }
         }
+    }
+
+    pub fn dbg_render_tileset(&mut self) -> Vec<Tile> {
+        self.ppu.render_tileset(&self.mmu)
+    }
+
+    pub fn dbg_render_background_tilemap(&mut self) -> Vec<Tile> {
+        self.ppu.render_background_tilemap(&self.mmu)
+    }
+
+    pub fn dbg_render_window_tilemap(&mut self) -> Vec<Tile> {
+        self.ppu.render_window_tilemap(&self.mmu)
     }
 }

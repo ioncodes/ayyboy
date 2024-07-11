@@ -8,12 +8,12 @@ use crate::video::palette::Palette;
 use crate::video::sprite::{Sprite, SpriteAttributes};
 use crate::video::tile::Tile;
 use crate::video::{
-    LCD_CONTROL_REGISTER, LCD_STATUS_REGISTER, SCANLINE_Y_COMPARE_REGISTER, SCANLINE_Y_REGISTER, SCREEN_HEIGHT, SCREEN_WIDTH,
-    SCROLL_X_REGISTER, SCROLL_Y_REGISTER, TILEMAP_0_ADDRESS, TILEMAP_1_ADDRESS, TILESET_0_ADDRESS, TILESET_1_ADDRESS, WINDOW_X_REGISTER,
-    WINDOW_Y_REGISTER,
+    LCD_CONTROL_REGISTER, LCD_STATUS_REGISTER, SCANLINE_Y_COMPARE_REGISTER, SCANLINE_Y_REGISTER,
+    SCREEN_HEIGHT, SCREEN_WIDTH, SCROLL_X_REGISTER, SCROLL_Y_REGISTER, TILEMAP_0_ADDRESS,
+    TILEMAP_1_ADDRESS, TILESET_0_ADDRESS, TILESET_1_ADDRESS, WINDOW_X_REGISTER, WINDOW_Y_REGISTER,
 };
 
-use super::{_BACKGROUND_HEIGHT, _BACKGROUND_MAP_SIZE, _BACKGROUND_WIDTH};
+use super::{BACKGROUND_MAP_SIZE, TILESET_SIZE};
 
 #[derive(Debug)]
 pub struct Ppu {
@@ -74,7 +74,11 @@ impl Ppu {
             return;
         }
 
-        let sprite_height = if lcdc.contains(LcdControl::OBJ_SIZE) { 16 } else { 8 };
+        let sprite_height = if lcdc.contains(LcdControl::OBJ_SIZE) {
+            16
+        } else {
+            8
+        };
         let oams = self.fetch_oams(mmu, sprite_height);
 
         // Track visited OAMs for current scanline
@@ -94,7 +98,8 @@ impl Ppu {
                 && mmu
                     .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
                     .contains(LcdControl::OBJ_DISPLAY)
-                && let Some((sprite, sprite_color)) = self.fetch_sprite_pixel(&oams, x, scanline, sprite_height)
+                && let Some((sprite, sprite_color)) =
+                    self.fetch_sprite_pixel(&oams, x, scanline, sprite_height)
             {
                 let sprite_over_bg = background_color.is_color(0);
                 let sprite_over_win = window_color.is_transparent() || window_color.is_color(0);
@@ -123,68 +128,58 @@ impl Ppu {
         self.emulated_frame
     }
 
-    pub fn _render_tilemap(&mut self, mmu: &Mmu) -> Vec<Tile> {
+    pub fn render_tileset(&mut self, mmu: &Mmu) -> Vec<Tile> {
         let mut tiles: Vec<Tile> = Vec::new();
 
-        let tile_map_addr = if mmu.read_unchecked(LCD_CONTROL_REGISTER) & 0b0001_0000 == 0 {
-            TILEMAP_1_ADDRESS
-        } else {
-            TILESET_0_ADDRESS
-        };
+        let tileset_addr = self.get_tileset_address(mmu);
 
-        for tile_nr in 0..384 {
-            let addr = tile_map_addr + (tile_nr as u16 * 16);
-            let tile = Tile::from_bg_or_win_addr(mmu, addr);
+        for tile_nr in 0..TILESET_SIZE {
+            let addr = tileset_addr + (tile_nr as u16 * 16);
+            let tile = Tile::from(mmu, addr);
             tiles.push(tile);
         }
 
         tiles
     }
 
-    pub fn _render_backgroundmap(&self, mmu: &Mmu) -> Vec<Tile> {
+    pub fn render_background_tilemap(&mut self, mmu: &Mmu) -> Vec<Tile> {
         let mut tiles: Vec<Tile> = Vec::new();
 
-        let bg_map_addr = if mmu.read_unchecked(LCD_CONTROL_REGISTER) & 0b1000 == 0 {
-            TILEMAP_0_ADDRESS
-        } else {
-            TILEMAP_1_ADDRESS
-        };
+        let tileset_addr = self.get_tileset_address(mmu);
+        let tilemap_addr = self.get_background_tilemap_address(mmu);
 
-        let tile_map_addr = if mmu.read_unchecked(LCD_CONTROL_REGISTER) & 0b0001_0000 == 0 {
-            TILESET_0_ADDRESS // should be 1?
-        } else {
-            TILESET_0_ADDRESS
-        };
-
-        for idx in 0.._BACKGROUND_MAP_SIZE {
-            let tile_nr = mmu.read_unchecked(bg_map_addr + idx as u16);
-            let addr = tile_map_addr + (tile_nr as u16 * 16);
-            let tile = Tile::from_bg_or_win_addr(mmu, addr);
+        for idx in 0..BACKGROUND_MAP_SIZE {
+            let tile_nr = mmu.read_unchecked(tilemap_addr + idx as u16);
+            let addr = if tileset_addr == TILESET_0_ADDRESS {
+                tileset_addr + ((tile_nr as u16) * 16)
+            } else {
+                tileset_addr.wrapping_add_signed((tile_nr as i8 as i16 + 128) * 16)
+            };
+            let tile = Tile::from(mmu, addr);
             tiles.push(tile);
         }
 
         tiles
     }
 
-    pub fn _render_background(&self, mmu: &Mmu) -> [[Palette; SCREEN_WIDTH]; SCREEN_HEIGHT] {
-        let mut background: [[Palette; SCREEN_WIDTH]; SCREEN_HEIGHT] = [[Palette::default(); SCREEN_WIDTH]; SCREEN_HEIGHT];
-        let bg_map = self._render_backgroundmap(mmu);
-        let scroll_y = mmu.read_unchecked(SCROLL_Y_REGISTER);
-        let scroll_x = mmu.read_unchecked(SCROLL_X_REGISTER);
+    pub fn render_window_tilemap(&mut self, mmu: &Mmu) -> Vec<Tile> {
+        let mut tiles: Vec<Tile> = Vec::new();
 
-        for y in 0..SCREEN_HEIGHT {
-            for x in 0..SCREEN_WIDTH {
-                let tile_x = (x + scroll_x as usize) % _BACKGROUND_WIDTH;
-                let tile_y = (y + scroll_y as usize) % _BACKGROUND_HEIGHT;
-                let tile_nr = (tile_y / 8) * 32 + (tile_x / 8);
-                let tile = &bg_map[tile_nr];
-                let pixel_x = tile_x % 8;
-                let pixel_y = tile_y % 8;
-                background[y][x] = tile.pixels[pixel_y][pixel_x];
-            }
+        let tileset_addr = self.get_tileset_address(mmu);
+        let tilemap_addr = self.get_window_tilemap_address(mmu);
+
+        for idx in 0..BACKGROUND_MAP_SIZE {
+            let tile_nr = mmu.read_unchecked(tilemap_addr + idx as u16);
+            let addr = if tileset_addr == TILESET_0_ADDRESS {
+                tileset_addr + ((tile_nr as u16) * 16)
+            } else {
+                tileset_addr.wrapping_add_signed((tile_nr as i8 as i16 + 128) * 16)
+            };
+            let tile = Tile::from(mmu, addr);
+            tiles.push(tile);
         }
 
-        background
+        tiles
     }
 
     fn progress_scanline(&self, mmu: &mut Mmu) {
@@ -210,7 +205,9 @@ impl Ppu {
         // Emulate LYC=0 LY=153 quirk
         let lcd_status = mmu.read_as_unchecked::<LcdStatus>(LCD_STATUS_REGISTER);
         let lyc = mmu.read_unchecked(SCANLINE_Y_COMPARE_REGISTER);
-        if lcd_status.contains(LcdStatus::LYC_EQ_LY_ENABLE) && (scanline == lyc || (scanline == 153 && lyc == 0)) {
+        if lcd_status.contains(LcdStatus::LYC_EQ_LY_ENABLE)
+            && (scanline == lyc || (scanline == 153 && lyc == 0))
+        {
             interrupt_flags |= InterruptFlags::STAT;
         }
 
@@ -247,7 +244,7 @@ impl Ppu {
         } else {
             tileset.wrapping_add_signed((tile_number as i8 as i16 + 128) * 16)
         };
-        let tile = Tile::from_bg_or_win_addr(mmu, tile_addr);
+        let tile = Tile::from(mmu, tile_addr);
 
         // Calculate the pixel coordinates in the tile
         let tile_x = ((x as u8).wrapping_add(scx)) % 8;
@@ -271,8 +268,8 @@ impl Ppu {
                 let tile_addr_top = TILESET_0_ADDRESS + (tile_index_top as u16) * 16;
                 let tile_addr_bot = TILESET_0_ADDRESS + (tile_index_bot as u16) * 16;
 
-                let tile_top = Tile::from_sprite_addr(mmu, tile_addr_top, &sprite);
-                let tile_bot = Tile::from_sprite_addr(mmu, tile_addr_bot, &sprite);
+                let tile_top = Tile::from_sprite(mmu, tile_addr_top, &sprite);
+                let tile_bot = Tile::from_sprite(mmu, tile_addr_bot, &sprite);
 
                 oams.push(Oam {
                     sprite,
@@ -282,7 +279,7 @@ impl Ppu {
             } else {
                 // 8px sprite
                 let tile_addr = TILESET_0_ADDRESS + (sprite.tile_index as u16) * 16;
-                let tile = Tile::from_sprite_addr(mmu, tile_addr, &sprite);
+                let tile = Tile::from_sprite(mmu, tile_addr, &sprite);
 
                 oams.push(Oam {
                     sprite,
@@ -295,7 +292,9 @@ impl Ppu {
         oams
     }
 
-    fn fetch_sprite_pixel(&self, oams: &Vec<Oam>, x: usize, y: usize, sprite_height: usize) -> Option<(Sprite, Palette)> {
+    fn fetch_sprite_pixel(
+        &self, oams: &Vec<Oam>, x: usize, y: usize, sprite_height: usize,
+    ) -> Option<(Sprite, Palette)> {
         let mut sprites: Vec<(Sprite, Palette)> = Vec::new();
 
         for oam in oams {
@@ -304,7 +303,11 @@ impl Ppu {
             let sprite_y = sprite.y.wrapping_sub(16);
             let sprite_x = sprite.x.wrapping_sub(8);
 
-            if x >= sprite_x as usize && x < (sprite_x as usize + 8) && y >= sprite_y as usize && y < (sprite_y as usize + sprite_height) {
+            if x >= sprite_x as usize
+                && x < (sprite_x as usize + 8)
+                && y >= sprite_y as usize
+                && y < (sprite_y as usize + sprite_height)
+            {
                 if sprite_height == 16 {
                     // 16px sprite
                     let tile_top = &oam.tile1;
@@ -402,7 +405,7 @@ impl Ppu {
         } else {
             tileset.wrapping_add_signed((tile_number as i8 as i16 + 128) * 16)
         };
-        let tile = Tile::from_bg_or_win_addr(mmu, tile_addr);
+        let tile = Tile::from(mmu, tile_addr);
 
         // Calculate the pixel coordinates in the tile
         let tile_x = window_x % 8;
