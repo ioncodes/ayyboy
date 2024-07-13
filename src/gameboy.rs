@@ -8,7 +8,6 @@ use crate::memory::mapper::mbc5::Mbc5;
 use crate::memory::mapper::rom::Rom;
 use crate::memory::mapper::Mapper;
 use crate::memory::mmu::Mmu;
-use crate::memory::VRAM_BANK_SELECT_REGISTER;
 use crate::video::ppu::Ppu;
 use crate::video::tile::Tile;
 use crate::video::SCANLINE_Y_REGISTER;
@@ -28,6 +27,7 @@ pub struct GameBoy {
     pub mmu: Mmu,
     pub ppu: Ppu,
     pub timer: Timer,
+    pub mode: Mode,
 }
 
 impl GameBoy {
@@ -73,6 +73,7 @@ impl GameBoy {
             mmu,
             ppu,
             timer,
+            mode,
         }
     }
 
@@ -133,19 +134,7 @@ impl GameBoy {
     }
 
     pub fn dbg_render_tileset(&mut self, vram_bank: u8) -> Vec<Tile> {
-        // We temporarily swap the VRAM bank to read the correct tileset
-        let original_vram_bank = self.mmu.read_unchecked(VRAM_BANK_SELECT_REGISTER);
-        self.mmu
-            .write_unchecked(VRAM_BANK_SELECT_REGISTER, vram_bank);
-
-        // Render the tileset for the requested VRAM bank
-        let tiles = self.ppu.render_tileset(&self.mmu);
-
-        // Restore the original VRAM bank
-        self.mmu
-            .write_unchecked(VRAM_BANK_SELECT_REGISTER, original_vram_bank);
-
-        tiles
+        self.ppu.render_tileset(&self.mmu, vram_bank)
     }
 
     pub fn dbg_render_background_tilemap(&mut self) -> Vec<Tile> {

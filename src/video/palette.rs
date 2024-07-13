@@ -40,27 +40,16 @@ impl Palette {
                 _ => panic!("Invalid shade value: {}", shade),
             }
         } else {
-            let palette = (attributes.bits() & TileAttributes::PALETTE.bits()) as usize;
+            let palette = (attributes.bits() & TileAttributes::PALETTE.bits()) as u8;
 
             let color = match value {
-                0b00 => {
-                    (mmu.cgb_cram.background_palette[(palette * 8) + 0] as u16) << 8
-                        | mmu.cgb_cram.background_palette[(palette * 8) + 1] as u16
-                }
-                0b01 => {
-                    (mmu.cgb_cram.background_palette[(palette * 8) + 2] as u16) << 8
-                        | mmu.cgb_cram.background_palette[(palette * 8) + 3] as u16
-                }
-                0b10 => {
-                    (mmu.cgb_cram.background_palette[(palette * 8) + 4] as u16) << 8
-                        | mmu.cgb_cram.background_palette[(palette * 8) + 5] as u16
-                }
-                0b11 => {
-                    (mmu.cgb_cram.background_palette[(palette * 8) + 6] as u16) << 8
-                        | mmu.cgb_cram.background_palette[(palette * 8) + 7] as u16
-                }
+                0b00 => mmu.cgb_cram.fetch_bg(palette, 0),
+                0b01 => mmu.cgb_cram.fetch_bg(palette, 2),
+                0b10 => mmu.cgb_cram.fetch_bg(palette, 4),
+                0b11 => mmu.cgb_cram.fetch_bg(palette, 6),
                 _ => panic!("Invalid color value: {}", value),
-            };
+            }
+            .reverse_bits();
 
             let r = ((color & 0b1111_1000_0000_0000) >> 11) as u8;
             let g = ((color & 0b0000_0111_1100_0000) >> 6) as u8;
@@ -106,27 +95,16 @@ impl Palette {
                 _ => panic!("Invalid shade value: {}", shade),
             }
         } else {
-            let palette = (attributes.bits() & TileAttributes::PALETTE.bits()) as usize;
+            let palette = (attributes.bits() & TileAttributes::PALETTE.bits()) as u8;
 
             let color = match value {
-                0b00 => {
-                    (mmu.cgb_cram.object_palette[(palette * 8) + 0] as u16) << 8
-                        | mmu.cgb_cram.object_palette[(palette * 8) + 1] as u16
-                }
-                0b01 => {
-                    (mmu.cgb_cram.object_palette[(palette * 8) + 2] as u16) << 8
-                        | mmu.cgb_cram.object_palette[(palette * 8) + 3] as u16
-                }
-                0b10 => {
-                    (mmu.cgb_cram.object_palette[(palette * 8) + 4] as u16) << 8
-                        | mmu.cgb_cram.object_palette[(palette * 8) + 5] as u16
-                }
-                0b11 => {
-                    (mmu.cgb_cram.object_palette[(palette * 8) + 6] as u16) << 8
-                        | mmu.cgb_cram.object_palette[(palette * 8) + 7] as u16
-                }
+                0b00 => mmu.cgb_cram.fetch_obj(palette, 0),
+                0b01 => mmu.cgb_cram.fetch_obj(palette, 2),
+                0b10 => mmu.cgb_cram.fetch_obj(palette, 4),
+                0b11 => mmu.cgb_cram.fetch_obj(palette, 6),
                 _ => panic!("Invalid color value: {}", value),
-            };
+            }
+            .reverse_bits();
 
             let r = ((color & 0b1111_1000_0000_0000) >> 11) as u8;
             let g = ((color & 0b0000_0111_1100_0000) >> 6) as u8;

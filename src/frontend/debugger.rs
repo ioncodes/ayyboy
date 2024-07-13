@@ -1,7 +1,10 @@
-use eframe::egui::{self, vec2, Color32, ColorImage, Image, TextureHandle, TextureOptions, Window};
+use eframe::egui::{
+    self, vec2, Color32, ColorImage, Image, RichText, TextStyle, TextureHandle, TextureOptions,
+    Window,
+};
 use egui::Context;
 
-use crate::gameboy::GameBoy;
+use crate::gameboy::{GameBoy, Mode};
 use crate::video::palette::Color;
 use crate::video::tile::Tile;
 use crate::video::{BACKGROUND_HEIGHT, BACKGROUND_WIDTH, TILESET_HEIGHT, TILESET_WIDTH};
@@ -131,6 +134,51 @@ impl Debugger {
                 ));
                 ui.add(image);
             });
+
+        if gb.mode == Mode::Cgb {
+            Window::new("Palettes").resizable(false).show(ctx, |ui| {
+                ui.heading("Background Palette");
+
+                for slot in 0..8 {
+                    ui.horizontal(|ui| {
+                        ui.label(
+                            RichText::new(format!("Slot {:02x}: ", slot))
+                                .text_style(TextStyle::Monospace),
+                        );
+                        for idx in 0..4 {
+                            ui.label(
+                                RichText::new(format!(
+                                    "{:04x}",
+                                    gb.mmu.cgb_cram.fetch_bg(slot, idx * 2)
+                                ))
+                                .text_style(TextStyle::Monospace),
+                            );
+                        }
+                    });
+                }
+
+                ui.separator();
+
+                ui.heading("Object Palette");
+                for slot in 0..8 {
+                    ui.horizontal(|ui| {
+                        ui.label(
+                            RichText::new(format!("Slot {:02x}: ", slot))
+                                .text_style(TextStyle::Monospace),
+                        );
+                        for idx in 0..4 {
+                            ui.label(
+                                RichText::new(format!(
+                                    "{:04x}",
+                                    gb.mmu.cgb_cram.fetch_obj(slot, idx * 2)
+                                ))
+                                .text_style(TextStyle::Monospace),
+                            );
+                        }
+                    });
+                }
+            });
+        }
     }
 
     pub fn toggle_window(&mut self) {

@@ -89,10 +89,10 @@ impl Ppu {
         let mut visited_oams: HashMap<u16, Vec<(usize, Palette)>> = HashMap::new();
 
         for x in 0..SCREEN_WIDTH {
-            let background_color = self.fetch_background_pixel(mmu, x, scanline);
+            let (background_color, bg_tile) = self.fetch_background_pixel(mmu, x, scanline);
             self.emulated_frame[scanline][x] = background_color;
 
-            let window_color = self.fetch_window_pixel(mmu, x, scanline);
+            let (window_color, win_tile) = self.fetch_window_pixel(mmu, x, scanline);
             if !window_color.is_transparent() {
                 self.emulated_frame[scanline][x] = window_color;
             }
@@ -106,9 +106,13 @@ impl Ppu {
             {
                 let sprite_over_bg = background_color.is_color(0);
                 let sprite_over_win = window_color.is_transparent() || window_color.is_color(0);
+                let cgb_priority = self.mode == Mode::Cgb
+                    && (bg_tile.attributes.contains(TileAttributes::PRIORITY)
+                        || win_tile.attributes.contains(TileAttributes::PRIORITY));
 
                 if (sprite.attributes.contains(SpriteAttributes::PRIORITY) && !sprite_over_bg)
                     || (sprite.attributes.contains(SpriteAttributes::PRIORITY) && !sprite_over_win)
+                    || cgb_priority
                 {
                     continue;
                 }
@@ -131,15 +135,19 @@ impl Ppu {
         self.emulated_frame
     }
 
-    // TODO: chose map here
-    pub fn render_tileset(&mut self, mmu: &Mmu) -> Vec<Tile> {
+    pub fn render_tileset(&mut self, mmu: &Mmu, vram_source: u8) -> Vec<Tile> {
         let mut tiles: Vec<Tile> = Vec::new();
 
         let tileset_addr = self.get_tileset_address(mmu);
 
         for tile_nr in 0..TILESET_SIZE {
             let addr = tileset_addr + (tile_nr as u16 * 16);
-            let tile = Tile::from(mmu, addr, &self.mode, TileAttributes::empty());
+
+            // Fake attributes to select the correct bank
+            let mut attributes = TileAttributes::empty();
+            attributes.set(TileAttributes::BANK, vram_source == 1);
+
+            let tile = Tile::from(mmu, addr, &self.mode, attributes);
             tiles.push(tile);
         }
 
@@ -219,13 +227,16 @@ impl Ppu {
         mmu.write_unchecked(INTERRUPT_FLAGS_REGISTER, interrupt_flags.bits());
     }
 
-    fn fetch_background_pixel(&self, mmu: &Mmu, x: usize, y: usize) -> Palette {
+    fn fetch_background_pixel(&self, mmu: &Mmu, x: usize, y: usize) -> (Palette, Tile) {
         // Handle case where background is disabled
         if !mmu
             .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
             .contains(LcdControl::BG_AND_WIN_DISPLAY)
         {
-            return Palette::from_background(0, mmu, &self.mode, &TileAttributes::empty());
+            return (
+                Palette::from_background(0, mmu, &self.mode, &TileAttributes::empty()),
+                Tile::default(),
+            );
         }
 
         // Read scroll values from memory
@@ -272,7 +283,7 @@ impl Ppu {
         }
 
         // Get the color of the pixel
-        tile.pixels[tile_y as usize][tile_x as usize]
+        (tile.pixels[tile_y as usize][tile_x as usize], tile)
     }
 
     fn fetch_oams(&self, mmu: &Mmu, sprite_height: usize) -> Vec<Oam> {
@@ -406,7 +417,7 @@ impl Ppu {
         None
     }
 
-    fn fetch_window_pixel(&self, mmu: &Mmu, x: usize, y: usize) -> Palette {
+    fn fetch_window_pixel(&self, mmu: &Mmu, x: usize, y: usize) -> (Palette, Tile) {
         if !mmu
             .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
             .contains(LcdControl::BG_AND_WIN_DISPLAY)
@@ -414,7 +425,7 @@ impl Ppu {
                 .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
                 .contains(LcdControl::WINDOW_DISPLAY)
         {
-            return Palette::Transparent(0);
+            return (Palette::Transparent(0), Tile::default());
         }
 
         // Read renderer values from memory
@@ -423,7 +434,7 @@ impl Ppu {
 
         // Return transparent color if window is not on screen
         if y < wy as usize || x + 7 < wx as usize {
-            return Palette::Transparent(0);
+            return (Palette::Transparent(0), Tile::default());
         }
 
         // Adjust the coordinates based on renderer position
@@ -470,7 +481,7 @@ impl Ppu {
         }
 
         // Get the color of the pixel
-        tile.pixels[tile_y as usize][tile_x as usize]
+        (tile.pixels[tile_y as usize][tile_x as usize], tile)
     }
 
     fn get_background_tilemap_address(&self, mmu: &Mmu) -> u16 {

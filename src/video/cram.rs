@@ -7,8 +7,8 @@ use crate::memory::{
 };
 
 pub struct Cram {
-    pub background_palette: [u8; 64],
-    pub object_palette: [u8; 64],
+    background_palette: [u8; 64],
+    object_palette: [u8; 64],
     auto_increment: bool,
     address: u8,
 }
@@ -21,6 +21,16 @@ impl Cram {
             auto_increment: false,
             address: 0,
         }
+    }
+
+    pub fn fetch_bg(&self, slot: u8, index: u8) -> u16 {
+        (self.background_palette[((slot * 8) + index + 1) as usize] as u16) << 8
+            | self.background_palette[((slot * 8) + index) as usize] as u16
+    }
+
+    pub fn fetch_obj(&self, slot: u8, index: u8) -> u16 {
+        (self.object_palette[((slot * 8) + index + 1) as usize] as u16) << 8
+            | self.object_palette[((slot * 8) + index) as usize] as u16
     }
 }
 
@@ -45,13 +55,21 @@ impl Addressable for Cram {
             BACKGROUND_PALETTE_DATA_REGISTER => {
                 self.background_palette[self.address as usize] = data;
                 if self.auto_increment {
-                    self.address = (self.address.wrapping_add(1)) & 0b0011_1111;
+                    if self.address >= 0b0011_1111 {
+                        self.address = 0;
+                    } else {
+                        self.address = (self.address.wrapping_add(1)) & 0b0011_1111;
+                    }
                 }
             }
             OBJECT_PALETTE_DATA_REGISTER => {
                 self.object_palette[self.address as usize] = data;
                 if self.auto_increment {
-                    self.address = (self.address.wrapping_add(1)) & 0b0011_1111;
+                    if self.address >= 0b0011_1111 {
+                        self.address = 0;
+                    } else {
+                        self.address = (self.address.wrapping_add(1)) & 0b0011_1111;
+                    }
                 }
             }
             _ => error!(

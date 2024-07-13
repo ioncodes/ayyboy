@@ -238,15 +238,6 @@ impl Mmu {
     }
 
     #[inline]
-    pub fn write_vram_bank(&mut self, addr: u16, bank: u8, value: u8) {
-        if bank == 0 {
-            self.memory[addr as usize] = value;
-        } else {
-            self.cgb_vram_bank1[(addr - VRAM_START) as usize] = value;
-        }
-    }
-
-    #[inline]
     pub fn write16(&mut self, addr: u16, data: u16) -> Result<(), AyyError> {
         let lo = data as u8;
         let hi = (data >> 8) as u8;
