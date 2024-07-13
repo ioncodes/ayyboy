@@ -1,6 +1,9 @@
+use crate::gameboy::Mode;
 use crate::memory::mmu::Mmu;
 use crate::video::sprite::{Sprite, SpriteAttributes};
 use crate::video::{BG_PALETTE_REGISTER, OBJ0_PALETTE_REGISTER, OBJ1_PALETTE_REGISTER};
+
+use super::tile::TileAttributes;
 
 pub type Color = [u8; 3];
 
@@ -11,54 +14,130 @@ pub enum Palette {
     DarkGray(u8),
     Black(u8),
     Transparent(u8),
+    Color(u8, u8, u8, u8),
 }
 
 impl Palette {
-    pub fn from_background(value: u8, mmu: &Mmu) -> Palette {
-        let bgp_shade = mmu.read_unchecked(BG_PALETTE_REGISTER);
+    pub fn from_background(
+        value: u8, mmu: &Mmu, mode: &Mode, attributes: &TileAttributes,
+    ) -> Palette {
+        if *mode == Mode::Dmg {
+            let bgp_shade = mmu.read_unchecked(BG_PALETTE_REGISTER);
 
-        let shade = match value {
-            0b00 => bgp_shade & 0b0000_0011, // shouldn't happen for window layer, only background
-            0b01 => (bgp_shade & 0b0000_1100) >> 2,
-            0b10 => (bgp_shade & 0b0011_0000) >> 4,
-            0b11 => (bgp_shade & 0b1100_0000) >> 6,
-            _ => panic!("Invalid color value: {}", value),
-        };
+            let shade = match value {
+                0b00 => bgp_shade & 0b0000_0011, // shouldn't happen for window layer, only background
+                0b01 => (bgp_shade & 0b0000_1100) >> 2,
+                0b10 => (bgp_shade & 0b0011_0000) >> 4,
+                0b11 => (bgp_shade & 0b1100_0000) >> 6,
+                _ => panic!("Invalid color value: {}", value),
+            };
 
-        match shade {
-            0b00 => Palette::White(value),
-            0b01 => Palette::LightGray(value),
-            0b10 => Palette::DarkGray(value),
-            0b11 => Palette::Black(value),
-            _ => panic!("Invalid shade value: {}", shade),
+            match shade {
+                0b00 => Palette::White(value),
+                0b01 => Palette::LightGray(value),
+                0b10 => Palette::DarkGray(value),
+                0b11 => Palette::Black(value),
+                _ => panic!("Invalid shade value: {}", shade),
+            }
+        } else {
+            let palette = (attributes.bits() & TileAttributes::PALETTE.bits()) as usize;
+
+            let color = match value {
+                0b00 => {
+                    (mmu.cgb_cram.background_palette[(palette * 8) + 0] as u16) << 8
+                        | mmu.cgb_cram.background_palette[(palette * 8) + 1] as u16
+                }
+                0b01 => {
+                    (mmu.cgb_cram.background_palette[(palette * 8) + 2] as u16) << 8
+                        | mmu.cgb_cram.background_palette[(palette * 8) + 3] as u16
+                }
+                0b10 => {
+                    (mmu.cgb_cram.background_palette[(palette * 8) + 4] as u16) << 8
+                        | mmu.cgb_cram.background_palette[(palette * 8) + 5] as u16
+                }
+                0b11 => {
+                    (mmu.cgb_cram.background_palette[(palette * 8) + 6] as u16) << 8
+                        | mmu.cgb_cram.background_palette[(palette * 8) + 7] as u16
+                }
+                _ => panic!("Invalid color value: {}", value),
+            };
+
+            let r = ((color & 0b1111_1000_0000_0000) >> 11) as u8;
+            let g = ((color & 0b0000_0111_1100_0000) >> 6) as u8;
+            let b = ((color & 0b0000_0000_0011_1110) >> 1) as u8;
+
+            Palette::Color(
+                value,
+                (r << 3) | (r >> 2),
+                (g << 3) | (g >> 2),
+                (b << 3) | (b >> 2),
+            )
         }
     }
 
-    pub fn from_object(value: u8, mmu: &Mmu, sprite: &Sprite, allow_transparency: bool) -> Palette {
+    pub fn from_object(
+        value: u8, mmu: &Mmu, sprite: &Sprite, allow_transparency: bool, mode: &Mode,
+        attributes: &TileAttributes,
+    ) -> Palette {
         if allow_transparency && value == 0 {
             return Palette::Transparent(0);
         }
 
-        let objp_shade = if !sprite.attributes.contains(SpriteAttributes::PALETTE) {
-            mmu.read_unchecked(OBJ0_PALETTE_REGISTER)
+        if *mode == Mode::Dmg {
+            let objp_shade = if !sprite.attributes.contains(SpriteAttributes::PALETTE) {
+                mmu.read_unchecked(OBJ0_PALETTE_REGISTER)
+            } else {
+                mmu.read_unchecked(OBJ1_PALETTE_REGISTER)
+            };
+
+            let shade = match value {
+                0b00 => objp_shade & 0b0000_0011, // this case should be handled above (transparent)
+                0b01 => (objp_shade & 0b0000_1100) >> 2,
+                0b10 => (objp_shade & 0b0011_0000) >> 4,
+                0b11 => (objp_shade & 0b1100_0000) >> 6,
+                _ => panic!("Invalid color value: {}", value),
+            };
+
+            match shade {
+                0b00 => Palette::White(value),
+                0b01 => Palette::LightGray(value),
+                0b10 => Palette::DarkGray(value),
+                0b11 => Palette::Black(value),
+                _ => panic!("Invalid shade value: {}", shade),
+            }
         } else {
-            mmu.read_unchecked(OBJ1_PALETTE_REGISTER)
-        };
+            let palette = (attributes.bits() & TileAttributes::PALETTE.bits()) as usize;
 
-        let shade = match value {
-            0b00 => objp_shade & 0b0000_0011, // this case should be handled above (transparent)
-            0b01 => (objp_shade & 0b0000_1100) >> 2,
-            0b10 => (objp_shade & 0b0011_0000) >> 4,
-            0b11 => (objp_shade & 0b1100_0000) >> 6,
-            _ => panic!("Invalid color value: {}", value),
-        };
+            let color = match value {
+                0b00 => {
+                    (mmu.cgb_cram.object_palette[(palette * 8) + 0] as u16) << 8
+                        | mmu.cgb_cram.object_palette[(palette * 8) + 1] as u16
+                }
+                0b01 => {
+                    (mmu.cgb_cram.object_palette[(palette * 8) + 2] as u16) << 8
+                        | mmu.cgb_cram.object_palette[(palette * 8) + 3] as u16
+                }
+                0b10 => {
+                    (mmu.cgb_cram.object_palette[(palette * 8) + 4] as u16) << 8
+                        | mmu.cgb_cram.object_palette[(palette * 8) + 5] as u16
+                }
+                0b11 => {
+                    (mmu.cgb_cram.object_palette[(palette * 8) + 6] as u16) << 8
+                        | mmu.cgb_cram.object_palette[(palette * 8) + 7] as u16
+                }
+                _ => panic!("Invalid color value: {}", value),
+            };
 
-        match shade {
-            0b00 => Palette::White(value),
-            0b01 => Palette::LightGray(value),
-            0b10 => Palette::DarkGray(value),
-            0b11 => Palette::Black(value),
-            _ => panic!("Invalid shade value: {}", shade),
+            let r = ((color & 0b1111_1000_0000_0000) >> 11) as u8;
+            let g = ((color & 0b0000_0111_1100_0000) >> 6) as u8;
+            let b = ((color & 0b0000_0000_0011_1110) >> 1) as u8;
+
+            Palette::Color(
+                value,
+                (r << 3) | (r >> 2),
+                (g << 3) | (g >> 2),
+                (b << 3) | (b >> 2),
+            )
         }
     }
 
@@ -73,6 +152,7 @@ impl Palette {
             Palette::DarkGray(i) => *i == index,
             Palette::Black(i) => *i == index,
             Palette::Transparent(i) => *i == index,
+            Palette::Color(i, _, _, _) => *i == index,
         }
     }
 }
@@ -85,6 +165,7 @@ impl Into<Color> for Palette {
             Palette::DarkGray(_) => [0x55, 0x55, 0x55],
             Palette::Black(_) => [0x00, 0x00, 0x00],
             Palette::Transparent(_) => [0x00, 0x00, 0x00],
+            Palette::Color(_, r, g, b) => [r, g, b],
         }
     }
 }

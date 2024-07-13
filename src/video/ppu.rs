@@ -14,6 +14,7 @@ use crate::video::{
     TILEMAP_1_ADDRESS, TILESET_0_ADDRESS, TILESET_1_ADDRESS, WINDOW_X_REGISTER, WINDOW_Y_REGISTER,
 };
 
+use super::tile::TileAttributes;
 use super::{BACKGROUND_MAP_SIZE, TILESET_SIZE};
 
 pub struct Ppu {
@@ -130,6 +131,7 @@ impl Ppu {
         self.emulated_frame
     }
 
+    // TODO: chose map here
     pub fn render_tileset(&mut self, mmu: &Mmu) -> Vec<Tile> {
         let mut tiles: Vec<Tile> = Vec::new();
 
@@ -137,7 +139,7 @@ impl Ppu {
 
         for tile_nr in 0..TILESET_SIZE {
             let addr = tileset_addr + (tile_nr as u16 * 16);
-            let tile = Tile::from(mmu, addr);
+            let tile = Tile::from(mmu, addr, &self.mode, TileAttributes::empty());
             tiles.push(tile);
         }
 
@@ -157,7 +159,7 @@ impl Ppu {
             } else {
                 tileset_addr.wrapping_add_signed((tile_nr as i8 as i16 + 128) * 16)
             };
-            let tile = Tile::from(mmu, addr);
+            let tile = Tile::from(mmu, addr, &self.mode, TileAttributes::empty());
             tiles.push(tile);
         }
 
@@ -177,7 +179,7 @@ impl Ppu {
             } else {
                 tileset_addr.wrapping_add_signed((tile_nr as i8 as i16 + 128) * 16)
             };
-            let tile = Tile::from(mmu, addr);
+            let tile = Tile::from(mmu, addr, &self.mode, TileAttributes::empty());
             tiles.push(tile);
         }
 
@@ -219,12 +221,11 @@ impl Ppu {
 
     fn fetch_background_pixel(&self, mmu: &Mmu, x: usize, y: usize) -> Palette {
         // Handle case where background is disabled
-        // TODO: this break acid2 !
         if !mmu
             .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
             .contains(LcdControl::BG_AND_WIN_DISPLAY)
         {
-            return Palette::from_background(0, mmu);
+            return Palette::from_background(0, mmu, &self.mode, &TileAttributes::empty());
         }
 
         // Read scroll values from memory
@@ -238,7 +239,8 @@ impl Ppu {
         // Calculate the tile coordinates in the background map
         let bg_map_x = (((x as u8).wrapping_add(scx)) / 8) as u16;
         let bg_map_y = (((y as u8).wrapping_add(scy)) / 8) as u16;
-        let tile_number = mmu.read_unchecked((tilemap + (bg_map_y * 32)) + bg_map_x);
+        let bg_map_addr = (tilemap + (bg_map_y * 32)) + bg_map_x;
+        let tile_number = mmu.read_unchecked(bg_map_addr);
 
         // Calculate the address of the tile data
         let tile_addr = if tileset == TILESET_0_ADDRESS {
@@ -246,11 +248,28 @@ impl Ppu {
         } else {
             tileset.wrapping_add_signed((tile_number as i8 as i16 + 128) * 16)
         };
-        let tile = Tile::from(mmu, tile_addr);
+
+        let attributes = if self.mode == Mode::Cgb {
+            TileAttributes::from_bits_truncate(mmu.read_from_vram(bg_map_addr, 1))
+        } else {
+            TileAttributes::empty()
+        };
+        let tile = Tile::from(mmu, tile_addr, &self.mode, attributes);
 
         // Calculate the pixel coordinates in the tile
-        let tile_x = ((x as u8).wrapping_add(scx)) % 8;
-        let tile_y = ((y as u8).wrapping_add(scy)) % 8;
+        let mut tile_x = ((x as u8).wrapping_add(scx)) % 8;
+        let mut tile_y = ((y as u8).wrapping_add(scy)) % 8;
+
+        // Flip tiles if we're in CGB mode and the tile attributes require it
+        if self.mode == Mode::Cgb {
+            if tile.attributes.contains(TileAttributes::FLIP_X) {
+                tile_x = 7 - tile_x;
+            }
+
+            if tile.attributes.contains(TileAttributes::FLIP_Y) {
+                tile_y = 7 - tile_y;
+            }
+        }
 
         // Get the color of the pixel
         tile.pixels[tile_y as usize][tile_x as usize]
@@ -270,8 +289,21 @@ impl Ppu {
                 let tile_addr_top = TILESET_0_ADDRESS + (tile_index_top as u16) * 16;
                 let tile_addr_bot = TILESET_0_ADDRESS + (tile_index_bot as u16) * 16;
 
-                let tile_top = Tile::from_sprite(mmu, tile_addr_top, &sprite);
-                let tile_bot = Tile::from_sprite(mmu, tile_addr_bot, &sprite);
+                let tile_attr_top = if self.mode == Mode::Cgb {
+                    TileAttributes::from_bits_truncate(mmu.read_from_vram(tile_addr_top, 1))
+                } else {
+                    TileAttributes::empty()
+                };
+                let tile_attr_bot = if self.mode == Mode::Cgb {
+                    TileAttributes::from_bits_truncate(mmu.read_from_vram(tile_addr_bot, 1))
+                } else {
+                    TileAttributes::empty()
+                };
+
+                let tile_top =
+                    Tile::from_sprite(mmu, tile_addr_top, &sprite, &self.mode, tile_attr_top);
+                let tile_bot =
+                    Tile::from_sprite(mmu, tile_addr_bot, &sprite, &self.mode, tile_attr_bot);
 
                 oams.push(Oam {
                     sprite,
@@ -281,7 +313,13 @@ impl Ppu {
             } else {
                 // 8px sprite
                 let tile_addr = TILESET_0_ADDRESS + (sprite.tile_index as u16) * 16;
-                let tile = Tile::from_sprite(mmu, tile_addr, &sprite);
+
+                let attributes = if self.mode == Mode::Cgb {
+                    TileAttributes::from_bits_truncate(mmu.read_from_vram(tile_addr, 1))
+                } else {
+                    TileAttributes::empty()
+                };
+                let tile = Tile::from_sprite(mmu, tile_addr, &sprite, &self.mode, attributes);
 
                 oams.push(Oam {
                     sprite,
@@ -399,7 +437,8 @@ impl Ppu {
         // Calculate the tile coordinates in the window map
         let win_map_x = (window_x / 8) as u16;
         let win_map_y = (window_y / 8) as u16;
-        let tile_number = mmu.read_unchecked((tilemap + (win_map_y * 32)) + win_map_x);
+        let win_map_addr = (tilemap + (win_map_y * 32)) + win_map_x;
+        let tile_number = mmu.read_unchecked(win_map_addr);
 
         // Calculate the address of the tile data
         let tile_addr = if tileset == TILESET_0_ADDRESS {
@@ -407,11 +446,28 @@ impl Ppu {
         } else {
             tileset.wrapping_add_signed((tile_number as i8 as i16 + 128) * 16)
         };
-        let tile = Tile::from(mmu, tile_addr);
+
+        let attributes = if self.mode == Mode::Cgb {
+            TileAttributes::from_bits_truncate(mmu.read_from_vram(win_map_addr, 1))
+        } else {
+            TileAttributes::empty()
+        };
+        let tile = Tile::from(mmu, tile_addr, &self.mode, attributes);
 
         // Calculate the pixel coordinates in the tile
-        let tile_x = window_x % 8;
-        let tile_y = window_y % 8;
+        let mut tile_x = window_x % 8;
+        let mut tile_y = window_y % 8;
+
+        // Flip tiles if we're in CGB mode and the tile attributes require it
+        if self.mode == Mode::Cgb {
+            if tile.attributes.contains(TileAttributes::FLIP_X) {
+                tile_x = 7 - tile_x;
+            }
+
+            if tile.attributes.contains(TileAttributes::FLIP_Y) {
+                tile_y = 7 - tile_y;
+            }
+        }
 
         // Get the color of the pixel
         tile.pixels[tile_y as usize][tile_x as usize]

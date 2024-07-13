@@ -12,7 +12,6 @@ use crate::sound::{
     NR43, NR44, NR50, NR51, NR52, WAVE_PATTERN_RAM_END, WAVE_PATTERN_RAM_START,
 };
 use crate::video::cram::Cram;
-use eframe::glow::BACK;
 use log::{debug, error};
 
 use super::addressable::Addressable;
@@ -31,10 +30,10 @@ pub struct Mmu {
     pub cartridge: Box<dyn Mapper>,
     pub joypad: Joypad,
     pub apu: Apu,
+    pub cgb_cram: Cram,
     memory: Vec<u8>,
     cgb_vram_bank1: Vec<u8>, // 0x2000 bank 1
     cgb_wram_bank1: Vec<u8>, // 0x1000 bank 1-7
-    cgb_cram: Cram,
     bootrom: Vec<u8>,
     mode: Mode,
 }
@@ -118,6 +117,15 @@ impl Mmu {
                 Ok(self.cgb_cram.read(addr))
             }
             _ => Ok(self.memory[addr as usize]),
+        }
+    }
+
+    #[inline]
+    pub fn read_from_vram(&self, addr: u16, bank: u8) -> u8 {
+        if bank == 0 {
+            self.memory[addr as usize]
+        } else {
+            self.cgb_vram_bank1[(addr - VRAM_START) as usize]
         }
     }
 
@@ -227,6 +235,15 @@ impl Mmu {
         }
 
         Ok(())
+    }
+
+    #[inline]
+    pub fn write_vram_bank(&mut self, addr: u16, bank: u8, value: u8) {
+        if bank == 0 {
+            self.memory[addr as usize] = value;
+        } else {
+            self.cgb_vram_bank1[(addr - VRAM_START) as usize] = value;
+        }
     }
 
     #[inline]
