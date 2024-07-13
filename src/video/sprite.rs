@@ -5,11 +5,12 @@ use bitflags::bitflags;
 bitflags! {
     #[derive(Clone)]
     pub struct SpriteAttributes: u8 {
-        // CGB ONLY FLAGS HERE
-        const PALETTE = 0b0001_0000;
-        const FLIP_X = 0b0010_0000;
-        const FLIP_Y = 0b0100_0000;
-        const PRIORITY = 0b1000_0000;
+        const CGB_PALETTE   = 0b0000_0111;
+        const BANK          = 0b0000_1000;
+        const DMG_PALETTE   = 0b0001_0000;
+        const FLIP_X        = 0b0010_0000;
+        const FLIP_Y        = 0b0100_0000;
+        const PRIORITY      = 0b1000_0000;
     }
 }
 

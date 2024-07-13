@@ -66,14 +66,13 @@ impl Palette {
 
     pub fn from_object(
         value: u8, mmu: &Mmu, sprite: &Sprite, allow_transparency: bool, mode: &Mode,
-        attributes: &TileAttributes,
     ) -> Palette {
         if allow_transparency && value == 0 {
             return Palette::Transparent(0);
         }
 
         if *mode == Mode::Dmg {
-            let objp_shade = if !sprite.attributes.contains(SpriteAttributes::PALETTE) {
+            let objp_shade = if !sprite.attributes.contains(SpriteAttributes::DMG_PALETTE) {
                 mmu.read_unchecked(OBJ0_PALETTE_REGISTER)
             } else {
                 mmu.read_unchecked(OBJ1_PALETTE_REGISTER)
@@ -95,7 +94,7 @@ impl Palette {
                 _ => panic!("Invalid shade value: {}", shade),
             }
         } else {
-            let palette = (attributes.bits() & TileAttributes::PALETTE.bits()) as u8;
+            let palette = (sprite.attributes.bits() & SpriteAttributes::CGB_PALETTE.bits()) as u8;
 
             let color = match value {
                 0b00 => mmu.cgb_cram.fetch_obj(palette, 0),

@@ -4,6 +4,8 @@ use crate::video::palette::Palette;
 use crate::video::sprite::Sprite;
 use bitflags::bitflags;
 
+use super::sprite::SpriteAttributes;
+
 bitflags! {
     #[derive(Clone)]
     pub struct TileAttributes: u8 {
@@ -52,15 +54,13 @@ impl Tile {
         Tile { pixels, attributes }
     }
 
-    pub fn from_sprite(
-        mmu: &Mmu, address: u16, sprite: &Sprite, mode: &Mode, attributes: TileAttributes,
-    ) -> Tile {
+    pub fn from_sprite(mmu: &Mmu, address: u16, sprite: &Sprite, mode: &Mode) -> Tile {
         let mut pixels = [[Palette::default(); 8]; 8];
 
         // This is a closure that reads from VRAM, taking into account
         // which bank to read from based on the tile map attributes
         let read_from_vram = |addr: u16| -> u8 {
-            if attributes.contains(TileAttributes::BANK) {
+            if sprite.attributes.contains(SpriteAttributes::BANK) {
                 mmu.read_from_vram(addr, 1)
             } else {
                 mmu.read_from_vram(addr, 0)
@@ -77,11 +77,14 @@ impl Tile {
                 let color = (msb_bit << 1) | lsb_bit;
 
                 pixels[y as usize][x as usize] =
-                    Palette::from_object(color, mmu, sprite, true, mode, &attributes);
+                    Palette::from_object(color, mmu, sprite, true, mode);
             }
         }
 
-        Tile { pixels, attributes }
+        Tile {
+            pixels,
+            attributes: TileAttributes::empty(),
+        }
     }
 }
 

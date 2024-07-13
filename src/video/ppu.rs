@@ -300,21 +300,8 @@ impl Ppu {
                 let tile_addr_top = TILESET_0_ADDRESS + (tile_index_top as u16) * 16;
                 let tile_addr_bot = TILESET_0_ADDRESS + (tile_index_bot as u16) * 16;
 
-                let tile_attr_top = if self.mode == Mode::Cgb {
-                    TileAttributes::from_bits_truncate(mmu.read_from_vram(tile_addr_top, 1))
-                } else {
-                    TileAttributes::empty()
-                };
-                let tile_attr_bot = if self.mode == Mode::Cgb {
-                    TileAttributes::from_bits_truncate(mmu.read_from_vram(tile_addr_bot, 1))
-                } else {
-                    TileAttributes::empty()
-                };
-
-                let tile_top =
-                    Tile::from_sprite(mmu, tile_addr_top, &sprite, &self.mode, tile_attr_top);
-                let tile_bot =
-                    Tile::from_sprite(mmu, tile_addr_bot, &sprite, &self.mode, tile_attr_bot);
+                let tile_top = Tile::from_sprite(mmu, tile_addr_top, &sprite, &self.mode);
+                let tile_bot = Tile::from_sprite(mmu, tile_addr_bot, &sprite, &self.mode);
 
                 oams.push(Oam {
                     sprite,
@@ -324,13 +311,7 @@ impl Ppu {
             } else {
                 // 8px sprite
                 let tile_addr = TILESET_0_ADDRESS + (sprite.tile_index as u16) * 16;
-
-                let attributes = if self.mode == Mode::Cgb {
-                    TileAttributes::from_bits_truncate(mmu.read_from_vram(tile_addr, 1))
-                } else {
-                    TileAttributes::empty()
-                };
-                let tile = Tile::from_sprite(mmu, tile_addr, &sprite, &self.mode, attributes);
+                let tile = Tile::from_sprite(mmu, tile_addr, &sprite, &self.mode);
 
                 oams.push(Oam {
                     sprite,
