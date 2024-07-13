@@ -11,9 +11,13 @@ use crate::sound::{
     NR10, NR11, NR12, NR13, NR14, NR21, NR22, NR23, NR24, NR30, NR31, NR32, NR33, NR34, NR41, NR42,
     NR43, NR44, NR50, NR51, NR52, WAVE_PATTERN_RAM_END, WAVE_PATTERN_RAM_START,
 };
-use log::debug;
+use log::{debug, error};
 
 use super::addressable::Addressable;
+use super::{
+    VRAM_BANK_SELECT_REGISTER, VRAM_END, VRAM_START, WRAM_BANK1_END, WRAM_BANK1_START,
+    WRAM_BANK_SELECT_REGISTER,
+};
 
 // The last instruction unmaps the boot ROM. Execution continues normally,
 // thus entering cartridge entrypoint at $100
@@ -25,6 +29,8 @@ pub struct Mmu {
     pub joypad: Joypad,
     pub apu: Apu,
     memory: Vec<u8>,
+    cgb_vram_bank1: Vec<u8>, // 0x2000 bank 1
+    cgb_wram_bank1: Vec<u8>, // 0x1000 bank 1-7
     bootrom: Vec<u8>,
     mode: Mode,
 }
@@ -34,6 +40,8 @@ impl Mmu {
         Mmu {
             cartridge,
             memory: vec![0; 0x10000],
+            cgb_vram_bank1: vec![0; 0x2000],
+            cgb_wram_bank1: vec![0; 0x1000 * 7],
             bootrom,
             joypad: Joypad::new(),
             apu: Apu::new(),
@@ -57,7 +65,22 @@ impl Mmu {
                 Ok(self.bootrom[addr as usize])
             }
             ROM_START..=ROM_END => self.cartridge.read(addr),
+            VRAM_START..=VRAM_END if self.current_vram_bank() == 0 => {
+                Ok(self.memory[addr as usize])
+            }
+            VRAM_START..=VRAM_END if self.current_vram_bank() == 1 => {
+                Ok(self.cgb_vram_bank1[(addr - VRAM_START) as usize]) // CGB
+            }
             EXTERNAL_RAM_START..=EXTERNAL_RAM_END => self.cartridge.read(addr),
+            WRAM_BANK1_START..=WRAM_BANK1_END => {
+                let bank = self.current_wram_bank();
+                if bank > 0 {
+                    Ok(self.cgb_wram_bank1
+                        [((bank as u16 - 1) * 0x1000 + (addr - WRAM_BANK1_START)) as usize])
+                } else {
+                    Ok(self.memory[addr as usize])
+                }
+            }
             JOYPAD_REGISTER => Ok(self.joypad.as_u8(self.memory[addr as usize])),
             NR10
             | NR11
@@ -137,11 +160,25 @@ impl Mmu {
 
         match addr {
             ROM_START..=ROM_END if self.is_bootrom_mapped() && addr <= bootrom_size => {
-                // TODO: We prob don't want to write to bootrom, but whatever
-                self.bootrom[addr as usize] = data
+                error!("Attempted to write to bootrom");
             }
             ROM_START..=ROM_END => self.cartridge.write(addr, data)?,
+            VRAM_START..=VRAM_END if self.current_vram_bank() == 0 => {
+                self.memory[addr as usize] = data
+            }
+            VRAM_START..=VRAM_END if self.current_vram_bank() == 1 => {
+                self.cgb_vram_bank1[(addr - VRAM_START) as usize] = data
+            }
             EXTERNAL_RAM_START..=EXTERNAL_RAM_END => self.cartridge.write(addr, data)?,
+            WRAM_BANK1_START..=WRAM_BANK1_END => {
+                let bank = self.current_wram_bank();
+                if bank > 0 {
+                    self.cgb_wram_bank1
+                        [((bank as u16 - 1) * 0x1000 + (addr - WRAM_BANK1_START)) as usize] = data
+                } else {
+                    self.memory[addr as usize] = data
+                }
+            }
             OAM_DMA_REGISTER => self.start_dma_transfer(data)?,
             NR10
             | NR11
@@ -188,6 +225,29 @@ impl Mmu {
     #[inline]
     pub fn is_bootrom_mapped(&self) -> bool {
         self.read(BOOTROM_MAPPER_REGISTER).unwrap() == 0x00
+    }
+
+    #[inline]
+    pub fn current_vram_bank(&self) -> u8 {
+        if self.mode == Mode::Cgb {
+            self.read_unchecked(VRAM_BANK_SELECT_REGISTER) & 0b0000_0001
+        } else {
+            0
+        }
+    }
+
+    #[inline]
+    pub fn current_wram_bank(&self) -> u8 {
+        if self.mode == Mode::Cgb {
+            let bank = self.read_unchecked(WRAM_BANK_SELECT_REGISTER) & 0b0000_0111;
+            if bank == 0 {
+                1
+            } else {
+                bank
+            }
+        } else {
+            0
+        }
     }
 
     fn start_dma_transfer(&mut self, data: u8) -> Result<(), AyyError> {

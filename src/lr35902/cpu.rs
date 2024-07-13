@@ -48,7 +48,7 @@ impl Cpu {
             .collect::<Vec<u8>>();
 
         trace!(
-            "[{:04x}] {:<12} {:<20} [{}  (SP): ${:02x}  IME: {}  ROM Bank: {}  RAM Bank: {}]",
+            "[{:04x}] {:<12} {:<20} [{}  (SP): ${:02x}  IME: {}  ROM Bank: {}  RAM Bank: {}  VRAM Bank: {}  WRAM Bank: {}]",
             self.registers.pc,
             format!("{:02x?}", instruction_bytes),
             format!("{}", instruction),
@@ -56,7 +56,9 @@ impl Cpu {
             mmu.read(self.registers.sp)?,
             self.ime.enabled,
             mmu.cartridge.current_rom_bank(),
-            mmu.cartridge.current_ram_bank()
+            mmu.cartridge.current_ram_bank(),
+            mmu.current_vram_bank(),
+            mmu.current_wram_bank()
         );
 
         self.registers.pc = self.registers.pc.wrapping_add(instruction.length as u16);
@@ -86,10 +88,16 @@ impl Cpu {
             Opcode::Jp | Opcode::Jr | Opcode::Call => Handlers::jump(self, mmu, &instruction),
             Opcode::Rst => Handlers::restart(self, mmu, &instruction),
             Opcode::Ret | Opcode::Reti => Handlers::ret(self, mmu, &instruction),
-            Opcode::Cpl | Opcode::Scf | Opcode::Ccf => Handlers::complement(self, mmu, &instruction),
+            Opcode::Cpl | Opcode::Scf | Opcode::Ccf => {
+                Handlers::complement(self, mmu, &instruction)
+            }
             Opcode::Bit => Handlers::test_bit(self, mmu, &instruction),
-            Opcode::Rl | Opcode::Rla | Opcode::Rlc | Opcode::Rlca => Handlers::rotate_left(self, mmu, &instruction),
-            Opcode::Rr | Opcode::Rra | Opcode::Rrc | Opcode::Rrca => Handlers::rotate_right(self, mmu, &instruction),
+            Opcode::Rl | Opcode::Rla | Opcode::Rlc | Opcode::Rlca => {
+                Handlers::rotate_left(self, mmu, &instruction)
+            }
+            Opcode::Rr | Opcode::Rra | Opcode::Rrc | Opcode::Rrca => {
+                Handlers::rotate_right(self, mmu, &instruction)
+            }
             Opcode::Sla => Handlers::shift_left(self, mmu, &instruction),
             Opcode::Sra | Opcode::Srl => Handlers::shift_right(self, mmu, &instruction),
             Opcode::Swap => Handlers::swap(self, mmu, &instruction),
@@ -274,7 +282,11 @@ impl Cpu {
             if self.ime.enabled {
                 // handle interrupt vector
                 let vector = Vector::from_flags(&interrupt_enable, &interrupt_flags);
-                debug!("Handling interrupt: {} => ${:04x}", vector, vector.to_address());
+                debug!(
+                    "Handling interrupt: {} => ${:04x}",
+                    vector,
+                    vector.to_address()
+                );
 
                 // save $pc, jump to interrupt vector
                 self.push_stack(mmu, self.registers.pc)?;

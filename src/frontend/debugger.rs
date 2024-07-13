@@ -10,15 +10,22 @@ use super::renderer::SCALE;
 
 pub struct Debugger {
     pub window_open: bool,
-    tileset_texture: TextureHandle,
+    vram0_tileset_texture: TextureHandle,
+    vram1_tileset_texture: TextureHandle,
     backgroundmap_texture: TextureHandle,
     windowmap_texture: TextureHandle,
 }
 
 impl Debugger {
     pub fn new(ctx: &Context) -> Self {
-        let tileset_texture = ctx.load_texture(
-            "tileset_texture",
+        let vram0_tileset_texture = ctx.load_texture(
+            "vram0_tileset_texture",
+            ColorImage::new([TILESET_WIDTH, TILESET_HEIGHT], Color32::BLACK),
+            TextureOptions::NEAREST,
+        );
+
+        let vram1_tileset_texture = ctx.load_texture(
+            "vram1_tileset_texture",
             ColorImage::new([TILESET_WIDTH, TILESET_HEIGHT], Color32::BLACK),
             TextureOptions::NEAREST,
         );
@@ -37,7 +44,8 @@ impl Debugger {
 
         Self {
             window_open: false,
-            tileset_texture,
+            vram0_tileset_texture,
+            vram1_tileset_texture,
             backgroundmap_texture,
             windowmap_texture,
         }
@@ -48,17 +56,35 @@ impl Debugger {
             return;
         }
 
-        Window::new("Tileset").resizable(false).show(ctx, |ui| {
-            let tileset = gb.dbg_render_tileset();
+        Window::new("Tileset 0").resizable(false).show(ctx, |ui| {
+            let tileset = gb.dbg_render_tileset(0);
             Debugger::render_into_texture(
                 &tileset,
-                &mut self.tileset_texture,
+                &mut self.vram0_tileset_texture,
                 16,
                 TILESET_WIDTH,
                 TILESET_HEIGHT,
             );
 
-            let image = Image::new(&self.tileset_texture);
+            let image = Image::new(&self.vram0_tileset_texture);
+            let image = image.fit_to_exact_size(vec2(
+                (TILESET_WIDTH * (SCALE / 4)) as f32,
+                (TILESET_HEIGHT * (SCALE / 4)) as f32,
+            ));
+            ui.add(image);
+        });
+
+        Window::new("Tileset 1").resizable(false).show(ctx, |ui| {
+            let tileset = gb.dbg_render_tileset(1);
+            Debugger::render_into_texture(
+                &tileset,
+                &mut self.vram1_tileset_texture,
+                16,
+                TILESET_WIDTH,
+                TILESET_HEIGHT,
+            );
+
+            let image = Image::new(&self.vram1_tileset_texture);
             let image = image.fit_to_exact_size(vec2(
                 (TILESET_WIDTH * (SCALE / 4)) as f32,
                 (TILESET_HEIGHT * (SCALE / 4)) as f32,
