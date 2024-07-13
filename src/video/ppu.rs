@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::gameboy::Mode;
 use crate::memory::mmu::Mmu;
 use crate::memory::registers::{InterruptFlags, LcdControl, LcdStatus};
 use crate::memory::INTERRUPT_FLAGS_REGISTER;
@@ -15,17 +16,18 @@ use crate::video::{
 
 use super::{BACKGROUND_MAP_SIZE, TILESET_SIZE};
 
-#[derive(Debug)]
 pub struct Ppu {
     emulated_frame: [[Palette; SCREEN_WIDTH]; SCREEN_HEIGHT],
     window_line_counter: usize,
+    mode: Mode,
 }
 
 impl Ppu {
-    pub fn new() -> Ppu {
+    pub fn new(mode: Mode) -> Ppu {
         Ppu {
             emulated_frame: [[Palette::default(); SCREEN_WIDTH]; SCREEN_HEIGHT],
             window_line_counter: 0,
+            mode,
         }
     }
 

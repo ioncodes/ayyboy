@@ -11,12 +11,15 @@ use crate::sound::{
     NR10, NR11, NR12, NR13, NR14, NR21, NR22, NR23, NR24, NR30, NR31, NR32, NR33, NR34, NR41, NR42,
     NR43, NR44, NR50, NR51, NR52, WAVE_PATTERN_RAM_END, WAVE_PATTERN_RAM_START,
 };
+use crate::video::cram::Cram;
+use eframe::glow::BACK;
 use log::{debug, error};
 
 use super::addressable::Addressable;
 use super::{
-    VRAM_BANK_SELECT_REGISTER, VRAM_END, VRAM_START, WRAM_BANK1_END, WRAM_BANK1_START,
-    WRAM_BANK_SELECT_REGISTER,
+    BACKGROUND_PALETTE_DATA_REGISTER, BACKGROUND_PALETTE_INDEX_REGISTER,
+    OBJECT_PALETTE_DATA_REGISTER, OBJECT_PALETTE_INDEX_REGISTER, VRAM_BANK_SELECT_REGISTER,
+    VRAM_END, VRAM_START, WRAM_BANK1_END, WRAM_BANK1_START, WRAM_BANK_SELECT_REGISTER,
 };
 
 // The last instruction unmaps the boot ROM. Execution continues normally,
@@ -31,6 +34,7 @@ pub struct Mmu {
     memory: Vec<u8>,
     cgb_vram_bank1: Vec<u8>, // 0x2000 bank 1
     cgb_wram_bank1: Vec<u8>, // 0x1000 bank 1-7
+    cgb_cram: Cram,
     bootrom: Vec<u8>,
     mode: Mode,
 }
@@ -42,6 +46,7 @@ impl Mmu {
             memory: vec![0; 0x10000],
             cgb_vram_bank1: vec![0; 0x2000],
             cgb_wram_bank1: vec![0; 0x1000 * 7],
+            cgb_cram: Cram::new(),
             bootrom,
             joypad: Joypad::new(),
             apu: Apu::new(),
@@ -104,6 +109,14 @@ impl Mmu {
             | NR51
             | NR52
             | WAVE_PATTERN_RAM_START..=WAVE_PATTERN_RAM_END => Ok(self.apu.read(addr)),
+            BACKGROUND_PALETTE_INDEX_REGISTER
+            | BACKGROUND_PALETTE_DATA_REGISTER
+            | OBJECT_PALETTE_INDEX_REGISTER
+            | OBJECT_PALETTE_DATA_REGISTER
+                if self.mode == Mode::Cgb =>
+            {
+                Ok(self.cgb_cram.read(addr))
+            }
             _ => Ok(self.memory[addr as usize]),
         }
     }
@@ -202,6 +215,14 @@ impl Mmu {
             | NR51
             | NR52
             | WAVE_PATTERN_RAM_START..=WAVE_PATTERN_RAM_END => self.apu.write(addr, data),
+            BACKGROUND_PALETTE_INDEX_REGISTER
+            | BACKGROUND_PALETTE_DATA_REGISTER
+            | OBJECT_PALETTE_INDEX_REGISTER
+            | OBJECT_PALETTE_DATA_REGISTER
+                if self.mode == Mode::Cgb =>
+            {
+                self.cgb_cram.write(addr, data)
+            }
             _ => self.memory[addr as usize] = data,
         }
 

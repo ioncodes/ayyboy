@@ -28,7 +28,6 @@ pub struct GameBoy {
     pub mmu: Mmu,
     pub ppu: Ppu,
     pub timer: Timer,
-    pub mode: Mode,
 }
 
 impl GameBoy {
@@ -66,7 +65,7 @@ impl GameBoy {
 
         let cpu = Cpu::new();
         let mmu = Mmu::new(bootrom, cartridge, mode.clone());
-        let ppu = Ppu::new();
+        let ppu = Ppu::new(mode.clone());
         let timer = Timer::new();
 
         GameBoy {
@@ -74,15 +73,12 @@ impl GameBoy {
             mmu,
             ppu,
             timer,
-            mode,
         }
     }
 
     pub fn run_frame(&mut self) {
         loop {
             loop {
-                // TODO: instead of relying on cycles being return after tick, we should
-                //       track total cycles before tick and then after tick subtract
                 let cycles = match self.cpu.tick(&mut self.mmu, &mut self.timer) {
                     Ok(cycles) => cycles,
                     Err(AyyError::WriteToReadOnlyMemory { address, data }) => {
