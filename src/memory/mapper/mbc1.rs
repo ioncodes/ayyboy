@@ -61,6 +61,12 @@ impl Mapper for Mbc1 {
                 let ram_addr = base_addr + (self.ram_bank as usize * 0x2000);
                 Ok(self.ram[ram_addr])
             }
+            // The RAM is only accessible if RAM is enabled, otherwise reads
+            // return open bus values (often $FF, but not guaranteed) and writes are ignored.
+            EXTERNAL_RAM_START..=EXTERNAL_RAM_END if !self.ram_enabled => {
+                warn!("MBC1: Attempted to read from disabled RAM");
+                Ok(0xff)
+            }
             _ => Err(AyyError::OutOfBoundsMemoryAccess { address: addr }),
         }
     }
@@ -81,7 +87,8 @@ impl Mapper for Mbc1 {
             }
             SECONDARY_BANK_REGISTER_START..=SECONDARY_BANK_REGISTER_END if self.banking_mode => {
                 if self.secondary_banking_allowed {
-                    self.rom_bank = ((self.rom_bank as u8 & 0b0001_1111) | ((data & 0b11) << 5)) as u16;
+                    self.rom_bank =
+                        ((self.rom_bank as u8 & 0b0001_1111) | ((data & 0b11) << 5)) as u16;
                     debug!("MBC1: Switched to ROM bank {}", self.rom_bank);
                 } else {
                     warn!("MBC1: Attempted to switch to ROM bank, but not allowed");
@@ -95,16 +102,17 @@ impl Mapper for Mbc1 {
                 self.banking_mode = data & 0b0000_0001 == 1;
                 debug!("MBC1: Switched to banking mode: {}", self.banking_mode);
             }
-            EXTERNAL_RAM_START..=EXTERNAL_RAM_END => {
-                if self.ram_enabled {
-                    let base_addr = (addr - EXTERNAL_RAM_START) as usize;
-                    let ram_addr = base_addr + (self.ram_bank as usize * 0x2000);
-                    self.ram[ram_addr] = data;
-                } else {
-                    return Err(AyyError::WriteToDisabledExternalRam { address: addr, data });
-                }
+            EXTERNAL_RAM_START..=EXTERNAL_RAM_END if self.ram_enabled => {
+                let base_addr = (addr - EXTERNAL_RAM_START) as usize;
+                let ram_addr = base_addr + (self.ram_bank as usize * 0x2000);
+                self.ram[ram_addr] = data;
             }
-            _ => return Err(AyyError::WriteToReadOnlyMemory { address: addr, data }),
+            EXTERNAL_RAM_START..=EXTERNAL_RAM_END if !self.ram_enabled => {
+                warn!("MBC1: Attempted to write to disabled RAM");
+            }
+            _ => {
+                return Err(AyyError::OutOfBoundsMemoryAccess { address: addr });
+            }
         }
 
         Ok(())
