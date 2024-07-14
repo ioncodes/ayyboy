@@ -28,10 +28,10 @@ impl Sprite {
         let sprite_addr = OAM_ADDRESS + (index * 4);
 
         Sprite {
-            y: mmu.read_unchecked(sprite_addr),
-            x: mmu.read_unchecked(sprite_addr + 1),
-            tile_index: mmu.read_unchecked(sprite_addr + 2),
-            attributes: SpriteAttributes::from_bits_truncate(mmu.read_unchecked(sprite_addr + 3)),
+            y: mmu.read_from_vram(sprite_addr, 0),
+            x: mmu.read_from_vram(sprite_addr + 1, 0),
+            tile_index: mmu.read_from_vram(sprite_addr + 2, 0),
+            attributes: SpriteAttributes::from_bits_truncate(mmu.read_from_vram(sprite_addr + 3, 0)),
             oam_addr: sprite_addr,
         }
     }
