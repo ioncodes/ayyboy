@@ -104,20 +104,26 @@ impl Ppu {
                 && let Some((sprite, sprite_color)) =
                     self.fetch_sprite_pixel(&oams, x, scanline, sprite_height)
             {
-                let sprite_over_bg = background_color.is_color(0);
-                let sprite_over_win = window_color.is_transparent() || window_color.is_color(0);
-                let cgb_priority = self.mode == Mode::Cgb
-                    && (bg_tile.attributes.contains(TileAttributes::PRIORITY)
-                        || win_tile.attributes.contains(TileAttributes::PRIORITY));
-                let cgb_prio_sprites =
+                let is_bg_visible = !background_color.is_color(0);
+                let is_win_visible = !window_color.is_color(0);
+
+                if sprite.attributes.contains(SpriteAttributes::PRIORITY)
+                    && (is_bg_visible || is_win_visible)
+                {
+                    continue;
+                }
+
+                // Are background and window tiles deprioritized?
+                let cgb_sprite_prio =
                     self.mode == Mode::Cgb && !lcdc.contains(LcdControl::BG_AND_WIN_DISPLAY);
 
-                if !cgb_prio_sprites
-                    && ((sprite.attributes.contains(SpriteAttributes::PRIORITY) && !sprite_over_bg)
-                        || (sprite.attributes.contains(SpriteAttributes::PRIORITY)
-                            && !sprite_over_win)
-                        || cgb_priority)
-                {
+                // Do the background or window tiles have priority while being visible?
+                let cgb_master_prio = self.mode == Mode::Cgb
+                    && ((bg_tile.attributes.contains(TileAttributes::PRIORITY) && is_bg_visible)
+                        || (win_tile.attributes.contains(TileAttributes::PRIORITY)
+                            && is_win_visible));
+
+                if !cgb_sprite_prio && cgb_master_prio {
                     continue;
                 }
 
