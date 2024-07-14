@@ -162,13 +162,18 @@ impl Ppu {
         let tilemap_addr = self.get_background_tilemap_address(mmu);
 
         for idx in 0..BACKGROUND_MAP_SIZE {
-            let tile_nr = mmu.read_unchecked(tilemap_addr + idx as u16);
+            let tile_nr = mmu.read_from_vram(tilemap_addr + idx as u16, 0);
             let addr = if tileset_addr == TILESET_0_ADDRESS {
                 tileset_addr + ((tile_nr as u16) * 16)
             } else {
                 tileset_addr.wrapping_add_signed((tile_nr as i8 as i16 + 128) * 16)
             };
-            let tile = Tile::from(mmu, addr, &self.mode, TileAttributes::empty());
+            let attributes = if self.mode == Mode::Cgb {
+                TileAttributes::from_bits_truncate(mmu.read_from_vram(tilemap_addr + idx as u16, 1))
+            } else {
+                TileAttributes::empty()
+            };
+            let tile = Tile::from(mmu, addr, &self.mode, attributes);
             tiles.push(tile);
         }
 
@@ -182,7 +187,7 @@ impl Ppu {
         let tilemap_addr = self.get_window_tilemap_address(mmu);
 
         for idx in 0..BACKGROUND_MAP_SIZE {
-            let tile_nr = mmu.read_unchecked(tilemap_addr + idx as u16);
+            let tile_nr = mmu.read_from_vram(tilemap_addr + idx as u16, 0);
             let addr = if tileset_addr == TILESET_0_ADDRESS {
                 tileset_addr + ((tile_nr as u16) * 16)
             } else {
