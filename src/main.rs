@@ -112,15 +112,15 @@ fn unzip_rom(file: File) -> String {
 }
 
 fn setup_logging(log_to_file: bool) {
-    const LOG_PATH: &str = "./ayyboy_trace.log";
-    std::fs::remove_file(LOG_PATH).unwrap_or_default();
-
     let base_config = if !log_to_file {
         Dispatch::new()
             .level(LevelFilter::Off)
-            .level_for("ayyboy", LevelFilter::Info)
+            .level_for("ayyboy", LevelFilter::Debug)
             .chain(std::io::stdout())
     } else {
+        const LOG_PATH: &str = "./ayyboy_trace.log";
+        std::fs::remove_file(LOG_PATH).unwrap_or_default();
+
         Dispatch::new()
             .level(LevelFilter::Off)
             .level_for("ayyboy", LevelFilter::Trace)

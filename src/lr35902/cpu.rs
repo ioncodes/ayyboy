@@ -282,7 +282,7 @@ impl Cpu {
             if self.ime.enabled {
                 // handle interrupt vector
                 let vector = Vector::from_flags(&interrupt_enable, &interrupt_flags);
-                debug!(
+                trace!(
                     "Handling interrupt: {} => ${:04x}",
                     vector,
                     vector.to_address()

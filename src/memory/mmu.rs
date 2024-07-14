@@ -17,8 +17,10 @@ use log::{debug, error};
 use super::addressable::Addressable;
 use super::{
     BACKGROUND_PALETTE_DATA_REGISTER, BACKGROUND_PALETTE_INDEX_REGISTER,
-    OBJECT_PALETTE_DATA_REGISTER, OBJECT_PALETTE_INDEX_REGISTER, VRAM_BANK_SELECT_REGISTER,
-    VRAM_END, VRAM_START, WRAM_BANK1_END, WRAM_BANK1_START, WRAM_BANK_SELECT_REGISTER,
+    HDMA_LENGTH_MODE_START_REGISTER, HDMA_VRAM_DST_HIGH_REGISTER, HDMA_VRAM_DST_LOW_REGISTER,
+    HDMA_VRAM_SRC_HIGH_REGISTER, HDMA_VRAM_SRC_LOW_REGISTER, OBJECT_PALETTE_DATA_REGISTER,
+    OBJECT_PALETTE_INDEX_REGISTER, VRAM_BANK_SELECT_REGISTER, VRAM_END, VRAM_START, WRAM_BANK1_END,
+    WRAM_BANK1_START, WRAM_BANK_SELECT_REGISTER,
 };
 
 // The last instruction unmaps the boot ROM. Execution continues normally,
@@ -34,6 +36,8 @@ pub struct Mmu {
     memory: Vec<u8>,
     cgb_vram_bank1: Vec<u8>, // 0x2000 bank 1
     cgb_wram_bank1: Vec<u8>, // 0x1000 bank 1-7
+    cgb_hdma_src: u16,
+    cgb_hdma_dst: u16,
     bootrom: Vec<u8>,
     mode: Mode,
 }
@@ -46,6 +50,8 @@ impl Mmu {
             cgb_vram_bank1: vec![0; 0x2000],
             cgb_wram_bank1: vec![0; 0x1000 * 7],
             cgb_cram: Cram::new(),
+            cgb_hdma_src: 0,
+            cgb_hdma_dst: 0,
             bootrom,
             joypad: Joypad::new(),
             apu: Apu::new(),
@@ -65,7 +71,11 @@ impl Mmu {
         };
 
         match addr {
-            ROM_START..=ROM_END if self.is_bootrom_mapped() && addr <= bootrom_size => {
+            ROM_START..=ROM_END
+                if self.is_bootrom_mapped()
+                    && (/* DMG maps entire bootrom */(self.mode == Mode::Dmg && addr <= bootrom_size)
+                        || /* CGB bootrom map has "holes" for cartridge logo + header */(self.mode == Mode::Cgb && (addr < 0x100 || addr >= 0x200))) =>
+            {
                 Ok(self.bootrom[addr as usize])
             }
             ROM_START..=ROM_END => self.cartridge.read(addr),
@@ -180,7 +190,11 @@ impl Mmu {
         };
 
         match addr {
-            ROM_START..=ROM_END if self.is_bootrom_mapped() && addr <= bootrom_size => {
+            ROM_START..=ROM_END
+                if self.is_bootrom_mapped()
+                    && (/* DMG maps entire bootrom */(self.mode == Mode::Dmg && addr <= bootrom_size)
+                || /* CGB bootrom map has "holes" for cartridge logo + header */(self.mode == Mode::Cgb && (addr < 0x100 || addr >= 0x200))) =>
+            {
                 error!("Attempted to write to bootrom");
             }
             ROM_START..=ROM_END => self.cartridge.write(addr, data)?,
@@ -201,6 +215,21 @@ impl Mmu {
                 }
             }
             OAM_DMA_REGISTER => self.start_dma_transfer(data)?,
+            HDMA_VRAM_SRC_HIGH_REGISTER if self.mode == Mode::Cgb => {
+                self.cgb_hdma_src = (data as u16) << 8;
+            }
+            HDMA_VRAM_SRC_LOW_REGISTER if self.mode == Mode::Cgb => {
+                self.cgb_hdma_src = (self.cgb_hdma_src & 0b1111_1111_0000_0000) | data as u16;
+            }
+            HDMA_VRAM_DST_HIGH_REGISTER if self.mode == Mode::Cgb => {
+                self.cgb_hdma_dst = (data as u16) << 8;
+            }
+            HDMA_VRAM_DST_LOW_REGISTER if self.mode == Mode::Cgb => {
+                self.cgb_hdma_dst = (self.cgb_hdma_dst & 0b1111_1111_0000_0000) | data as u16;
+            }
+            HDMA_LENGTH_MODE_START_REGISTER if self.mode == Mode::Cgb => {
+                self.start_hdma_transfer(data)?
+            }
             NR10
             | NR11
             | NR12
@@ -283,11 +312,30 @@ impl Mmu {
         let src_addr = (data as u16) << 8;
         debug!("OAM DMA transfer from ${:04x}", src_addr);
 
-        // TODO: Is this range correct?
         // TODO: Add cycles
         for i in 0..0xa0 {
             let byte = self.read(src_addr + i)?;
             self.write(0xfe00 + i, byte)?;
+        }
+
+        Ok(())
+    }
+
+    fn start_hdma_transfer(&mut self, data: u8) -> Result<(), AyyError> {
+        // TODO: this dismisses modes
+        // TODO: add cycles
+        let src_addr = self.cgb_hdma_src;
+        let dst_addr = self.cgb_hdma_dst;
+        let length = (data & 0b0111_1111) + 1;
+
+        debug!(
+            "HDMA transfer from ${:04x} to ${:04x} of length ${:02x}",
+            src_addr, dst_addr, length
+        );
+
+        for i in 0..(length as u16) {
+            let byte = self.read(src_addr + i)?;
+            self.write(dst_addr + i, byte)?;
         }
 
         Ok(())
