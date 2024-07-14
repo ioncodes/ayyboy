@@ -343,58 +343,63 @@ impl Ppu {
         for oam in oams {
             let sprite = &oam.sprite;
 
-            let sprite_y = sprite.y.wrapping_sub(16);
-            let sprite_x = sprite.x.wrapping_sub(8);
+            let sprite_y = sprite.y as i32 - 16;
+            let sprite_x = sprite.x as i32 - 8;
 
-            if x >= sprite_x as usize
-                && x < (sprite_x as usize + 8)
-                && y >= sprite_y as usize
-                && y < (sprite_y as usize + sprite_height)
+            if x >= sprite_x.max(0) as usize
+                && x < (sprite_x + 8).min(SCREEN_WIDTH as i32) as usize
+                && y >= sprite_y.max(0) as usize
+                && y < (sprite_y + sprite_height as i32).min(SCREEN_HEIGHT as i32) as usize
             {
                 if sprite_height == 16 {
                     // 16px sprite
                     let tile_top = &oam.tile1;
                     let tile_bot = oam.tile2.as_ref().unwrap();
 
-                    let mut tile_x = (x - sprite_x as usize) as u8;
-                    let mut tile_y = (y - sprite_y as usize) as u8;
+                    let mut tile_x = (x as i32 - sprite_x).max(0) as u8; // Ensure we don't go below zero
+                    let mut tile_y = (y as i32 - sprite_y).max(0) as u8; // Ensure we don't go below zero
 
                     if sprite.attributes.contains(SpriteAttributes::FLIP_X) {
-                        tile_x = 7 - tile_x;
+                        tile_x = 7u8.saturating_sub(tile_x);
                     }
 
                     if sprite.attributes.contains(SpriteAttributes::FLIP_Y) {
-                        tile_y = 15 - tile_y;
+                        tile_y = 15u8.saturating_sub(tile_y);
                     }
 
-                    let color = if tile_y < 8 {
-                        tile_top.pixels[tile_y as usize][tile_x as usize]
-                    } else {
-                        tile_bot.pixels[(tile_y - 8) as usize][tile_x as usize]
-                    };
+                    // Ensure tile_x and tile_y are within bounds
+                    if tile_x < 8 && tile_y < 16 {
+                        let color = if tile_y < 8 {
+                            tile_top.pixels[tile_y as usize][tile_x as usize]
+                        } else {
+                            tile_bot.pixels[(tile_y - 8) as usize][tile_x as usize]
+                        };
 
-                    if !color.is_transparent() {
-                        sprites.push((sprite.clone(), color));
+                        if !color.is_transparent() {
+                            sprites.push((sprite.clone(), color));
+                        }
                     }
                 } else {
                     // 8px sprite
                     let tile = &oam.tile1;
 
-                    let mut tile_x = (x - sprite_x as usize) as u8;
-                    let mut tile_y = (y - sprite_y as usize) as u8;
+                    let mut tile_x = (x as i32 - sprite_x).max(0) as u8; // Ensure we don't go below zero
+                    let mut tile_y = (y as i32 - sprite_y).max(0) as u8; // Ensure we don't go below zero
 
                     if sprite.attributes.contains(SpriteAttributes::FLIP_X) {
-                        tile_x = 7 - tile_x;
+                        tile_x = 7u8.saturating_sub(tile_x);
                     }
 
                     if sprite.attributes.contains(SpriteAttributes::FLIP_Y) {
-                        tile_y = 7 - tile_y;
+                        tile_y = 7u8.saturating_sub(tile_y);
                     }
 
-                    let color = tile.pixels[tile_y as usize][tile_x as usize];
-
-                    if !color.is_transparent() {
-                        sprites.push((sprite.clone(), color));
+                    // Ensure tile_x and tile_y are within bounds
+                    if tile_x < 8 && tile_y < 8 {
+                        let color = tile.pixels[tile_y as usize][tile_x as usize];
+                        if !color.is_transparent() {
+                            sprites.push((sprite.clone(), color));
+                        }
                     }
                 };
             }
