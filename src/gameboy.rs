@@ -10,7 +10,6 @@ use crate::memory::mapper::Mapper;
 use crate::memory::mmu::Mmu;
 use crate::video::ppu::Ppu;
 use crate::video::tile::Tile;
-use crate::video::SCANLINE_Y_REGISTER;
 use log::{error, info, warn};
 
 const BOOTROM_DMG: &[u8] = include_bytes!("../external/roms/boot/bootix_dmg.bin");
@@ -116,6 +115,10 @@ impl GameBoy {
             self.mmu.apu.tick(relative_cycles);
             self.timer.tick(&mut self.mmu, cycles);
             let new_frame = self.ppu.tick(&mut self.mmu, relative_cycles);
+
+            // Cache the last known PPU state within the MMU for future read/write
+            // from/to LCD_STATUS_REGISTER
+            self.mmu.cache_ppu_state(self.ppu.state.clone());
 
             if new_frame {
                 break;

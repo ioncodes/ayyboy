@@ -246,16 +246,6 @@ impl Cpu {
         self.ime.enabled
     }
 
-    #[inline]
-    pub fn elapsed_cycles(&self) -> usize {
-        self.cycles
-    }
-
-    #[inline]
-    pub fn reset_cycles(&mut self, to: usize) {
-        self.cycles = to;
-    }
-
     fn handle_interrupts(&mut self, mmu: &mut Mmu) -> Result<(), AyyError> {
         // "EI instruction enables IME the following cycle to its execution."
         //   - TCAGBD.pdf, chapter 3.3
