@@ -109,10 +109,14 @@ impl Ppu {
                 let cgb_priority = self.mode == Mode::Cgb
                     && (bg_tile.attributes.contains(TileAttributes::PRIORITY)
                         || win_tile.attributes.contains(TileAttributes::PRIORITY));
+                let cgb_prio_sprites =
+                    self.mode == Mode::Cgb && !lcdc.contains(LcdControl::BG_AND_WIN_DISPLAY);
 
-                if (sprite.attributes.contains(SpriteAttributes::PRIORITY) && !sprite_over_bg)
-                    || (sprite.attributes.contains(SpriteAttributes::PRIORITY) && !sprite_over_win)
-                    || cgb_priority
+                if !cgb_prio_sprites
+                    && ((sprite.attributes.contains(SpriteAttributes::PRIORITY) && !sprite_over_bg)
+                        || (sprite.attributes.contains(SpriteAttributes::PRIORITY)
+                            && !sprite_over_win)
+                        || cgb_priority)
                 {
                     continue;
                 }
@@ -232,6 +236,7 @@ impl Ppu {
         if !mmu
             .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
             .contains(LcdControl::BG_AND_WIN_DISPLAY)
+            && self.mode == Mode::Dmg
         {
             return (
                 Palette::from_background(0, mmu, &self.mode, &TileAttributes::empty()),
@@ -389,8 +394,12 @@ impl Ppu {
             }
         }
 
-        // Return sprite pixel
-        sprites.sort_by(|a, b| a.0.x.cmp(&b.0.x));
+        // Sort sprites by x coordinate if we're in DMG mode
+        if self.mode == Mode::Dmg {
+            sprites.sort_by(|a, b| a.0.x.cmp(&b.0.x));
+        }
+
+        // Return sprite pixel with highest priority
         if let Some((sprite, color)) = sprites.first() {
             return Some((sprite.clone(), *color));
         }
