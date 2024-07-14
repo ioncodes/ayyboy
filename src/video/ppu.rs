@@ -100,7 +100,7 @@ impl Ppu {
                 && let Some((sprite, sprite_color)) = self.fetch_sprite_pixel(&oams, x, scanline, sprite_height)
             {
                 let is_bg_visible = !background_color.is_color(0);
-                let is_win_visible = !window_color.is_color(0);
+                let is_win_visible = !window_color.is_color(0) && !window_color.is_transparent();
 
                 if sprite.attributes.contains(SpriteAttributes::PRIORITY) && (is_bg_visible || is_win_visible) {
                     continue;
@@ -251,7 +251,7 @@ impl Ppu {
         let bg_map_x = (((x as u8).wrapping_add(scx)) / 8) as u16;
         let bg_map_y = (((y as u8).wrapping_add(scy)) / 8) as u16;
         let bg_map_addr = (tilemap + (bg_map_y * 32)) + bg_map_x;
-        let tile_number = mmu.read_unchecked(bg_map_addr);
+        let tile_number = mmu.read_from_vram(bg_map_addr, 0);
 
         // Calculate the address of the tile data
         let tile_addr = if tileset == TILESET_0_ADDRESS {
@@ -439,7 +439,7 @@ impl Ppu {
         let win_map_x = (window_x / 8) as u16;
         let win_map_y = (window_y / 8) as u16;
         let win_map_addr = (tilemap + (win_map_y * 32)) + win_map_x;
-        let tile_number = mmu.read_unchecked(win_map_addr);
+        let tile_number = mmu.read_from_vram(win_map_addr, 0);
 
         // Calculate the address of the tile data
         let tile_addr = if tileset == TILESET_0_ADDRESS {
