@@ -44,10 +44,7 @@ impl GameBoy {
             0x80 => Mode::Cgb, // TODO: CGB enhancements, but backwards compatible with DMG
             _ => Mode::Dmg,
         };
-        info!(
-            "Emulating GameBoy: {}",
-            if mode == Mode::Dmg { "DMG" } else { "CGB" }
-        );
+        info!("Emulating GameBoy: {}", if mode == Mode::Dmg { "DMG" } else { "CGB" });
 
         let cartridge: Box<dyn Mapper> = match cartridge[0x0147] {
             0x00 => Box::new(Rom::new(cartridge)),
@@ -111,11 +108,22 @@ impl GameBoy {
                     Err(e) => panic!("{}", e),
                 };
 
-                self.mmu.apu.tick(cycles);
+                // Taken from a smarter person: https://github.com/NightShade256/Argentum/blob/1be04a77c4a13f5134952f78cf4c3c5b355fe12d/crates/argentum/src/bus.rs#L274
+                let cycles_for_apu = match self.mmu.cgb_double_speed {
+                    true => cycles >> 1,
+                    false => cycles,
+                };
+
+                self.mmu.apu.tick(cycles_for_apu);
                 self.timer.tick(&mut self.mmu, cycles);
 
-                if self.cpu.elapsed_cycles() >= 456 {
-                    self.cpu.reset_cycles(self.cpu.elapsed_cycles() - 456);
+                let cycles_per_scanline = match self.mmu.cgb_double_speed {
+                    true => 912,
+                    false => 456,
+                };
+
+                if self.cpu.elapsed_cycles() >= cycles_per_scanline {
+                    self.cpu.reset_cycles(self.cpu.elapsed_cycles() - cycles_per_scanline);
                     break;
                 }
             }

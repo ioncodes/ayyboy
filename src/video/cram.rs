@@ -2,8 +2,8 @@ use log::error;
 
 use crate::memory::addressable::Addressable;
 use crate::memory::{
-    BACKGROUND_PALETTE_DATA_REGISTER, BACKGROUND_PALETTE_INDEX_REGISTER,
-    OBJECT_PALETTE_DATA_REGISTER, OBJECT_PALETTE_INDEX_REGISTER,
+    BACKGROUND_PALETTE_DATA_REGISTER, BACKGROUND_PALETTE_INDEX_REGISTER, OBJECT_PALETTE_DATA_REGISTER,
+    OBJECT_PALETTE_INDEX_REGISTER,
 };
 
 pub struct Cram {
@@ -76,10 +76,7 @@ impl Addressable for Cram {
                     self.obj_address = (self.obj_address.wrapping_add(1)) & 0b0011_1111;
                 }
             }
-            _ => error!(
-                "Unmapped write to CRAM address {:04x} with data {:02x}",
-                addr, data
-            ),
+            _ => error!("Unmapped write to CRAM address {:04x} with data {:02x}", addr, data),
         }
     }
 }

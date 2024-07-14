@@ -18,9 +18,7 @@ pub enum Palette {
 }
 
 impl Palette {
-    pub fn from_background(
-        value: u8, mmu: &Mmu, mode: &Mode, attributes: &TileAttributes,
-    ) -> Palette {
+    pub fn from_background(value: u8, mmu: &Mmu, mode: &Mode, attributes: &TileAttributes) -> Palette {
         if *mode == Mode::Dmg {
             let bgp_shade = mmu.read_unchecked(BG_PALETTE_REGISTER);
 
@@ -56,9 +54,7 @@ impl Palette {
         }
     }
 
-    pub fn from_object(
-        value: u8, mmu: &Mmu, sprite: &Sprite, allow_transparency: bool, mode: &Mode,
-    ) -> Palette {
+    pub fn from_object(value: u8, mmu: &Mmu, sprite: &Sprite, allow_transparency: bool, mode: &Mode) -> Palette {
         if allow_transparency && value == 0 {
             return Palette::Transparent(0);
         }

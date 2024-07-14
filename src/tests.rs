@@ -31,46 +31,16 @@ mod tests {
             let initial = test.get("initial").unwrap().as_object().unwrap();
             let final_state = test.get("final").unwrap().as_object().unwrap();
 
-            cpu.write_register(
-                &Register::A,
-                initial.get("a").unwrap().as_u64().unwrap() as u8,
-            );
-            cpu.write_register(
-                &Register::F,
-                initial.get("f").unwrap().as_u64().unwrap() as u8,
-            );
-            cpu.write_register(
-                &Register::B,
-                initial.get("b").unwrap().as_u64().unwrap() as u8,
-            );
-            cpu.write_register(
-                &Register::C,
-                initial.get("c").unwrap().as_u64().unwrap() as u8,
-            );
-            cpu.write_register(
-                &Register::D,
-                initial.get("d").unwrap().as_u64().unwrap() as u8,
-            );
-            cpu.write_register(
-                &Register::E,
-                initial.get("e").unwrap().as_u64().unwrap() as u8,
-            );
-            cpu.write_register(
-                &Register::H,
-                initial.get("h").unwrap().as_u64().unwrap() as u8,
-            );
-            cpu.write_register(
-                &Register::L,
-                initial.get("l").unwrap().as_u64().unwrap() as u8,
-            );
-            cpu.write_register16(
-                &Register::SP,
-                initial.get("sp").unwrap().as_u64().unwrap() as u16,
-            );
-            cpu.write_register16(
-                &Register::PC,
-                initial.get("pc").unwrap().as_u64().unwrap() as u16,
-            );
+            cpu.write_register(&Register::A, initial.get("a").unwrap().as_u64().unwrap() as u8);
+            cpu.write_register(&Register::F, initial.get("f").unwrap().as_u64().unwrap() as u8);
+            cpu.write_register(&Register::B, initial.get("b").unwrap().as_u64().unwrap() as u8);
+            cpu.write_register(&Register::C, initial.get("c").unwrap().as_u64().unwrap() as u8);
+            cpu.write_register(&Register::D, initial.get("d").unwrap().as_u64().unwrap() as u8);
+            cpu.write_register(&Register::E, initial.get("e").unwrap().as_u64().unwrap() as u8);
+            cpu.write_register(&Register::H, initial.get("h").unwrap().as_u64().unwrap() as u8);
+            cpu.write_register(&Register::L, initial.get("l").unwrap().as_u64().unwrap() as u8);
+            cpu.write_register16(&Register::SP, initial.get("sp").unwrap().as_u64().unwrap() as u16);
+            cpu.write_register16(&Register::PC, initial.get("pc").unwrap().as_u64().unwrap() as u16);
             if initial.get("ime").unwrap().as_u64().unwrap() == 1 {
                 cpu.enable_interrupts(false);
             } else {

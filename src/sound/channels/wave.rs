@@ -65,7 +65,8 @@ impl Channel for WaveChannel {
     // Get the current amplitude of the channel
     fn get_amplitude(&self) -> f32 {
         if self.dac_enabled {
-            let sample = ((self.wave_ram[self.wave_position / 2]) >> (if (self.wave_position & 1) != 0 { 4 } else { 0 })) & 0x0F;
+            let sample =
+                ((self.wave_ram[self.wave_position / 2]) >> (if (self.wave_position & 1) != 0 { 4 } else { 0 })) & 0x0F;
 
             (((sample >> self.volume_shift) as f32) / 7.5) - 1.0
         } else {
@@ -147,7 +148,9 @@ impl Addressable for WaveChannel {
                     self.channel_enabled = true;
                 }
             }
-            WAVE_PATTERN_RAM_START..=WAVE_PATTERN_RAM_END => self.wave_ram[(addr - WAVE_PATTERN_RAM_START) as usize] = value,
+            WAVE_PATTERN_RAM_START..=WAVE_PATTERN_RAM_END => {
+                self.wave_ram[(addr - WAVE_PATTERN_RAM_START) as usize] = value
+            }
             _ => error!("Unimplemented write to APU register: {:04x}", addr),
         }
     }

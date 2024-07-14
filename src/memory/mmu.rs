@@ -3,24 +3,24 @@ use crate::gameboy::Mode;
 use crate::joypad::Joypad;
 use crate::memory::mapper::Mapper;
 use crate::memory::{
-    BOOTROM_MAPPER_REGISTER, EXTERNAL_RAM_END, EXTERNAL_RAM_START, JOYPAD_REGISTER,
-    OAM_DMA_REGISTER, ROM_END, ROM_START,
+    BOOTROM_MAPPER_REGISTER, EXTERNAL_RAM_END, EXTERNAL_RAM_START, JOYPAD_REGISTER, OAM_DMA_REGISTER, ROM_END,
+    ROM_START,
 };
 use crate::sound::apu::Apu;
 use crate::sound::{
-    NR10, NR11, NR12, NR13, NR14, NR21, NR22, NR23, NR24, NR30, NR31, NR32, NR33, NR34, NR41, NR42,
-    NR43, NR44, NR50, NR51, NR52, WAVE_PATTERN_RAM_END, WAVE_PATTERN_RAM_START,
+    NR10, NR11, NR12, NR13, NR14, NR21, NR22, NR23, NR24, NR30, NR31, NR32, NR33, NR34, NR41, NR42, NR43, NR44, NR50,
+    NR51, NR52, WAVE_PATTERN_RAM_END, WAVE_PATTERN_RAM_START,
 };
 use crate::video::cram::Cram;
-use log::{debug, error};
+use log::{debug, error, trace};
 
 use super::addressable::Addressable;
 use super::{
-    BACKGROUND_PALETTE_DATA_REGISTER, BACKGROUND_PALETTE_INDEX_REGISTER,
+    BACKGROUND_PALETTE_DATA_REGISTER, BACKGROUND_PALETTE_INDEX_REGISTER, DOUBLE_SPEED_SWITCH_REGISTER,
     HDMA_LENGTH_MODE_START_REGISTER, HDMA_VRAM_DST_HIGH_REGISTER, HDMA_VRAM_DST_LOW_REGISTER,
     HDMA_VRAM_SRC_HIGH_REGISTER, HDMA_VRAM_SRC_LOW_REGISTER, OBJECT_PALETTE_DATA_REGISTER,
-    OBJECT_PALETTE_INDEX_REGISTER, VRAM_BANK_SELECT_REGISTER, VRAM_END, VRAM_START, WRAM_BANK1_END,
-    WRAM_BANK1_START, WRAM_BANK_SELECT_REGISTER,
+    OBJECT_PALETTE_INDEX_REGISTER, VRAM_BANK_SELECT_REGISTER, VRAM_END, VRAM_START, WRAM_BANK1_END, WRAM_BANK1_START,
+    WRAM_BANK_SELECT_REGISTER,
 };
 
 // The last instruction unmaps the boot ROM. Execution continues normally,
@@ -33,6 +33,8 @@ pub struct Mmu {
     pub joypad: Joypad,
     pub apu: Apu,
     pub cgb_cram: Cram,
+    pub cgb_double_speed: bool,
+    cgb_prepare_speed_switch: bool,
     memory: Vec<u8>,
     cgb_vram_bank1: Vec<u8>, // 0x2000 bank 1
     cgb_wram_bank1: Vec<u8>, // 0x1000 bank 1-7
@@ -50,6 +52,8 @@ impl Mmu {
             cgb_vram_bank1: vec![0; 0x2000],
             cgb_wram_bank1: vec![0; 0x1000 * 7],
             cgb_cram: Cram::new(),
+            cgb_double_speed: false,
+            cgb_prepare_speed_switch: false,
             cgb_hdma_src: 0,
             cgb_hdma_dst: 0,
             bootrom,
@@ -79,9 +83,7 @@ impl Mmu {
                 Ok(self.bootrom[addr as usize])
             }
             ROM_START..=ROM_END => self.cartridge.read(addr),
-            VRAM_START..=VRAM_END if self.current_vram_bank() == 0 => {
-                Ok(self.memory[addr as usize])
-            }
+            VRAM_START..=VRAM_END if self.current_vram_bank() == 0 => Ok(self.memory[addr as usize]),
             VRAM_START..=VRAM_END if self.current_vram_bank() == 1 => {
                 Ok(self.cgb_vram_bank1[(addr - VRAM_START) as usize]) // CGB
             }
@@ -89,13 +91,15 @@ impl Mmu {
             WRAM_BANK1_START..=WRAM_BANK1_END => {
                 let bank = self.current_wram_bank();
                 if bank > 0 {
-                    Ok(self.cgb_wram_bank1
-                        [((bank as u16 - 1) * 0x1000 + (addr - WRAM_BANK1_START)) as usize])
+                    Ok(self.cgb_wram_bank1[((bank as u16 - 1) * 0x1000 + (addr - WRAM_BANK1_START)) as usize])
                 } else {
                     Ok(self.memory[addr as usize])
                 }
             }
             JOYPAD_REGISTER => Ok(self.joypad.as_u8(self.memory[addr as usize])),
+            DOUBLE_SPEED_SWITCH_REGISTER if self.mode == Mode::Cgb => {
+                Ok(((self.cgb_double_speed as u16) << 7) as u8 | self.cgb_prepare_speed_switch as u8)
+            }
             NR10
             | NR11
             | NR12
@@ -198,9 +202,7 @@ impl Mmu {
                 error!("Attempted to write to bootrom");
             }
             ROM_START..=ROM_END => self.cartridge.write(addr, data)?,
-            VRAM_START..=VRAM_END if self.current_vram_bank() == 0 => {
-                self.memory[addr as usize] = data
-            }
+            VRAM_START..=VRAM_END if self.current_vram_bank() == 0 => self.memory[addr as usize] = data,
             VRAM_START..=VRAM_END if self.current_vram_bank() == 1 => {
                 self.cgb_vram_bank1[(addr - VRAM_START) as usize] = data
             }
@@ -208,8 +210,7 @@ impl Mmu {
             WRAM_BANK1_START..=WRAM_BANK1_END => {
                 let bank = self.current_wram_bank();
                 if bank > 0 {
-                    self.cgb_wram_bank1
-                        [((bank as u16 - 1) * 0x1000 + (addr - WRAM_BANK1_START)) as usize] = data
+                    self.cgb_wram_bank1[((bank as u16 - 1) * 0x1000 + (addr - WRAM_BANK1_START)) as usize] = data
                 } else {
                     self.memory[addr as usize] = data
                 }
@@ -227,8 +228,18 @@ impl Mmu {
             HDMA_VRAM_DST_LOW_REGISTER if self.mode == Mode::Cgb => {
                 self.cgb_hdma_dst = (self.cgb_hdma_dst & 0b1111_1111_0000_0000) | data as u16;
             }
-            HDMA_LENGTH_MODE_START_REGISTER if self.mode == Mode::Cgb => {
-                self.start_hdma_transfer(data)?
+            HDMA_LENGTH_MODE_START_REGISTER if self.mode == Mode::Cgb => self.start_hdma_transfer(data)?,
+            DOUBLE_SPEED_SWITCH_REGISTER if self.mode == Mode::Cgb => {
+                self.cgb_prepare_speed_switch = data & 0b0000_0001 == 1;
+
+                debug!(
+                    "Queuing CGB speed mode: {}",
+                    if self.cgb_prepare_speed_switch {
+                        "double"
+                    } else {
+                        "normal"
+                    }
+                );
             }
             NR10
             | NR11
@@ -308,9 +319,21 @@ impl Mmu {
         }
     }
 
+    pub fn enable_pending_speed_switch(&mut self) {
+        if self.cgb_prepare_speed_switch {
+            self.cgb_double_speed = !self.cgb_double_speed;
+            self.cgb_prepare_speed_switch = false;
+
+            debug!(
+                "Switched to CGB speed mode: {}",
+                if self.cgb_double_speed { "double" } else { "normal" }
+            );
+        }
+    }
+
     fn start_dma_transfer(&mut self, data: u8) -> Result<(), AyyError> {
         let src_addr = (data as u16) << 8;
-        debug!("OAM DMA transfer from ${:04x}", src_addr);
+        trace!("OAM DMA transfer from ${:04x}", src_addr);
 
         // TODO: Add cycles
         for i in 0..0xa0 {
@@ -326,9 +349,7 @@ impl Mmu {
         // TODO: add cycles
         let src_addr = self.cgb_hdma_src;
         let dst_addr = self.cgb_hdma_dst;
-        let length = ((data & 0b0111_1111) as u16)
-            .wrapping_add(1)
-            .wrapping_mul(0x10);
+        let length = ((data & 0b0111_1111) as u16).wrapping_add(1).wrapping_mul(0x10);
 
         debug!(
             "HDMA transfer from ${:04x} to ${:04x} of length ${:04x}",

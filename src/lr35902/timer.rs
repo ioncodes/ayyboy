@@ -21,12 +21,17 @@ impl Timer {
         let tima = self.read_tima(mmu);
         let tma = self.read_tma(mmu);
 
-        let cycles: usize = match self.read_tac(mmu) & 0b11 {
+        let mut cycles: usize = match self.read_tac(mmu) & 0b11 {
             0b00 => 1024,
             0b01 => 16,
             0b10 => 64,
             0b11 => 256,
             _ => unreachable!(),
+        };
+
+        cycles = match mmu.cgb_double_speed {
+            true => cycles * 2,
+            false => cycles,
         };
 
         if self.cycles >= cycles {

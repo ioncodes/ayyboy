@@ -89,10 +89,7 @@ impl Mapper for Mbc3 {
                 Ok(())
             }
             _ => {
-                error!(
-                    "MBC3: Unmapped write to address {:04x} with data {:02x}",
-                    addr, data
-                );
+                error!("MBC3: Unmapped write to address {:04x} with data {:02x}", addr, data);
                 Ok(())
             }
         }

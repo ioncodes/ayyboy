@@ -23,6 +23,7 @@ pub const HDMA_VRAM_SRC_LOW_REGISTER: u16 = 0xff52;
 pub const HDMA_VRAM_DST_HIGH_REGISTER: u16 = 0xff53;
 pub const HDMA_VRAM_DST_LOW_REGISTER: u16 = 0xff54;
 pub const HDMA_LENGTH_MODE_START_REGISTER: u16 = 0xff55;
+pub const DOUBLE_SPEED_SWITCH_REGISTER: u16 = 0xff4d;
 
 pub const ROM_START: u16 = 0x0000;
 pub const ROM_END: u16 = 0x7fff;

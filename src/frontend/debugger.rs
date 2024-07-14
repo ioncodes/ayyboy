@@ -1,6 +1,5 @@
 use eframe::egui::{
-    self, vec2, Color32, ColorImage, Image, RichText, TextStyle, TextureHandle, TextureOptions,
-    Window,
+    self, vec2, Color32, ColorImage, Image, RichText, TextStyle, TextureHandle, TextureOptions, Window,
 };
 use egui::Context;
 
@@ -95,45 +94,41 @@ impl Debugger {
             ui.add(image);
         });
 
-        Window::new("Background Tilemap")
-            .resizable(false)
-            .show(ctx, |ui| {
-                let backgroundmap = gb.dbg_render_background_tilemap();
-                Debugger::render_into_texture(
-                    &backgroundmap,
-                    &mut self.backgroundmap_texture,
-                    32,
-                    BACKGROUND_WIDTH,
-                    BACKGROUND_HEIGHT,
-                );
+        Window::new("Background Tilemap").resizable(false).show(ctx, |ui| {
+            let backgroundmap = gb.dbg_render_background_tilemap();
+            Debugger::render_into_texture(
+                &backgroundmap,
+                &mut self.backgroundmap_texture,
+                32,
+                BACKGROUND_WIDTH,
+                BACKGROUND_HEIGHT,
+            );
 
-                let image = Image::new(&self.backgroundmap_texture);
-                let image = image.fit_to_exact_size(vec2(
-                    (BACKGROUND_WIDTH * (SCALE / 4)) as f32,
-                    (BACKGROUND_HEIGHT * (SCALE / 4)) as f32,
-                ));
-                ui.add(image);
-            });
+            let image = Image::new(&self.backgroundmap_texture);
+            let image = image.fit_to_exact_size(vec2(
+                (BACKGROUND_WIDTH * (SCALE / 4)) as f32,
+                (BACKGROUND_HEIGHT * (SCALE / 4)) as f32,
+            ));
+            ui.add(image);
+        });
 
-        Window::new("Window Tilemap")
-            .resizable(false)
-            .show(ctx, |ui| {
-                let windowmap = gb.dbg_render_window_tilemap();
-                Debugger::render_into_texture(
-                    &windowmap,
-                    &mut self.windowmap_texture,
-                    32,
-                    BACKGROUND_WIDTH,
-                    BACKGROUND_HEIGHT,
-                );
+        Window::new("Window Tilemap").resizable(false).show(ctx, |ui| {
+            let windowmap = gb.dbg_render_window_tilemap();
+            Debugger::render_into_texture(
+                &windowmap,
+                &mut self.windowmap_texture,
+                32,
+                BACKGROUND_WIDTH,
+                BACKGROUND_HEIGHT,
+            );
 
-                let image = Image::new(&self.windowmap_texture);
-                let image = image.fit_to_exact_size(vec2(
-                    (BACKGROUND_WIDTH * (SCALE / 4)) as f32,
-                    (BACKGROUND_HEIGHT * (SCALE / 4)) as f32,
-                ));
-                ui.add(image);
-            });
+            let image = Image::new(&self.windowmap_texture);
+            let image = image.fit_to_exact_size(vec2(
+                (BACKGROUND_WIDTH * (SCALE / 4)) as f32,
+                (BACKGROUND_HEIGHT * (SCALE / 4)) as f32,
+            ));
+            ui.add(image);
+        });
 
         if gb.mode == Mode::Cgb {
             Window::new("Palettes").resizable(false).show(ctx, |ui| {
@@ -141,17 +136,11 @@ impl Debugger {
 
                 for slot in 0..8 {
                     ui.horizontal(|ui| {
-                        ui.label(
-                            RichText::new(format!("Slot {:02x}: ", slot))
-                                .text_style(TextStyle::Monospace),
-                        );
+                        ui.label(RichText::new(format!("Slot {:02x}: ", slot)).text_style(TextStyle::Monospace));
                         for idx in 0..4 {
                             ui.label(
-                                RichText::new(format!(
-                                    "{:04x}",
-                                    gb.mmu.cgb_cram.fetch_bg(slot, idx * 2)
-                                ))
-                                .text_style(TextStyle::Monospace),
+                                RichText::new(format!("{:04x}", gb.mmu.cgb_cram.fetch_bg(slot, idx * 2)))
+                                    .text_style(TextStyle::Monospace),
                             );
                         }
                     });
@@ -162,17 +151,11 @@ impl Debugger {
                 ui.heading("Object Palette");
                 for slot in 0..8 {
                     ui.horizontal(|ui| {
-                        ui.label(
-                            RichText::new(format!("Slot {:02x}: ", slot))
-                                .text_style(TextStyle::Monospace),
-                        );
+                        ui.label(RichText::new(format!("Slot {:02x}: ", slot)).text_style(TextStyle::Monospace));
                         for idx in 0..4 {
                             ui.label(
-                                RichText::new(format!(
-                                    "{:04x}",
-                                    gb.mmu.cgb_cram.fetch_obj(slot, idx * 2)
-                                ))
-                                .text_style(TextStyle::Monospace),
+                                RichText::new(format!("{:04x}", gb.mmu.cgb_cram.fetch_obj(slot, idx * 2)))
+                                    .text_style(TextStyle::Monospace),
                             );
                         }
                     });
@@ -186,8 +169,7 @@ impl Debugger {
     }
 
     fn render_into_texture(
-        tiles: &Vec<Tile>, texture: &mut TextureHandle, boundary: usize, width: usize,
-        height: usize,
+        tiles: &Vec<Tile>, texture: &mut TextureHandle, boundary: usize, width: usize, height: usize,
     ) {
         let mut pixels = vec![Color32::BLACK; width * height];
 
@@ -196,8 +178,7 @@ impl Debugger {
                 for x in 0..8 {
                     // 16 tiles per row
                     let color: Color = tile.pixels[y][x].into();
-                    let color32 =
-                        Color32::from_rgba_premultiplied(color[0], color[1], color[2], 255);
+                    let color32 = Color32::from_rgba_premultiplied(color[0], color[1], color[2], 255);
 
                     let tile_x = (idx % boundary) * 8 + x;
                     let tile_y = (idx / boundary) * 8 + y;

@@ -5,6 +5,8 @@ use crate::lr35902::registers::Flags;
 use crate::lr35902::sm83::{AddressingMode, Condition, Instruction, Opcode, Operand, Register};
 use crate::memory::mmu::Mmu;
 
+use super::timer::Timer;
+
 macro_rules! invalid_handler {
     ($instruction:expr) => {
         Err(InvalidHandler {
@@ -177,7 +179,9 @@ impl Handlers {
     #[inline]
     pub fn complement(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         match instruction {
-            Instruction { opcode: Opcode::Cpl, .. } => {
+            Instruction {
+                opcode: Opcode::Cpl, ..
+            } => {
                 let value = cpu.read_register(&Register::A);
                 let result = !value;
                 cpu.write_register(&Register::A, result);
@@ -187,7 +191,9 @@ impl Handlers {
 
                 Ok(instruction.cycles.0)
             }
-            Instruction { opcode: Opcode::Ccf, .. } => {
+            Instruction {
+                opcode: Opcode::Ccf, ..
+            } => {
                 let carry = cpu.read_flag(Flags::CARRY);
                 cpu.update_flag(Flags::SUBTRACT, false);
                 cpu.update_flag(Flags::HALF_CARRY, false);
@@ -195,7 +201,9 @@ impl Handlers {
 
                 Ok(instruction.cycles.0)
             }
-            Instruction { opcode: Opcode::Scf, .. } => {
+            Instruction {
+                opcode: Opcode::Scf, ..
+            } => {
                 cpu.update_flag(Flags::SUBTRACT, false);
                 cpu.update_flag(Flags::HALF_CARRY, false);
                 cpu.update_flag(Flags::CARRY, true);
@@ -207,7 +215,9 @@ impl Handlers {
     }
 
     #[inline]
-    pub fn decimal_adjust_accumulator(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
+    pub fn decimal_adjust_accumulator(
+        cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction,
+    ) -> Result<usize, AyyError> {
         let mut a = cpu.read_register(&Register::A);
         let mut adjust = 0;
         let mut carry = cpu.read_flag(Flags::CARRY) as u8;
@@ -385,7 +395,9 @@ impl Handlers {
 
                 Ok(instruction.cycles.0)
             }
-            Instruction { opcode: Opcode::Rla, .. } => {
+            Instruction {
+                opcode: Opcode::Rla, ..
+            } => {
                 let value = cpu.read_register(&Register::A);
                 let carry = cpu.read_flag(Flags::CARRY) as u8;
                 let result = (value << 1) | carry;
@@ -431,7 +443,9 @@ impl Handlers {
 
                 Ok(instruction.cycles.0)
             }
-            Instruction { opcode: Opcode::Rlca, .. } => {
+            Instruction {
+                opcode: Opcode::Rlca, ..
+            } => {
                 let value = cpu.read_register(&Register::A);
                 let result = (value << 1) | (value >> 7);
                 cpu.write_register(&Register::A, result);
@@ -485,7 +499,9 @@ impl Handlers {
 
                 Ok(instruction.cycles.0)
             }
-            Instruction { opcode: Opcode::Rra, .. } => {
+            Instruction {
+                opcode: Opcode::Rra, ..
+            } => {
                 let value = cpu.read_register(&Register::A);
                 let carry = cpu.read_flag(Flags::CARRY) as u8;
                 let result = (value >> 1) | (carry << 7);
@@ -531,7 +547,9 @@ impl Handlers {
 
                 Ok(instruction.cycles.0)
             }
-            Instruction { opcode: Opcode::Rrca, .. } => {
+            Instruction {
+                opcode: Opcode::Rrca, ..
+            } => {
                 let value = cpu.read_register(&Register::A);
                 let result = (value >> 1) | (value << 7);
                 cpu.write_register(&Register::A, result);
@@ -804,6 +822,13 @@ impl Handlers {
     }
 
     #[inline]
+    pub fn stop(cpu: &mut Cpu, mmu: &mut Mmu, timer: &mut Timer, instruction: &Instruction) -> Result<usize, AyyError> {
+        timer.reset_divider(mmu);
+        mmu.enable_pending_speed_switch();
+        Ok(instruction.cycles.0)
+    }
+
+    #[inline]
     pub fn jump(cpu: &mut Cpu, mmu: &mut Mmu, instruction: &Instruction) -> Result<usize, AyyError> {
         ensure!(lhs_rhs => instruction);
 
@@ -811,7 +836,8 @@ impl Handlers {
             Opcode::Jp => {
                 if let Some(Operand::Conditional(cond)) = instruction.lhs.as_ref() {
                     return if Handlers::check_condition(cpu, cond) {
-                        let addr = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as u16;
+                        let addr =
+                            Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as u16;
                         cpu.write_register16(&Register::PC, addr);
                         Ok(instruction.cycles.0)
                     } else {
@@ -822,7 +848,8 @@ impl Handlers {
             Opcode::Jr => {
                 if let Some(Operand::Conditional(cond)) = instruction.lhs.as_ref() {
                     return if Handlers::check_condition(cpu, cond) {
-                        let offset = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as i8;
+                        let offset =
+                            Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as i8;
                         let pc = cpu.read_register16(&Register::PC);
                         cpu.write_register16(&Register::PC, pc.wrapping_add_signed(offset as i16));
                         Ok(instruction.cycles.0)
@@ -834,7 +861,8 @@ impl Handlers {
             Opcode::Call => {
                 if let Some(Operand::Conditional(cond)) = instruction.lhs.as_ref() {
                     return if Handlers::check_condition(cpu, cond) {
-                        let addr = Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as u16;
+                        let addr =
+                            Handlers::resolve_operand(cpu, mmu, instruction.rhs.as_ref().unwrap(), false)? as u16;
                         let pc = cpu.read_register16(&Register::PC);
                         // We already increased the PC by 3, so we need to push the current PC + 3
                         cpu.push_stack(mmu, pc)?;
@@ -1046,7 +1074,9 @@ impl Handlers {
     #[inline]
     fn resolve_operand(cpu: &mut Cpu, mmu: &Mmu, operand: &Operand, is_ldh: bool) -> Result<usize, AyyError> {
         match operand {
-            Operand::Reg16(reg, mode) if mode.contains(AddressingMode::Direct) => Ok(cpu.read_register16(&reg) as usize),
+            Operand::Reg16(reg, mode) if mode.contains(AddressingMode::Direct) => {
+                Ok(cpu.read_register16(&reg) as usize)
+            }
             Operand::Reg16(reg, mode) if mode.contains(AddressingMode::Indirect) => {
                 let addr = cpu.read_register16(&reg);
                 Handlers::process_additional_address_mode(cpu, reg, addr, mode);
@@ -1071,7 +1101,9 @@ impl Handlers {
             Operand::DisplacedReg16(reg, offset, mode) if mode.contains(AddressingMode::Direct) => {
                 Ok(cpu.read_register16(reg).wrapping_add_signed(*offset as i16) as usize)
             }
-            _ => Err(UnresolvedTarget { target: operand.clone() }),
+            _ => Err(UnresolvedTarget {
+                target: operand.clone(),
+            }),
         }
     }
 

@@ -55,10 +55,7 @@ fn main() {
 
     let native_options = NativeOptions {
         viewport: ViewportBuilder::default()
-            .with_inner_size([
-                (SCREEN_WIDTH * SCALE) as f32,
-                (SCREEN_HEIGHT * SCALE) as f32,
-            ])
+            .with_inner_size([(SCREEN_WIDTH * SCALE) as f32, (SCREEN_HEIGHT * SCALE) as f32])
             .with_resizable(true),
         vsync: false,
         ..Default::default()
@@ -128,9 +125,7 @@ fn setup_logging(log_to_file: bool) {
     };
 
     base_config
-        .format(move |out, message, record| {
-            out.finish(format_args!("[{}] {}", record.level(), message))
-        })
+        .format(move |out, message, record| out.finish(format_args!("[{}] {}", record.level(), message)))
         .apply()
         .unwrap();
 }

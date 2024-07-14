@@ -62,7 +62,9 @@ impl NoiseChannel {
             if self.period_timer == 0 {
                 self.period_timer = self.period;
 
-                if (self.current_volume < 0xF && self.is_incrementing) || (self.current_volume > 0 && !self.is_incrementing) {
+                if (self.current_volume < 0xF && self.is_incrementing)
+                    || (self.current_volume > 0 && !self.is_incrementing)
+                {
                     if self.is_incrementing {
                         self.current_volume += 1;
                     } else {

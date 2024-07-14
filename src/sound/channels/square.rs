@@ -91,7 +91,9 @@ impl SquareChannel1 {
             if self.period_timer == 0 {
                 self.period_timer = self.period;
 
-                if (self.current_volume < 0xF && self.is_incrementing) || (self.current_volume > 0 && !self.is_incrementing) {
+                if (self.current_volume < 0xF && self.is_incrementing)
+                    || (self.current_volume > 0 && !self.is_incrementing)
+                {
                     if self.is_incrementing {
                         self.current_volume += 1;
                     } else {
@@ -241,7 +243,9 @@ impl SquareChannel2 {
             if self.period_timer == 0 {
                 self.period_timer = self.period;
 
-                if (self.current_volume < 0xF && self.is_incrementing) || (self.current_volume > 0 && !self.is_incrementing) {
+                if (self.current_volume < 0xF && self.is_incrementing)
+                    || (self.current_volume > 0 && !self.is_incrementing)
+                {
                     if self.is_incrementing {
                         self.current_volume += 1;
                     } else {
@@ -296,7 +300,12 @@ impl Addressable for SquareChannel1 {
     #[inline]
     fn read(&self, addr: u16) -> u8 {
         match addr {
-            NR10 => (self.sweep_period << 4) | (if self.sweep_is_decrementing { 0x08 } else { 0x00 }) | self.sweep_amount | 0x80,
+            NR10 => {
+                (self.sweep_period << 4)
+                    | (if self.sweep_is_decrementing { 0x08 } else { 0x00 })
+                    | self.sweep_amount
+                    | 0x80
+            }
             NR11 => (self.duty_pattern << 6) | 0b0011_1111,
             NR12 => (self.initial_volume << 4) | (if self.is_incrementing { 0x08 } else { 0x00 }) | self.period,
             NR14 => ((self.length_enabled as u8) << 6) | 0b1011_1111,

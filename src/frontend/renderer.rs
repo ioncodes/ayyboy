@@ -4,8 +4,7 @@ use crate::sound::CPU_CLOCK;
 use crate::video::palette::{Color, Palette};
 use crate::video::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use eframe::egui::{
-    vec2, Align2, CentralPanel, Color32, ColorImage, Context, Image, Key, TextureHandle,
-    TextureOptions, Window,
+    vec2, Align2, CentralPanel, Color32, ColorImage, Context, Image, Key, TextureHandle, TextureOptions, Window,
 };
 use eframe::{App, CreationContext, Frame};
 use log::info;
@@ -45,8 +44,7 @@ impl Renderer {
         for y in 0..SCREEN_HEIGHT {
             for x in 0..SCREEN_WIDTH {
                 let color: Color = palette_data[y][x].into();
-                pixels[y * SCREEN_WIDTH + x] =
-                    Color32::from_rgba_premultiplied(color[0], color[1], color[2], 255);
+                pixels[y * SCREEN_WIDTH + x] = Color32::from_rgba_premultiplied(color[0], color[1], color[2], 255);
             }
         }
 
@@ -162,10 +160,7 @@ impl App for Renderer {
 
         CentralPanel::default().show(ctx, |ui| {
             let image = Image::new(&self.screen_texture);
-            let image = image.fit_to_exact_size(vec2(
-                (SCREEN_WIDTH * SCALE) as f32,
-                (SCREEN_WIDTH * SCALE) as f32,
-            ));
+            let image = image.fit_to_exact_size(vec2((SCREEN_WIDTH * SCALE) as f32, (SCREEN_WIDTH * SCALE) as f32));
             image.paint_at(ui, ui.ctx().screen_rect());
         });
 

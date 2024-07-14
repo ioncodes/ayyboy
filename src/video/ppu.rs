@@ -9,9 +9,9 @@ use crate::video::palette::Palette;
 use crate::video::sprite::{Sprite, SpriteAttributes};
 use crate::video::tile::Tile;
 use crate::video::{
-    LCD_CONTROL_REGISTER, LCD_STATUS_REGISTER, SCANLINE_Y_COMPARE_REGISTER, SCANLINE_Y_REGISTER,
-    SCREEN_HEIGHT, SCREEN_WIDTH, SCROLL_X_REGISTER, SCROLL_Y_REGISTER, TILEMAP_0_ADDRESS,
-    TILEMAP_1_ADDRESS, TILESET_0_ADDRESS, TILESET_1_ADDRESS, WINDOW_X_REGISTER, WINDOW_Y_REGISTER,
+    LCD_CONTROL_REGISTER, LCD_STATUS_REGISTER, SCANLINE_Y_COMPARE_REGISTER, SCANLINE_Y_REGISTER, SCREEN_HEIGHT,
+    SCREEN_WIDTH, SCROLL_X_REGISTER, SCROLL_Y_REGISTER, TILEMAP_0_ADDRESS, TILEMAP_1_ADDRESS, TILESET_0_ADDRESS,
+    TILESET_1_ADDRESS, WINDOW_X_REGISTER, WINDOW_Y_REGISTER,
 };
 
 use super::tile::TileAttributes;
@@ -77,11 +77,7 @@ impl Ppu {
             return;
         }
 
-        let sprite_height = if lcdc.contains(LcdControl::OBJ_SIZE) {
-            16
-        } else {
-            8
-        };
+        let sprite_height = if lcdc.contains(LcdControl::OBJ_SIZE) { 16 } else { 8 };
         let oams = self.fetch_oams(mmu, sprite_height);
 
         // Track visited OAMs for current scanline
@@ -101,27 +97,22 @@ impl Ppu {
                 && mmu
                     .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
                     .contains(LcdControl::OBJ_DISPLAY)
-                && let Some((sprite, sprite_color)) =
-                    self.fetch_sprite_pixel(&oams, x, scanline, sprite_height)
+                && let Some((sprite, sprite_color)) = self.fetch_sprite_pixel(&oams, x, scanline, sprite_height)
             {
                 let is_bg_visible = !background_color.is_color(0);
                 let is_win_visible = !window_color.is_color(0);
 
-                if sprite.attributes.contains(SpriteAttributes::PRIORITY)
-                    && (is_bg_visible || is_win_visible)
-                {
+                if sprite.attributes.contains(SpriteAttributes::PRIORITY) && (is_bg_visible || is_win_visible) {
                     continue;
                 }
 
                 // Are background and window tiles deprioritized?
-                let cgb_sprite_prio =
-                    self.mode == Mode::Cgb && !lcdc.contains(LcdControl::BG_AND_WIN_DISPLAY);
+                let cgb_sprite_prio = self.mode == Mode::Cgb && !lcdc.contains(LcdControl::BG_AND_WIN_DISPLAY);
 
                 // Do the background or window tiles have priority while being visible?
                 let cgb_master_prio = self.mode == Mode::Cgb
                     && ((bg_tile.attributes.contains(TileAttributes::PRIORITY) && is_bg_visible)
-                        || (win_tile.attributes.contains(TileAttributes::PRIORITY)
-                            && is_win_visible));
+                        || (win_tile.attributes.contains(TileAttributes::PRIORITY) && is_win_visible));
 
                 if !cgb_sprite_prio && cgb_master_prio {
                     continue;
@@ -227,9 +218,7 @@ impl Ppu {
         // Emulate LYC=0 LY=153 quirk
         let lcd_status = mmu.read_as_unchecked::<LcdStatus>(LCD_STATUS_REGISTER);
         let lyc = mmu.read_unchecked(SCANLINE_Y_COMPARE_REGISTER);
-        if lcd_status.contains(LcdStatus::LYC_EQ_LY_ENABLE)
-            && (scanline == lyc || (scanline == 153 && lyc == 0))
-        {
+        if lcd_status.contains(LcdStatus::LYC_EQ_LY_ENABLE) && (scanline == lyc || (scanline == 153 && lyc == 0)) {
             interrupt_flags |= InterruptFlags::STAT;
         }
 

@@ -8,8 +8,8 @@ use super::channels::wave::WaveChannel;
 use super::channels::Channel;
 use super::stereo::StereoSide;
 use super::{
-    BUFFER_SIZE, CPU_CLOCK, NR10, NR14, NR21, NR24, NR30, NR34, NR41, NR44, NR50, NR51, NR52, SAMPLE_RATE, WAVE_PATTERN_RAM_END,
-    WAVE_PATTERN_RAM_START,
+    BUFFER_SIZE, CPU_CLOCK, NR10, NR14, NR21, NR24, NR30, NR34, NR41, NR44, NR50, NR51, NR52, SAMPLE_RATE,
+    WAVE_PATTERN_RAM_END, WAVE_PATTERN_RAM_START,
 };
 use crate::memory::addressable::Addressable;
 
@@ -100,7 +100,8 @@ impl Apu {
             std::thread::sleep(std::time::Duration::from_millis(1));
         }
 
-        self.audio_sink.append(SamplesBuffer::new(2, SAMPLE_RATE as u32, buffer));
+        self.audio_sink
+            .append(SamplesBuffer::new(2, SAMPLE_RATE as u32, buffer));
     }
 
     pub fn tick(&mut self, cycles: usize) {

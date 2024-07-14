@@ -87,8 +87,7 @@ impl Mapper for Mbc1 {
             }
             SECONDARY_BANK_REGISTER_START..=SECONDARY_BANK_REGISTER_END if self.banking_mode => {
                 if self.secondary_banking_allowed {
-                    self.rom_bank =
-                        ((self.rom_bank as u8 & 0b0001_1111) | ((data & 0b11) << 5)) as u16;
+                    self.rom_bank = ((self.rom_bank as u8 & 0b0001_1111) | ((data & 0b11) << 5)) as u16;
                     debug!("MBC1: Switched to ROM bank {}", self.rom_bank);
                 } else {
                     warn!("MBC1: Attempted to switch to ROM bank, but not allowed");

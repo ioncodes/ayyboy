@@ -162,7 +162,11 @@ impl Sm83 {
             prefix = true;
         }
 
-        let cached_lut = if prefix { &self.cached_lut_prefixed } else { &self.cached_lut };
+        let cached_lut = if prefix {
+            &self.cached_lut_prefixed
+        } else {
+            &self.cached_lut
+        };
         if let Some(instruction) = cached_lut.get(&opcode_byte) {
             let mut instruction = instruction.clone();
 
@@ -178,9 +182,11 @@ impl Sm83 {
                 Some(Operand::Imm8(_, mode)) => Some(Operand::Imm8(mmu.read(current_pc.wrapping_add(1))?, mode)),
                 Some(Operand::Imm16(_, mode)) => Some(Operand::Imm16(mmu.read16(current_pc.wrapping_add(1))?, mode)),
                 Some(Operand::Offset(_)) => Some(Operand::Offset(mmu.read(current_pc.wrapping_add(1))? as i8)),
-                Some(Operand::DisplacedReg16(reg, _, mode)) => {
-                    Some(Operand::DisplacedReg16(reg, mmu.read(current_pc.wrapping_add(1))? as i8, mode))
-                }
+                Some(Operand::DisplacedReg16(reg, _, mode)) => Some(Operand::DisplacedReg16(
+                    reg,
+                    mmu.read(current_pc.wrapping_add(1))? as i8,
+                    mode,
+                )),
                 _ => instruction.lhs,
             };
 
@@ -188,9 +194,11 @@ impl Sm83 {
                 Some(Operand::Imm8(_, mode)) => Some(Operand::Imm8(mmu.read(current_pc.wrapping_add(1))?, mode)),
                 Some(Operand::Imm16(_, mode)) => Some(Operand::Imm16(mmu.read16(current_pc.wrapping_add(1))?, mode)),
                 Some(Operand::Offset(_)) => Some(Operand::Offset(mmu.read(current_pc.wrapping_add(1))? as i8)),
-                Some(Operand::DisplacedReg16(reg, _, mode)) => {
-                    Some(Operand::DisplacedReg16(reg, mmu.read(current_pc.wrapping_add(1))? as i8, mode))
-                }
+                Some(Operand::DisplacedReg16(reg, _, mode)) => Some(Operand::DisplacedReg16(
+                    reg,
+                    mmu.read(current_pc.wrapping_add(1))? as i8,
+                    mode,
+                )),
                 _ => instruction.rhs,
             };
 
@@ -198,7 +206,11 @@ impl Sm83 {
         }
 
         let opcode_str = format!("{:08b}", opcode_byte);
-        let lut = if prefix { &self.decoder_lut_prefixed } else { &self.decoder_lut };
+        let lut = if prefix {
+            &self.decoder_lut_prefixed
+        } else {
+            &self.decoder_lut
+        };
 
         for (pattern, opcode, decoder_fn) in lut {
             if pattern.len() != opcode_str.len() {
@@ -323,7 +335,10 @@ impl Sm83 {
         lut.push(define_decoder!("00001000", Opcode::Ld, |mmu, pc, opcode| {
             Ok(Instruction {
                 opcode,
-                lhs: Some(Operand::Imm16(mmu.read16(pc.wrapping_add(1))?, AddressingMode::Indirect)),
+                lhs: Some(Operand::Imm16(
+                    mmu.read16(pc.wrapping_add(1))?,
+                    AddressingMode::Indirect,
+                )),
                 rhs: Some(Operand::Reg16(Register::SP, AddressingMode::Direct)),
                 length: 3,
                 cycles: (20, None),
@@ -457,7 +472,10 @@ impl Sm83 {
         lut.push(define_decoder!("11101010", Opcode::Ld, |mmu, pc, opcode| {
             Ok(Instruction {
                 opcode,
-                lhs: Some(Operand::Imm16(mmu.read16(pc.wrapping_add(1))?, AddressingMode::Indirect)),
+                lhs: Some(Operand::Imm16(
+                    mmu.read16(pc.wrapping_add(1))?,
+                    AddressingMode::Indirect,
+                )),
                 rhs: Some(Operand::Reg8(Register::A, AddressingMode::Direct)),
                 length: 3,
                 cycles: (16, None),
@@ -469,7 +487,10 @@ impl Sm83 {
             Ok(Instruction {
                 opcode,
                 lhs: Some(Operand::Reg8(Register::A, AddressingMode::Direct)),
-                rhs: Some(Operand::Imm16(mmu.read16(pc.wrapping_add(1))?, AddressingMode::Indirect)),
+                rhs: Some(Operand::Imm16(
+                    mmu.read16(pc.wrapping_add(1))?,
+                    AddressingMode::Indirect,
+                )),
                 length: 3,
                 cycles: (16, None),
             })
@@ -678,7 +699,11 @@ impl Sm83 {
             let opcode_byte = mmu.read(pc)?;
             let condition = Sm83::lookup_condition_3bits((opcode_byte & 0b0011_1000) >> 3)?;
             let offset = mmu.read(pc.wrapping_add(1))? as i8;
-            let cycles = if condition != Condition::None { (12, Some(8)) } else { (12, None) };
+            let cycles = if condition != Condition::None {
+                (12, Some(8))
+            } else {
+                (12, None)
+            };
 
             Ok(Instruction {
                 opcode: Opcode::Jr,
@@ -696,7 +721,10 @@ impl Sm83 {
 
             Ok(Instruction {
                 opcode: Opcode::Ld,
-                lhs: Some(Operand::Reg16(Sm83::lookup_register_16(destination)?, AddressingMode::Direct)),
+                lhs: Some(Operand::Reg16(
+                    Sm83::lookup_register_16(destination)?,
+                    AddressingMode::Direct,
+                )),
                 rhs: Some(Operand::Imm16(mmu.read16(pc.wrapping_add(1))?, AddressingMode::Direct)),
                 length: 3,
                 cycles: (12, None),
@@ -728,7 +756,10 @@ impl Sm83 {
             let destination = (opcode_byte & 0b0011_0000) >> 4;
             Ok(Instruction {
                 opcode: Opcode::Ld,
-                lhs: Some(Operand::Reg16(Sm83::lookup_register_16(destination)?, AddressingMode::Indirect)),
+                lhs: Some(Operand::Reg16(
+                    Sm83::lookup_register_16(destination)?,
+                    AddressingMode::Indirect,
+                )),
                 rhs: Some(Operand::Reg8(Register::A, AddressingMode::Direct)),
                 length: 1,
                 cycles: (8, None),
@@ -743,7 +774,10 @@ impl Sm83 {
             Ok(Instruction {
                 opcode: Opcode::Add,
                 lhs: Some(Operand::Reg16(Register::HL, AddressingMode::Direct)),
-                rhs: Some(Operand::Reg16(Sm83::lookup_register_16(source)?, AddressingMode::Direct)),
+                rhs: Some(Operand::Reg16(
+                    Sm83::lookup_register_16(source)?,
+                    AddressingMode::Direct,
+                )),
                 length: 1,
                 cycles: (8, None),
             })
@@ -774,7 +808,10 @@ impl Sm83 {
             Ok(Instruction {
                 opcode: Opcode::Ld,
                 lhs: Some(Operand::Reg8(Register::A, AddressingMode::Direct)),
-                rhs: Some(Operand::Reg16(Sm83::lookup_register_16(source)?, AddressingMode::Indirect)),
+                rhs: Some(Operand::Reg16(
+                    Sm83::lookup_register_16(source)?,
+                    AddressingMode::Indirect,
+                )),
                 length: 1,
                 cycles: (8, None),
             })
@@ -802,7 +839,10 @@ impl Sm83 {
 
             Ok(Instruction {
                 opcode,
-                lhs: Some(Operand::Reg16(Sm83::lookup_register_16(destination)?, AddressingMode::Direct)),
+                lhs: Some(Operand::Reg16(
+                    Sm83::lookup_register_16(destination)?,
+                    AddressingMode::Direct,
+                )),
                 rhs: None,
                 length: 1,
                 cycles: (8, None),
@@ -846,7 +886,10 @@ impl Sm83 {
 
             Ok(Instruction {
                 opcode,
-                lhs: Some(Operand::Reg16(Sm83::lookup_register_16(destination)?, AddressingMode::Direct)),
+                lhs: Some(Operand::Reg16(
+                    Sm83::lookup_register_16(destination)?,
+                    AddressingMode::Direct,
+                )),
                 rhs: None,
                 length: 1,
                 cycles: (8, None),
@@ -927,7 +970,11 @@ impl Sm83 {
                 Condition::None
             };
 
-            let cycles = if condition != Condition::None { (16, Some(12)) } else { (16, None) };
+            let cycles = if condition != Condition::None {
+                (16, Some(12))
+            } else {
+                (16, None)
+            };
 
             Ok(Instruction {
                 opcode,
@@ -969,7 +1016,11 @@ impl Sm83 {
                 Condition::None
             };
 
-            let cycles = if condition != Condition::None { (24, Some(12)) } else { (24, None) };
+            let cycles = if condition != Condition::None {
+                (24, Some(12))
+            } else {
+                (24, None)
+            };
 
             Ok(Instruction {
                 opcode,

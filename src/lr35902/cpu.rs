@@ -7,7 +7,7 @@ use crate::lr35902::timer::Timer;
 use crate::memory::mmu::Mmu;
 use crate::memory::registers::{InterruptEnable, InterruptFlags};
 use crate::memory::{DIV_REGISTER, INTERRUPT_ENABLE_REGISTER, INTERRUPT_FLAGS_REGISTER};
-use log::{debug, trace};
+use log::trace;
 
 #[derive(Clone)]
 pub struct Cpu {
@@ -81,23 +81,14 @@ impl Cpu {
             Opcode::Or => Handlers::or(self, mmu, &instruction),
             Opcode::Daa => Handlers::decimal_adjust_accumulator(self, mmu, &instruction),
             Opcode::Halt => Handlers::halt(self, mmu, &instruction),
-            Opcode::Stop => {
-                timer.reset_divider(mmu);
-                Ok(4)
-            }
+            Opcode::Stop => Handlers::stop(self, mmu, timer, &instruction),
             Opcode::Jp | Opcode::Jr | Opcode::Call => Handlers::jump(self, mmu, &instruction),
             Opcode::Rst => Handlers::restart(self, mmu, &instruction),
             Opcode::Ret | Opcode::Reti => Handlers::ret(self, mmu, &instruction),
-            Opcode::Cpl | Opcode::Scf | Opcode::Ccf => {
-                Handlers::complement(self, mmu, &instruction)
-            }
+            Opcode::Cpl | Opcode::Scf | Opcode::Ccf => Handlers::complement(self, mmu, &instruction),
             Opcode::Bit => Handlers::test_bit(self, mmu, &instruction),
-            Opcode::Rl | Opcode::Rla | Opcode::Rlc | Opcode::Rlca => {
-                Handlers::rotate_left(self, mmu, &instruction)
-            }
-            Opcode::Rr | Opcode::Rra | Opcode::Rrc | Opcode::Rrca => {
-                Handlers::rotate_right(self, mmu, &instruction)
-            }
+            Opcode::Rl | Opcode::Rla | Opcode::Rlc | Opcode::Rlca => Handlers::rotate_left(self, mmu, &instruction),
+            Opcode::Rr | Opcode::Rra | Opcode::Rrc | Opcode::Rrca => Handlers::rotate_right(self, mmu, &instruction),
             Opcode::Sla => Handlers::shift_left(self, mmu, &instruction),
             Opcode::Sra | Opcode::Srl => Handlers::shift_right(self, mmu, &instruction),
             Opcode::Swap => Handlers::swap(self, mmu, &instruction),
@@ -272,7 +263,7 @@ impl Cpu {
             self.ime.enabled = true;
             self.ime.enable_pending = false;
 
-            debug!("IME pending, enabled");
+            trace!("IME pending, enabled");
         }
 
         let interrupt_enable = mmu.read_as::<InterruptEnable>(INTERRUPT_ENABLE_REGISTER)?;
@@ -282,11 +273,7 @@ impl Cpu {
             if self.ime.enabled {
                 // handle interrupt vector
                 let vector = Vector::from_flags(&interrupt_enable, &interrupt_flags);
-                trace!(
-                    "Handling interrupt: {} => ${:04x}",
-                    vector,
-                    vector.to_address()
-                );
+                trace!("Handling interrupt: {} => ${:04x}", vector, vector.to_address());
 
                 // save $pc, jump to interrupt vector
                 self.push_stack(mmu, self.registers.pc)?;
