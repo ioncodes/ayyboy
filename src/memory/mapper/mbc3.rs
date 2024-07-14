@@ -1,3 +1,5 @@
+use log::{debug, error};
+
 use crate::memory::mapper::Mapper;
 
 #[derive(Clone)]
@@ -36,10 +38,17 @@ impl Mapper for Mbc3 {
                     let addr = base_addr + (self.ram_bank as usize * 0x2000);
                     Ok(self.ram[addr])
                 } else {
-                    Err(crate::error::AyyError::OutOfBoundsMemoryAccess { address: addr })
+                    error!(
+                        "MBC3: Attempted read from RAM bank {} while RAM is disabled",
+                        self.ram_bank
+                    );
+                    Ok(0xff)
                 }
             }
-            _ => Err(crate::error::AyyError::OutOfBoundsMemoryAccess { address: addr }),
+            _ => {
+                error!("MBC3: Unmapped read from address {:04x}", addr);
+                Ok(0xff)
+            }
         }
     }
 
@@ -49,6 +58,7 @@ impl Mapper for Mbc3 {
             0x0000..=0x1fff => {
                 self.ram_enabled = data & 0x0f == 0x0a;
                 // TODO: enable RTC
+                debug!("MBC3: RAM access toggled to {}", self.ram_enabled);
                 Ok(())
             }
             0x2000..=0x3fff => {
@@ -56,11 +66,13 @@ impl Mapper for Mbc3 {
                 if self.rom_bank == 0 {
                     self.rom_bank = 1;
                 }
+                debug!("MBC3: Switched to ROM bank {}", self.rom_bank);
                 Ok(())
             }
-            0x4000..=0x5fff => {
-                // TODO: RTC
+            0x4000..=0x5fff if data <= 0x03 => {
+                // only RAM bank 1-3 allowed, rest goes to RTC
                 self.ram_bank = data & 0x0f;
+                debug!("MBC3: Switched to RAM bank {}", self.ram_bank);
                 Ok(())
             }
             0xa000..=0xbfff => {
@@ -68,12 +80,21 @@ impl Mapper for Mbc3 {
                     let base_addr = (addr - 0xa000) as usize;
                     let addr = base_addr + (self.ram_bank as usize * 0x2000);
                     self.ram[addr] = data;
-                    Ok(())
                 } else {
-                    Err(crate::error::AyyError::OutOfBoundsMemoryAccess { address: addr })
+                    error!(
+                        "MBC3: Attempted write to RAM bank {} while RAM is disabled",
+                        self.ram_bank
+                    );
                 }
+                Ok(())
             }
-            _ => Err(crate::error::AyyError::OutOfBoundsMemoryAccess { address: addr }),
+            _ => {
+                error!(
+                    "MBC3: Unmapped write to address {:04x} with data {:02x}",
+                    addr, data
+                );
+                Ok(())
+            }
         }
     }
 

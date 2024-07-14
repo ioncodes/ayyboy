@@ -120,8 +120,8 @@ impl Palette {
     fn rgb555_to_rgb888(color: u16) -> Color {
         // Person smarter than me figured out this color correction:
         // https://github.com/joamag/boytacean/blob/8d2d32b5fee994fdce37476995d8c29430980a6c/src/color.rs#L28-L33
-        let first = ((color >> 8) & 0xff) as u8;
-        let second = (color & 0xff) as u8;
+        let first = (color & 0xff) as u8;
+        let second = ((color >> 8) & 0xff) as u8;
 
         let r = (first & 0x1f) << 3;
         let g = (((first & 0xe0) >> 5) | ((second & 0x03) << 3)) << 3;
