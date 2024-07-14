@@ -326,10 +326,12 @@ impl Mmu {
         // TODO: add cycles
         let src_addr = self.cgb_hdma_src;
         let dst_addr = self.cgb_hdma_dst;
-        let length = (data & 0b0111_1111) + 1;
+        let length = ((data & 0b0111_1111) as u16)
+            .wrapping_add(1)
+            .wrapping_mul(0x10);
 
         debug!(
-            "HDMA transfer from ${:04x} to ${:04x} of length ${:02x}",
+            "HDMA transfer from ${:04x} to ${:04x} of length ${:04x}",
             src_addr, dst_addr, length
         );
 

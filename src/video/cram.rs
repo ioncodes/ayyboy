@@ -24,21 +24,24 @@ impl Cram {
     }
 
     pub fn fetch_bg(&self, slot: u8, index: u8) -> u16 {
-        (self.background_palette[((slot * 8) + index + 1) as usize] as u16) << 8
-            | self.background_palette[((slot * 8) + index) as usize] as u16
+        (self.background_palette[((slot * 8) + index) as usize] as u16) << 8
+            | self.background_palette[((slot * 8) + index + 1) as usize] as u16
     }
 
     pub fn fetch_obj(&self, slot: u8, index: u8) -> u16 {
-        (self.object_palette[((slot * 8) + index + 1) as usize] as u16) << 8
-            | self.object_palette[((slot * 8) + index) as usize] as u16
+        (self.object_palette[((slot * 8) + index) as usize] as u16) << 8
+            | self.object_palette[((slot * 8) + index + 1) as usize] as u16
     }
 }
 
 impl Addressable for Cram {
     fn read(&self, addr: u16) -> u8 {
         match addr {
-            BACKGROUND_PALETTE_INDEX_REGISTER => self.background_palette[self.address as usize],
-            OBJECT_PALETTE_INDEX_REGISTER => self.object_palette[self.address as usize],
+            BACKGROUND_PALETTE_INDEX_REGISTER | OBJECT_PALETTE_INDEX_REGISTER => {
+                (((self.auto_increment as u16) << 7) as u8) | (self.address & 0b0011_1111)
+            }
+            BACKGROUND_PALETTE_DATA_REGISTER => self.background_palette[self.address as usize],
+            OBJECT_PALETTE_DATA_REGISTER => self.object_palette[self.address as usize],
             _ => {
                 error!("Unmapped read from CRAM address {:04x}", addr);
                 0xff
@@ -55,21 +58,13 @@ impl Addressable for Cram {
             BACKGROUND_PALETTE_DATA_REGISTER => {
                 self.background_palette[self.address as usize] = data;
                 if self.auto_increment {
-                    if self.address >= 0b0011_1111 {
-                        self.address = 0;
-                    } else {
-                        self.address = (self.address.wrapping_add(1)) & 0b0011_1111;
-                    }
+                    self.address = (self.address.wrapping_add(1)) & 0b0011_1111;
                 }
             }
             OBJECT_PALETTE_DATA_REGISTER => {
                 self.object_palette[self.address as usize] = data;
                 if self.auto_increment {
-                    if self.address >= 0b0011_1111 {
-                        self.address = 0;
-                    } else {
-                        self.address = (self.address.wrapping_add(1)) & 0b0011_1111;
-                    }
+                    self.address = (self.address.wrapping_add(1)) & 0b0011_1111;
                 }
             }
             _ => error!(

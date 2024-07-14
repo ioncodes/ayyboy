@@ -48,19 +48,11 @@ impl Palette {
                 0b10 => mmu.cgb_cram.fetch_bg(palette, 4),
                 0b11 => mmu.cgb_cram.fetch_bg(palette, 6),
                 _ => panic!("Invalid color value: {}", value),
-            }
-            .reverse_bits();
+            };
 
-            let r = ((color & 0b1111_1000_0000_0000) >> 11) as u8;
-            let g = ((color & 0b0000_0111_1100_0000) >> 6) as u8;
-            let b = ((color & 0b0000_0000_0011_1110) >> 1) as u8;
+            let [r, g, b] = Palette::rgb555_to_rgb888(color);
 
-            Palette::Color(
-                value,
-                (r << 3) | (r >> 2),
-                (g << 3) | (g >> 2),
-                (b << 3) | (b >> 2),
-            )
+            Palette::Color(value, r, g, b)
         }
     }
 
@@ -102,19 +94,11 @@ impl Palette {
                 0b10 => mmu.cgb_cram.fetch_obj(palette, 4),
                 0b11 => mmu.cgb_cram.fetch_obj(palette, 6),
                 _ => panic!("Invalid color value: {}", value),
-            }
-            .reverse_bits();
+            };
 
-            let r = ((color & 0b1111_1000_0000_0000) >> 11) as u8;
-            let g = ((color & 0b0000_0111_1100_0000) >> 6) as u8;
-            let b = ((color & 0b0000_0000_0011_1110) >> 1) as u8;
+            let [r, g, b] = Palette::rgb555_to_rgb888(color);
 
-            Palette::Color(
-                value,
-                (r << 3) | (r >> 2),
-                (g << 3) | (g >> 2),
-                (b << 3) | (b >> 2),
-            )
+            Palette::Color(value, r, g, b)
         }
     }
 
@@ -131,6 +115,19 @@ impl Palette {
             Palette::Transparent(i) => *i == index,
             Palette::Color(i, _, _, _) => *i == index,
         }
+    }
+
+    fn rgb555_to_rgb888(color: u16) -> Color {
+        // Person smarter than me figured out this color correction:
+        // https://github.com/joamag/boytacean/blob/8d2d32b5fee994fdce37476995d8c29430980a6c/src/color.rs#L28-L33
+        let first = ((color >> 8) & 0xff) as u8;
+        let second = (color & 0xff) as u8;
+
+        let r = (first & 0x1f) << 3;
+        let g = (((first & 0xe0) >> 5) | ((second & 0x03) << 3)) << 3;
+        let b = ((second & 0x7c) >> 2) << 3;
+
+        [r, g, b]
     }
 }
 

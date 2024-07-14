@@ -41,7 +41,7 @@ impl GameBoy {
 
         let mode = match cartridge[0x0143] {
             0xc0 => Mode::Cgb,
-            0x80 => Mode::Dmg, // TODO: CGB enhancements, but backwards compatible with DMG
+            0x80 => Mode::Cgb, // TODO: CGB enhancements, but backwards compatible with DMG
             _ => Mode::Dmg,
         };
         info!(
