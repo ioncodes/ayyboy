@@ -429,7 +429,7 @@ impl Mmu {
                 self.write_unchecked(self.cgb_hdma_dst + i, data);
             }
 
-            self.cycles += 8 * length as usize;
+            self.cycles += 4 * length as usize;
 
             debug!(
                 "HDMA transfer from ${:04x} to ${:04x} of length ${:04x}",
