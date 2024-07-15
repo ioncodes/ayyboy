@@ -3,6 +3,7 @@ mod oam;
 pub mod palette;
 pub mod ppu;
 mod sprite;
+pub mod state;
 pub mod tile;
 
 pub const SCREEN_WIDTH: usize = 160;

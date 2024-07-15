@@ -109,13 +109,15 @@ impl GameBoy {
                 };
 
                 // Taken from a smarter person: https://github.com/NightShade256/Argentum/blob/1be04a77c4a13f5134952f78cf4c3c5b355fe12d/crates/argentum/src/bus.rs#L274
-                let cycles_for_apu = match self.mmu.cgb_double_speed {
+                let effective_cycles = match self.mmu.cgb_double_speed {
                     true => cycles >> 1,
                     false => cycles,
                 };
 
-                self.mmu.apu.tick(cycles_for_apu);
+                self.mmu.apu.tick(effective_cycles);
                 self.timer.tick(&mut self.mmu, cycles);
+                self.ppu.tick_state(&self.mmu, effective_cycles);
+                self.mmu.cache_ppu_state(self.ppu.state);
 
                 let cycles_per_scanline = match self.mmu.cgb_double_speed {
                     true => 912,

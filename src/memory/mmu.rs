@@ -12,6 +12,8 @@ use crate::sound::{
     NR51, NR52, WAVE_PATTERN_RAM_END, WAVE_PATTERN_RAM_START,
 };
 use crate::video::cram::Cram;
+use crate::video::state::State;
+use crate::video::LCD_STATUS_REGISTER;
 use log::{debug, error, trace};
 
 use super::addressable::Addressable;
@@ -42,6 +44,7 @@ pub struct Mmu {
     cgb_hdma_dst: u16,
     bootrom: Vec<u8>,
     mode: Mode,
+    last_ppu_state: State,
 }
 
 impl Mmu {
@@ -60,7 +63,13 @@ impl Mmu {
             joypad: Joypad::new(),
             apu: Apu::new(),
             mode,
+            last_ppu_state: State::OamScan,
         }
+    }
+
+    #[inline]
+    pub fn cache_ppu_state(&mut self, state: State) {
+        self.last_ppu_state = state;
     }
 
     #[inline]
@@ -100,6 +109,7 @@ impl Mmu {
             DOUBLE_SPEED_SWITCH_REGISTER if self.mode == Mode::Cgb => {
                 Ok(((self.cgb_double_speed as u16) << 7) as u8 | self.cgb_prepare_speed_switch as u8)
             }
+            LCD_STATUS_REGISTER => Ok(self.memory[addr as usize] | self.last_ppu_state as u8),
             NR10
             | NR11
             | NR12
