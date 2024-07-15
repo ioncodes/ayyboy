@@ -1,3 +1,5 @@
+use log::error;
+
 use super::Mapper;
 
 #[derive(Clone)]
@@ -30,16 +32,22 @@ impl Mapper for Mbc5 {
                 let addr = (addr as usize % 0x4000) + (self.rom_bank as usize * 0x4000);
                 Ok(self.rom[addr])
             }
-            0xa000..=0xbfff => {
-                if self.ram_enabled {
-                    let base_addr = (addr - 0xa000) as usize;
-                    let addr = base_addr + (self.ram_bank as usize * 0x2000);
-                    Ok(self.ram[addr])
-                } else {
-                    Err(crate::error::AyyError::OutOfBoundsMemoryAccess { address: addr })
-                }
+            0xa000..=0xbfff if self.ram_enabled => {
+                let base_addr = (addr - 0xa000) as usize;
+                let addr = base_addr + (self.ram_bank as usize * 0x2000);
+                Ok(self.ram[addr])
             }
-            _ => Err(crate::error::AyyError::OutOfBoundsMemoryAccess { address: addr }),
+            0xa000..=0xbfff if !self.ram_enabled => {
+                error!(
+                    "MBC5: Attempted read from RAM bank {} while RAM is disabled",
+                    self.ram_bank
+                );
+                Ok(0)
+            }
+            _ => {
+                error!("MBC5: Unmapped read from address {:04x}", addr);
+                Ok(0)
+            }
         }
     }
 
@@ -62,17 +70,23 @@ impl Mapper for Mbc5 {
                 self.ram_bank = data & 0x0f;
                 Ok(())
             }
-            0xa000..=0xbfff => {
-                if self.ram_enabled {
-                    let base_addr = (addr - 0xa000) as usize;
-                    let addr = base_addr + (self.ram_bank as usize * 0x2000);
-                    self.ram[addr] = data;
-                    Ok(())
-                } else {
-                    Err(crate::error::AyyError::OutOfBoundsMemoryAccess { address: addr })
-                }
+            0xa000..=0xbfff if self.ram_enabled => {
+                let base_addr = (addr - 0xa000) as usize;
+                let addr = base_addr + (self.ram_bank as usize * 0x2000);
+                self.ram[addr] = data;
+                Ok(())
             }
-            _ => Err(crate::error::AyyError::OutOfBoundsMemoryAccess { address: addr }),
+            0xa000..=0xbfff if !self.ram_enabled => {
+                error!(
+                    "MBC5: Attempted write to RAM bank {} while RAM is disabled",
+                    self.ram_bank
+                );
+                Ok(())
+            }
+            _ => {
+                error!("MBC5: Unmapped write to address {:04x}", addr);
+                Ok(())
+            }
         }
     }
 

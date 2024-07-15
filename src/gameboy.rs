@@ -9,6 +9,7 @@ use crate::memory::mapper::rom::Rom;
 use crate::memory::mapper::Mapper;
 use crate::memory::mmu::Mmu;
 use crate::video::ppu::Ppu;
+use crate::video::state::State;
 use crate::video::tile::Tile;
 use crate::video::SCANLINE_Y_REGISTER;
 use log::{error, info, warn};
@@ -76,6 +77,8 @@ impl GameBoy {
 
     pub fn run_frame(&mut self) {
         loop {
+            let mut did_hdma_transfer_already = false;
+
             loop {
                 let cycles = match self.cpu.tick(&mut self.mmu, &mut self.timer) {
                     Ok(cycles) => cycles,
@@ -118,6 +121,12 @@ impl GameBoy {
                 self.timer.tick(&mut self.mmu, cycles);
                 self.ppu.tick_state(&self.mmu, effective_cycles);
                 self.mmu.cache_ppu_state(self.ppu.state);
+                if self.ppu.state == State::HBlank && !did_hdma_transfer_already {
+                    self.mmu.tick_hdma();
+                    did_hdma_transfer_already = true;
+                } else if self.ppu.state != State::HBlank && did_hdma_transfer_already {
+                    did_hdma_transfer_already = false;
+                }
 
                 let cycles_per_scanline = match self.mmu.cgb_double_speed {
                     true => 912,
@@ -138,6 +147,7 @@ impl GameBoy {
 
             // Do we have a frame to render?
             if self.mmu.read_unchecked(SCANLINE_Y_REGISTER) == 0 {
+                self.ppu.reset_state();
                 break;
             }
         }

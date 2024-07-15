@@ -1,4 +1,4 @@
-use log::{debug, error};
+use log::{error, trace};
 
 use crate::memory::mapper::Mapper;
 
@@ -32,22 +32,21 @@ impl Mapper for Mbc3 {
                 let addr = (addr as usize % 0x4000) + (self.rom_bank as usize * 0x4000);
                 Ok(self.rom[addr])
             }
-            0xa000..=0xbfff => {
-                if self.ram_enabled {
-                    let base_addr = (addr - 0xa000) as usize;
-                    let addr = base_addr + (self.ram_bank as usize * 0x2000);
-                    Ok(self.ram[addr])
-                } else {
-                    error!(
-                        "MBC3: Attempted read from RAM bank {} while RAM is disabled",
-                        self.ram_bank
-                    );
-                    Ok(0xff)
-                }
+            0xa000..=0xbfff if self.ram_enabled => {
+                let base_addr = (addr - 0xa000) as usize;
+                let addr = base_addr + (self.ram_bank as usize * 0x2000);
+                Ok(self.ram[addr])
+            }
+            0xa000..=0xbfff if !self.ram_enabled => {
+                error!(
+                    "MBC3: Attempted read from RAM bank {} while RAM is disabled",
+                    self.ram_bank
+                );
+                Ok(0x00)
             }
             _ => {
                 error!("MBC3: Unmapped read from address {:04x}", addr);
-                Ok(0xff)
+                Ok(0x00)
             }
         }
     }
@@ -58,7 +57,7 @@ impl Mapper for Mbc3 {
             0x0000..=0x1fff => {
                 self.ram_enabled = data & 0x0f == 0x0a;
                 // TODO: enable RTC
-                debug!("MBC3: RAM access toggled to {}", self.ram_enabled);
+                trace!("MBC3: RAM access toggled to {}", self.ram_enabled);
                 Ok(())
             }
             0x2000..=0x3fff => {
@@ -66,13 +65,13 @@ impl Mapper for Mbc3 {
                 if self.rom_bank == 0 {
                     self.rom_bank = 1;
                 }
-                debug!("MBC3: Switched to ROM bank {}", self.rom_bank);
+                trace!("MBC3: Switched to ROM bank {}", self.rom_bank);
                 Ok(())
             }
             0x4000..=0x5fff if data <= 0x03 => {
                 // only RAM bank 1-3 allowed, rest goes to RTC
                 self.ram_bank = data & 0x0f;
-                debug!("MBC3: Switched to RAM bank {}", self.ram_bank);
+                trace!("MBC3: Switched to RAM bank {}", self.ram_bank);
                 Ok(())
             }
             0xa000..=0xbfff => {

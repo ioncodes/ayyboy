@@ -44,6 +44,11 @@ impl Ppu {
         self.handle_interrupts(mmu);
     }
 
+    pub fn reset_state(&mut self) {
+        self.state = State::OamScan;
+        self.cycles = 0;
+    }
+
     pub fn tick_state(&mut self, mmu: &Mmu, cycles: usize) {
         self.cycles += cycles;
 

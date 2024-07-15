@@ -1,7 +1,7 @@
 use crate::error::AyyError;
 use crate::memory::mapper::Mapper;
 use crate::memory::{EXTERNAL_RAM_END, EXTERNAL_RAM_START};
-use log::{debug, warn};
+use log::{trace, warn};
 
 const RAM_ENABLE_START: u16 = 0x0000;
 const RAM_ENABLE_END: u16 = 0x1fff;
@@ -76,30 +76,30 @@ impl Mapper for Mbc1 {
         match addr {
             RAM_ENABLE_START..=RAM_ENABLE_END => {
                 self.ram_enabled = (data & 0x0f) == 0x0a;
-                debug!("MBC1: RAM enabled: {}", self.ram_enabled);
+                trace!("MBC1: RAM enabled: {}", self.ram_enabled);
             }
             ROM_BANK_START..=ROM_BANK_END => {
                 self.rom_bank = (data & 0b0001_1111) as u16;
                 if self.rom_bank == 0 {
                     self.rom_bank = 1;
                 }
-                debug!("MBC1: Switched to ROM bank {}", self.rom_bank);
+                trace!("MBC1: Switched to ROM bank {}", self.rom_bank);
             }
             SECONDARY_BANK_REGISTER_START..=SECONDARY_BANK_REGISTER_END if self.banking_mode => {
                 if self.secondary_banking_allowed {
                     self.rom_bank = ((self.rom_bank as u8 & 0b0001_1111) | ((data & 0b11) << 5)) as u16;
-                    debug!("MBC1: Switched to ROM bank {}", self.rom_bank);
+                    trace!("MBC1: Switched to ROM bank {}", self.rom_bank);
                 } else {
                     warn!("MBC1: Attempted to switch to ROM bank, but not allowed");
                 }
             }
             SECONDARY_BANK_REGISTER_START..=SECONDARY_BANK_REGISTER_END if !self.banking_mode => {
                 self.ram_bank = data & 0b11;
-                debug!("MBC1: Switched to RAM bank {}", self.ram_bank);
+                trace!("MBC1: Switched to RAM bank {}", self.ram_bank);
             }
             BANKING_MODE_START..=BANKING_MODE_END => {
                 self.banking_mode = data & 0b0000_0001 == 1;
-                debug!("MBC1: Switched to banking mode: {}", self.banking_mode);
+                trace!("MBC1: Switched to banking mode: {}", self.banking_mode);
             }
             EXTERNAL_RAM_START..=EXTERNAL_RAM_END if self.ram_enabled => {
                 let base_addr = (addr - EXTERNAL_RAM_START) as usize;

@@ -42,6 +42,9 @@ pub struct Mmu {
     cgb_wram_bank1: Vec<u8>, // 0x1000 bank 1-7
     cgb_hdma_src: u16,
     cgb_hdma_dst: u16,
+    cgb_hdma_transfer_length: u16,
+    cgb_hdma_started: bool,
+    cgb_hdma_is_hblank_mode: bool,
     bootrom: Vec<u8>,
     mode: Mode,
     last_ppu_state: State,
@@ -59,6 +62,9 @@ impl Mmu {
             cgb_prepare_speed_switch: false,
             cgb_hdma_src: 0,
             cgb_hdma_dst: 0,
+            cgb_hdma_transfer_length: 0,
+            cgb_hdma_started: false,
+            cgb_hdma_is_hblank_mode: false,
             bootrom,
             joypad: Joypad::new(),
             apu: Apu::new(),
@@ -109,7 +115,10 @@ impl Mmu {
             DOUBLE_SPEED_SWITCH_REGISTER if self.mode == Mode::Cgb => {
                 Ok(((self.cgb_double_speed as u16) << 7) as u8 | self.cgb_prepare_speed_switch as u8)
             }
-            LCD_STATUS_REGISTER => Ok(self.memory[addr as usize] | self.last_ppu_state as u8),
+            LCD_STATUS_REGISTER => Ok((self.memory[addr as usize] & 0b1111_1100) | self.last_ppu_state.as_u8()),
+            HDMA_LENGTH_MODE_START_REGISTER if self.mode == Mode::Cgb => {
+                Ok(((self.cgb_hdma_transfer_length / 0x10).wrapping_sub(1)) as u8)
+            }
             NR10
             | NR11
             | NR12
@@ -238,7 +247,14 @@ impl Mmu {
             HDMA_VRAM_DST_LOW_REGISTER if self.mode == Mode::Cgb => {
                 self.cgb_hdma_dst = (self.cgb_hdma_dst & 0b1111_1111_0000_0000) | data as u16;
             }
-            HDMA_LENGTH_MODE_START_REGISTER if self.mode == Mode::Cgb => self.start_hdma_transfer(data)?,
+            HDMA_LENGTH_MODE_START_REGISTER if self.mode == Mode::Cgb => {
+                if data & 0b1000_0000 == 0 && self.cgb_hdma_is_hblank_mode {
+                    self.cgb_hdma_started = false;
+                    debug!("HDMA transfer cancelled");
+                } else {
+                    self.start_hdma_transfer(data)?
+                }
+            }
             DOUBLE_SPEED_SWITCH_REGISTER if self.mode == Mode::Cgb => {
                 self.cgb_prepare_speed_switch = data & 0b0000_0001 == 1;
 
@@ -355,23 +371,78 @@ impl Mmu {
     }
 
     fn start_hdma_transfer(&mut self, data: u8) -> Result<(), AyyError> {
-        // TODO: this dismisses modes
         // TODO: add cycles
-        let src_addr = self.cgb_hdma_src;
-        let dst_addr = self.cgb_hdma_dst;
-        let length = ((data & 0b0111_1111) as u16).wrapping_add(1).wrapping_mul(0x10);
-
-        debug!(
-            "HDMA transfer from ${:04x} to ${:04x} of length ${:04x}",
-            src_addr, dst_addr, length
-        );
-
-        for i in 0..(length as u16) {
-            let byte = self.read(src_addr + i)?;
-            self.write(dst_addr + i, byte)?;
+        self.cgb_hdma_transfer_length = ((data & 0b0111_1111) as u16).wrapping_add(1).wrapping_mul(0x10);
+        self.cgb_hdma_started = true;
+        self.cgb_hdma_is_hblank_mode = data & 0b1000_0000 != 0;
+        if self.cgb_hdma_is_hblank_mode {
+            self.cgb_hdma_dst += VRAM_START; // HDMA will always copy into VRAM bank 0
         }
 
+        debug!(
+            "HDMA transfer ({}) from ${:04x} to ${:04x} of length ${:04x} queued",
+            if self.cgb_hdma_is_hblank_mode {
+                "HBlank"
+            } else {
+                "General"
+            },
+            self.cgb_hdma_src,
+            self.cgb_hdma_dst,
+            self.cgb_hdma_transfer_length
+        );
+
+        self.tick_hdma();
+
         Ok(())
+    }
+
+    #[inline]
+    pub fn tick_hdma(&mut self) {
+        if self.cgb_hdma_started && !self.cgb_hdma_is_hblank_mode {
+            // GDMA transfer
+            for i in 0..self.cgb_hdma_transfer_length {
+                let data = self.read_unchecked(self.cgb_hdma_src + i);
+                self.write_unchecked(self.cgb_hdma_dst + i, data);
+            }
+
+            debug!(
+                "GDMA transfer from ${:04x} to ${:04x} of length ${:04x} completed",
+                self.cgb_hdma_src, self.cgb_hdma_dst, self.cgb_hdma_transfer_length
+            );
+
+            self.memory[HDMA_LENGTH_MODE_START_REGISTER as usize] = 0xff;
+            self.cgb_hdma_started = false;
+            self.cgb_hdma_is_hblank_mode = false;
+        } else if self.cgb_hdma_started && self.cgb_hdma_is_hblank_mode && self.last_ppu_state == State::HBlank {
+            // HDMA transfer
+            let length = if self.cgb_hdma_transfer_length > 0x10 {
+                0x10
+            } else {
+                self.cgb_hdma_transfer_length
+            };
+
+            for i in 0..length {
+                let data = self.read_unchecked(self.cgb_hdma_src + i);
+                self.write_unchecked(self.cgb_hdma_dst + i, data);
+            }
+
+            debug!(
+                "HDMA transfer from ${:04x} to ${:04x} of length ${:04x}",
+                self.cgb_hdma_src, self.cgb_hdma_dst, length
+            );
+
+            self.cgb_hdma_transfer_length -= length;
+            self.cgb_hdma_src += length;
+            self.cgb_hdma_dst += length;
+
+            if self.cgb_hdma_transfer_length == 0 {
+                self.memory[HDMA_LENGTH_MODE_START_REGISTER as usize] = 0xff;
+                self.cgb_hdma_started = false;
+                self.cgb_hdma_is_hblank_mode = false;
+
+                debug!("HDMA transfer completed");
+            }
+        }
     }
 
     #[cfg(test)]
