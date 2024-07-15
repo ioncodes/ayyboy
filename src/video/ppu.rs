@@ -38,6 +38,12 @@ impl Ppu {
     }
 
     pub fn tick(&mut self, mmu: &mut Mmu, cycles: usize) -> bool {
+        if !mmu
+            .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
+            .contains(LcdControl::LCD_DISPLAY)
+        {
+            return false;
+        }
         self.cycles += cycles;
         match self.state {
             State::OamScan if self.cycles >= 80 => {
