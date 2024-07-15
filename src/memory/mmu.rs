@@ -380,7 +380,7 @@ impl Mmu {
         }
 
         debug!(
-            "HDMA transfer ({}) from ${:04x} to ${:04x} of length ${:04x} queued",
+            "DMA transfer ({}) from ${:04x} to ${:04x} of length ${:04x} queued",
             if self.cgb_hdma_is_hblank_mode {
                 "HBlank"
             } else {

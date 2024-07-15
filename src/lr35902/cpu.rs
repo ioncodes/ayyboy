@@ -7,6 +7,7 @@ use crate::lr35902::timer::Timer;
 use crate::memory::mmu::Mmu;
 use crate::memory::registers::{InterruptEnable, InterruptFlags};
 use crate::memory::{DIV_REGISTER, INTERRUPT_ENABLE_REGISTER, INTERRUPT_FLAGS_REGISTER};
+use crate::video::SCANLINE_Y_REGISTER;
 use log::trace;
 
 #[derive(Clone)]
@@ -48,13 +49,12 @@ impl Cpu {
             .collect::<Vec<u8>>();
 
         trace!(
-            "[{:04x}] {:<12} {:<20} [{}  (SP): ${:02x}  IME: {}  ROM Bank: {}  RAM Bank: {}  VRAM Bank: {}  WRAM Bank: {}]",
+            "[{:04x}] {:<12} {:<20} [{}  LY: {}  ROM Bank: {}  RAM Bank: {}  VRAM Bank: {}  WRAM Bank: {}]",
             self.registers.pc,
             format!("{:02x?}", instruction_bytes),
             format!("{}", instruction),
             self,
-            mmu.read(self.registers.sp)?,
-            self.ime.enabled,
+            mmu.read_unchecked(SCANLINE_Y_REGISTER),
             mmu.cartridge.current_rom_bank(),
             mmu.cartridge.current_ram_bank(),
             mmu.current_vram_bank(),
