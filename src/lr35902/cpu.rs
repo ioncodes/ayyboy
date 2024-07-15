@@ -49,12 +49,14 @@ impl Cpu {
             .collect::<Vec<u8>>();
 
         trace!(
-            "[{:04x}] {:<12} {:<20} [{}  LY: {}  ROM Bank: {}  RAM Bank: {}  VRAM Bank: {}  WRAM Bank: {}]",
+            "[{:04x}] {:<12} {:<20} [{}  LY: {}  IME: {}  IE: {:08b}  ROM Bank: {}  RAM Bank: {}  VRAM Bank: {}  WRAM Bank: {}]",
             self.registers.pc,
             format!("{:02x?}", instruction_bytes),
             format!("{}", instruction),
             self,
             mmu.read_unchecked(SCANLINE_Y_REGISTER),
+            self.ime.enabled,
+            mmu.read_unchecked(INTERRUPT_ENABLE_REGISTER),
             mmu.cartridge.current_rom_bank(),
             mmu.cartridge.current_ram_bank(),
             mmu.current_vram_bank(),

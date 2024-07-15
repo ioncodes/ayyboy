@@ -119,7 +119,8 @@ impl Mmu {
             }
             LCD_STATUS_REGISTER => Ok((self.memory[addr as usize] & 0b1111_1100) | self.last_ppu_state.as_u8()),
             HDMA_LENGTH_MODE_START_REGISTER if self.mode == Mode::Cgb => {
-                Ok(((self.cgb_hdma_transfer_length / 0x10).wrapping_sub(1)) as u8)
+                let remaining_length = (self.cgb_hdma_transfer_length / 0x10).wrapping_sub(1) as u8;
+                Ok(((!self.cgb_hdma_started as u8) << 7) | remaining_length)
             }
             NR10
             | NR11
@@ -241,13 +242,13 @@ impl Mmu {
                 self.cgb_hdma_src = (data as u16) << 8;
             }
             HDMA_VRAM_SRC_LOW_REGISTER if self.mode == Mode::Cgb => {
-                self.cgb_hdma_src = (self.cgb_hdma_src & 0b1111_1111_0000_0000) | data as u16;
+                self.cgb_hdma_src = (self.cgb_hdma_src | data as u16) & 0b1111_1111_1111_0000;
             }
             HDMA_VRAM_DST_HIGH_REGISTER if self.mode == Mode::Cgb => {
                 self.cgb_hdma_dst = (data as u16) << 8;
             }
             HDMA_VRAM_DST_LOW_REGISTER if self.mode == Mode::Cgb => {
-                self.cgb_hdma_dst = (self.cgb_hdma_dst & 0b1111_1111_0000_0000) | data as u16;
+                self.cgb_hdma_dst = ((self.cgb_hdma_dst | data as u16) & 0b0001_1111_1111_0000) | 0x8000;
             }
             HDMA_LENGTH_MODE_START_REGISTER if self.mode == Mode::Cgb => {
                 if data & 0b1000_0000 == 0 && self.cgb_hdma_is_hblank_mode {
@@ -378,9 +379,6 @@ impl Mmu {
         self.cgb_hdma_transfer_length = ((data & 0b0111_1111) as u16).wrapping_add(1).wrapping_mul(0x10);
         self.cgb_hdma_started = true;
         self.cgb_hdma_is_hblank_mode = data & 0b1000_0000 != 0;
-        if self.cgb_hdma_is_hblank_mode {
-            self.cgb_hdma_dst += VRAM_START; // HDMA will always copy into VRAM bank 0
-        }
 
         debug!(
             "DMA transfer ({}) from ${:04x} to ${:04x} of length ${:04x} queued",
