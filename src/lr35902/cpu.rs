@@ -109,6 +109,16 @@ impl Cpu {
     }
 
     #[inline]
+    pub fn elapsed_cycles(&self) -> usize {
+        self.cycles
+    }
+
+    #[inline]
+    pub fn reset_cycles(&mut self, cycles: usize) {
+        self.cycles = cycles;
+    }
+
+    #[inline]
     pub fn tick_div(&mut self, mmu: &mut Mmu) {
         if self.div_cycles >= 256 {
             let div = mmu.read_unchecked(DIV_REGISTER).wrapping_add(1);

@@ -10,6 +10,7 @@ use crate::memory::mapper::Mapper;
 use crate::memory::mmu::Mmu;
 use crate::video::ppu::Ppu;
 use crate::video::tile::Tile;
+use crate::video::SCANLINE_Y_REGISTER;
 use log::{error, info, warn};
 
 const BOOTROM_DMG: &[u8] = include_bytes!("../external/roms/boot/bootix_dmg.bin");
@@ -75,52 +76,68 @@ impl GameBoy {
 
     pub fn run_frame(&mut self) {
         loop {
-            let cycles = match self.cpu.tick(&mut self.mmu, &mut self.timer) {
-                Ok(cycles) => cycles,
-                Err(AyyError::WriteToReadOnlyMemory { address, data }) => {
-                    warn!(
-                        "PC @ {:04x} => Attempted to write {:02x} to unmapped read-only memory at {:04x}",
-                        self.cpu.read_register16(&Register::PC),
-                        data,
-                        address
-                    );
-                    0
+            loop {
+                let cycles = match self.cpu.tick(&mut self.mmu, &mut self.timer) {
+                    Ok(cycles) => cycles,
+                    Err(AyyError::WriteToReadOnlyMemory { address, data }) => {
+                        warn!(
+                            "PC @ {:04x} => Attempted to write {:02x} to unmapped read-only memory at {:04x}",
+                            self.cpu.read_register16(&Register::PC),
+                            data,
+                            address
+                        );
+                        0
+                    }
+                    Err(AyyError::OutOfBoundsMemoryAccess { address }) => {
+                        warn!(
+                            "PC @ {:04x} => Attempted to read out-of-bounds memory at {:04x}",
+                            self.cpu.read_register16(&Register::PC),
+                            address
+                        );
+                        0
+                    }
+                    Err(AyyError::WriteToDisabledExternalRam { address, data }) => {
+                        error!(
+                            "PC @ {:04x} => Attempted to write {:02x} to disabled external RAM at {:04x}",
+                            self.cpu.read_register16(&Register::PC),
+                            data,
+                            address
+                        );
+                        0
+                    }
+                    Err(e) => panic!("{}", e),
+                };
+
+                // Taken from a smarter person: https://github.com/NightShade256/Argentum/blob/1be04a77c4a13f5134952f78cf4c3c5b355fe12d/crates/argentum/src/bus.rs#L274
+                let effective_cycles = match self.mmu.cgb_double_speed {
+                    true => cycles >> 1,
+                    false => cycles,
+                };
+
+                self.mmu.apu.tick(effective_cycles);
+                self.timer.tick(&mut self.mmu, cycles);
+                self.ppu.tick_state(&self.mmu, effective_cycles);
+                self.mmu.cache_ppu_state(self.ppu.state);
+
+                let cycles_per_scanline = match self.mmu.cgb_double_speed {
+                    true => 912,
+                    false => 456,
+                };
+
+                if self.cpu.elapsed_cycles() >= cycles_per_scanline {
+                    self.cpu.reset_cycles(self.cpu.elapsed_cycles() - cycles_per_scanline);
+                    break;
                 }
-                Err(AyyError::OutOfBoundsMemoryAccess { address }) => {
-                    warn!(
-                        "PC @ {:04x} => Attempted to read out-of-bounds memory at {:04x}",
-                        self.cpu.read_register16(&Register::PC),
-                        address
-                    );
-                    0
-                }
-                Err(AyyError::WriteToDisabledExternalRam { address, data }) => {
-                    error!(
-                        "PC @ {:04x} => Attempted to write {:02x} to disabled external RAM at {:04x}",
-                        self.cpu.read_register16(&Register::PC),
-                        data,
-                        address
-                    );
-                    0
-                }
-                Err(e) => panic!("{}", e),
-            };
+            }
 
-            // Taken from a smarter person: https://github.com/NightShade256/Argentum/blob/1be04a77c4a13f5134952f78cf4c3c5b355fe12d/crates/argentum/src/bus.rs#L274
-            let relative_cycles = match self.mmu.cgb_double_speed {
-                true => cycles >> 1,
-                false => cycles,
-            };
+            // H-Blank (Mode 0)
+            // This mode takes up the remainder of the scanline after the Drawing Mode finishes,
+            // more or less “padding” the duration of the scanline to a total of 456 T-Cycles.
+            // The PPU effectively pauses during this mode.
+            self.ppu.tick(&mut self.mmu); // "does a scanline"
 
-            self.mmu.apu.tick(relative_cycles);
-            self.timer.tick(&mut self.mmu, cycles);
-            let new_frame = self.ppu.tick(&mut self.mmu, relative_cycles);
-
-            // Cache the last known PPU state within the MMU for future read/write
-            // from/to LCD_STATUS_REGISTER
-            self.mmu.cache_ppu_state(self.ppu.state.clone());
-
-            if new_frame {
+            // Do we have a frame to render?
+            if self.mmu.read_unchecked(SCANLINE_Y_REGISTER) == 0 {
                 break;
             }
         }

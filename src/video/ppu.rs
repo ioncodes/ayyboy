@@ -20,31 +20,33 @@ use super::{BACKGROUND_MAP_SIZE, TILESET_SIZE};
 
 pub struct Ppu {
     pub state: State,
+    cycles: usize,
     emulated_frame: [[Palette; SCREEN_WIDTH]; SCREEN_HEIGHT],
     window_line_counter: usize,
     mode: Mode,
-    cycles: usize,
 }
 
 impl Ppu {
     pub fn new(mode: Mode) -> Ppu {
         Ppu {
+            state: State::OamScan,
+            cycles: 0,
             emulated_frame: [[Palette::default(); SCREEN_WIDTH]; SCREEN_HEIGHT],
             window_line_counter: 0,
             mode,
-            state: State::OamScan,
-            cycles: 0,
         }
     }
 
-    pub fn tick(&mut self, mmu: &mut Mmu, cycles: usize) -> bool {
-        if !mmu
-            .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
-            .contains(LcdControl::LCD_DISPLAY)
-        {
-            return false;
-        }
+    pub fn tick(&mut self, mmu: &mut Mmu) {
+        self.handle_window_line_counter(mmu);
+        self.render_scanline(mmu);
+        self.progress_scanline(mmu);
+        self.handle_interrupts(mmu);
+    }
+
+    pub fn tick_state(&mut self, mmu: &Mmu, cycles: usize) {
         self.cycles += cycles;
+
         match self.state {
             State::OamScan if self.cycles >= 80 => {
                 // OAM scan is done, we can start the drawing period. Just do nothing for now.
@@ -63,17 +65,12 @@ impl Ppu {
                 if mmu.read_unchecked(SCANLINE_Y_REGISTER) == 144 {
                     // We finished the HBlank period of the last scanline, so we can start the VBlank period
                     self.state = State::VBlank;
-                    self.handle_interrupts(mmu);
                 } else {
                     // We finished the HBlank period but we aren't ready for VBlank yet,
                     // so we can start a new scanline
                     // Handle internal line counter, render the current scanline,
                     // increment scanline and check for interrupts
                     self.state = State::OamScan;
-                    self.handle_window_line_counter(mmu);
-                    self.render_scanline(mmu);
-                    self.progress_scanline(mmu);
-                    self.handle_interrupts(mmu);
                 }
             }
             State::VBlank if self.cycles >= 456 => {
@@ -81,19 +78,14 @@ impl Ppu {
                 // line counter and incrementing the scanline
                 // We need to check for interrupts at the end of the VBlank period due to LY=LYC and LY=153 quirk
                 self.cycles -= 456;
-                self.progress_scanline(mmu);
-                self.handle_window_line_counter(mmu);
-                self.handle_interrupts(mmu);
+
                 if mmu.read_unchecked(SCANLINE_Y_REGISTER) == 0 {
                     // We finished the VBlank period of the last (non-visible) scanline, so we can start a new frame
                     self.state = State::OamScan;
-                    return true;
                 }
             }
             _ => {}
         }
-
-        false
     }
 
     pub fn handle_window_line_counter(&mut self, mmu: &mut Mmu) {
@@ -257,7 +249,7 @@ impl Ppu {
         tiles
     }
 
-    fn progress_scanline(&mut self, mmu: &mut Mmu) {
+    fn progress_scanline(&self, mmu: &mut Mmu) {
         let mut scanline = mmu.read_unchecked(SCANLINE_Y_REGISTER) + 1;
         if scanline >= 154 {
             scanline = 0;

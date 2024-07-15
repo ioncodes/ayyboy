@@ -68,6 +68,11 @@ impl Mmu {
     }
 
     #[inline]
+    pub fn cache_ppu_state(&mut self, state: State) {
+        self.last_ppu_state = state;
+    }
+
+    #[inline]
     pub fn read(&self, addr: u16) -> Result<u8, AyyError> {
         if cfg!(test) {
             return Ok(self.memory[addr as usize]);
@@ -104,7 +109,7 @@ impl Mmu {
             DOUBLE_SPEED_SWITCH_REGISTER if self.mode == Mode::Cgb => {
                 Ok(((self.cgb_double_speed as u16) << 7) as u8 | self.cgb_prepare_speed_switch as u8)
             }
-            LCD_STATUS_REGISTER => Ok(self.memory[addr as usize] | self.last_ppu_state.as_u8()),
+            LCD_STATUS_REGISTER => Ok(self.memory[addr as usize] | self.last_ppu_state as u8),
             NR10
             | NR11
             | NR12
@@ -322,11 +327,6 @@ impl Mmu {
         } else {
             0
         }
-    }
-
-    #[inline]
-    pub fn cache_ppu_state(&mut self, state: State) {
-        self.last_ppu_state = state;
     }
 
     pub fn enable_pending_speed_switch(&mut self) {
