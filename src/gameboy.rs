@@ -119,7 +119,7 @@ impl GameBoy {
 
                 self.mmu.apu.tick(effective_cycles);
                 self.timer.tick(&mut self.mmu, cycles);
-                self.ppu.tick_state(&self.mmu, effective_cycles);
+                self.ppu.tick_state(&mut self.mmu, effective_cycles);
                 self.mmu.cache_ppu_state(self.ppu.state);
                 if self.ppu.state == State::HBlank && !did_hdma_transfer_already {
                     self.mmu.tick_hdma();

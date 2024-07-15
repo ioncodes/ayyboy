@@ -48,6 +48,7 @@ pub struct Mmu {
     bootrom: Vec<u8>,
     mode: Mode,
     last_ppu_state: State,
+    cycles: usize,
 }
 
 impl Mmu {
@@ -70,6 +71,7 @@ impl Mmu {
             apu: Apu::new(),
             mode,
             last_ppu_state: State::OamScan,
+            cycles: 0,
         }
     }
 
@@ -361,11 +363,12 @@ impl Mmu {
         let src_addr = (data as u16) << 8;
         trace!("OAM DMA transfer from ${:04x}", src_addr);
 
-        // TODO: Add cycles
         for i in 0..0xa0 {
             let byte = self.read(src_addr + i)?;
             self.write(0xfe00 + i, byte)?;
         }
+
+        self.cycles += 160;
 
         Ok(())
     }
@@ -410,6 +413,8 @@ impl Mmu {
                 self.cgb_hdma_src, self.cgb_hdma_dst, self.cgb_hdma_transfer_length
             );
 
+            self.cycles += self.cgb_hdma_transfer_length as usize;
+
             self.memory[HDMA_LENGTH_MODE_START_REGISTER as usize] = 0xff;
             self.cgb_hdma_started = false;
             self.cgb_hdma_is_hblank_mode = false;
@@ -425,6 +430,8 @@ impl Mmu {
                 let data = self.read_unchecked(self.cgb_hdma_src + i);
                 self.write_unchecked(self.cgb_hdma_dst + i, data);
             }
+
+            self.cycles += 8 * length as usize;
 
             debug!(
                 "HDMA transfer from ${:04x} to ${:04x} of length ${:04x}",
@@ -443,6 +450,13 @@ impl Mmu {
                 debug!("HDMA transfer completed");
             }
         }
+    }
+
+    #[inline]
+    pub fn get_and_reset_cycles(&mut self) -> usize {
+        let cycles = self.cycles;
+        self.cycles = 0;
+        cycles
     }
 
     #[cfg(test)]

@@ -101,6 +101,7 @@ impl Cpu {
         }?;
 
         self.cycles += cycles;
+        self.cycles += mmu.get_and_reset_cycles();
         self.div_cycles += cycles;
 
         self.tick_div(mmu);

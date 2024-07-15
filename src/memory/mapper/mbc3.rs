@@ -9,6 +9,7 @@ pub struct Mbc3 {
     rom_bank: u16,
     ram_bank: u8,
     ram_enabled: bool,
+    rtc_mapped: bool, // TODO: fake
 }
 
 impl Mbc3 {
@@ -19,6 +20,7 @@ impl Mbc3 {
             rom_bank: 1,
             ram_bank: 0,
             ram_enabled: false,
+            rtc_mapped: false,
         }
     }
 }
@@ -32,17 +34,15 @@ impl Mapper for Mbc3 {
                 let addr = (addr as usize % 0x4000) + (self.rom_bank as usize * 0x4000);
                 Ok(self.rom[addr])
             }
+            0xa000..=0xbfff if self.rtc_mapped => {
+                // TODO: This needs precedence over RAM
+                error!("MBC3: Faking unmapped RTC register read");
+                Ok(0x00)
+            }
             0xa000..=0xbfff if self.ram_enabled => {
                 let base_addr = (addr - 0xa000) as usize;
                 let addr = base_addr + (self.ram_bank as usize * 0x2000);
                 Ok(self.ram[addr])
-            }
-            0xa000..=0xbfff if !self.ram_enabled => {
-                error!(
-                    "MBC3: Attempted read from RAM bank {} while RAM is disabled",
-                    self.ram_bank
-                );
-                Ok(0x00)
             }
             _ => {
                 error!("MBC3: Unmapped read from address {:04x}", addr);
@@ -70,8 +70,14 @@ impl Mapper for Mbc3 {
             }
             0x4000..=0x5fff if data <= 0x03 => {
                 // only RAM bank 1-3 allowed, rest goes to RTC
+                self.rtc_mapped = false;
                 self.ram_bank = data & 0x0f;
                 trace!("MBC3: Switched to RAM bank {}", self.ram_bank);
+                Ok(())
+            }
+            0x4000..=0x5fff if data > 0x03 => {
+                error!("MBC3: Faking unmapped RTC register select {}", data);
+                self.rtc_mapped = true;
                 Ok(())
             }
             0xa000..=0xbfff => {

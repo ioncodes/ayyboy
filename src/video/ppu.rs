@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use log::trace;
+
 use crate::gameboy::Mode;
 use crate::memory::mmu::Mmu;
 use crate::memory::registers::{InterruptFlags, LcdControl, LcdStatus};
@@ -38,6 +40,13 @@ impl Ppu {
     }
 
     pub fn tick(&mut self, mmu: &mut Mmu) {
+        if !mmu
+            .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
+            .contains(LcdControl::LCD_DISPLAY)
+        {
+            return;
+        }
+
         self.handle_window_line_counter(mmu);
         self.render_scanline(mmu);
         self.progress_scanline(mmu);
@@ -49,7 +58,14 @@ impl Ppu {
         self.cycles = 0;
     }
 
-    pub fn tick_state(&mut self, mmu: &Mmu, cycles: usize) {
+    pub fn tick_state(&mut self, mmu: &mut Mmu, cycles: usize) {
+        if !mmu
+            .read_as_unchecked::<LcdControl>(LCD_CONTROL_REGISTER)
+            .contains(LcdControl::LCD_DISPLAY)
+        {
+            return;
+        }
+
         self.cycles += cycles;
 
         match self.state {
@@ -64,18 +80,50 @@ impl Ppu {
                 // TODO: Realistically, writes to the OAM should be blocked during this period
                 self.cycles -= 172;
                 self.state = State::HBlank;
+
+                let lcd_status = mmu.read_as_unchecked::<LcdStatus>(LCD_STATUS_REGISTER);
+                let interrupt_flags = mmu.read_as_unchecked::<InterruptFlags>(INTERRUPT_FLAGS_REGISTER);
+                if lcd_status.contains(LcdStatus::MODE_0_CONDITION) {
+                    trace!("Triggering STAT for Mode 0");
+                    mmu.write_unchecked(
+                        INTERRUPT_FLAGS_REGISTER,
+                        (interrupt_flags | InterruptFlags::STAT).bits(),
+                    );
+                }
             }
             State::HBlank if self.cycles >= 204 => {
                 self.cycles -= 204;
                 if mmu.read_unchecked(SCANLINE_Y_REGISTER) == 144 {
                     // We finished the HBlank period of the last scanline, so we can start the VBlank period
                     self.state = State::VBlank;
+
+                    let lcd_status = mmu.read_as_unchecked::<LcdStatus>(LCD_STATUS_REGISTER);
+                    let mut interrupt_flags = mmu.read_as_unchecked::<InterruptFlags>(INTERRUPT_FLAGS_REGISTER);
+                    if lcd_status.contains(LcdStatus::MODE_1_CONDITION) {
+                        trace!("Triggering STAT for Mode 1");
+                        interrupt_flags |= InterruptFlags::STAT;
+                    }
+
+                    mmu.write_unchecked(
+                        INTERRUPT_FLAGS_REGISTER,
+                        (interrupt_flags | InterruptFlags::VBLANK).bits(),
+                    );
                 } else {
                     // We finished the HBlank period but we aren't ready for VBlank yet,
                     // so we can start a new scanline
                     // Handle internal line counter, render the current scanline,
                     // increment scanline and check for interrupts
                     self.state = State::OamScan;
+
+                    let lcd_status = mmu.read_as_unchecked::<LcdStatus>(LCD_STATUS_REGISTER);
+                    let interrupt_flags = mmu.read_as_unchecked::<InterruptFlags>(INTERRUPT_FLAGS_REGISTER);
+                    if lcd_status.contains(LcdStatus::MODE_2_CONDITION) {
+                        trace!("Triggering STAT for Mode 2");
+                        mmu.write_unchecked(
+                            INTERRUPT_FLAGS_REGISTER,
+                            (interrupt_flags | InterruptFlags::STAT).bits(),
+                        );
+                    }
                 }
             }
             State::VBlank if self.cycles >= 456 => {
@@ -87,6 +135,16 @@ impl Ppu {
                 if mmu.read_unchecked(SCANLINE_Y_REGISTER) == 0 {
                     // We finished the VBlank period of the last (non-visible) scanline, so we can start a new frame
                     self.state = State::OamScan;
+
+                    let lcd_status = mmu.read_as_unchecked::<LcdStatus>(LCD_STATUS_REGISTER);
+                    let interrupt_flags = mmu.read_as_unchecked::<InterruptFlags>(INTERRUPT_FLAGS_REGISTER);
+                    if lcd_status.contains(LcdStatus::MODE_2_CONDITION) {
+                        trace!("Triggering STAT for Mode 2");
+                        mmu.write_unchecked(
+                            INTERRUPT_FLAGS_REGISTER,
+                            (interrupt_flags | InterruptFlags::STAT).bits(),
+                        );
+                    }
                 }
             }
             _ => {}
@@ -269,9 +327,9 @@ impl Ppu {
         let mut interrupt_flags = mmu.read_as_unchecked::<InterruptFlags>(INTERRUPT_FLAGS_REGISTER);
 
         // Raise VBLANK IRQ
-        if scanline == 144 {
-            interrupt_flags |= InterruptFlags::VBLANK;
-        }
+        // if scanline == 144 {
+        //     interrupt_flags |= InterruptFlags::VBLANK;
+        // }
 
         // Raise STAT IRQ
         // Emulate LYC=0 LY=153 quirk
