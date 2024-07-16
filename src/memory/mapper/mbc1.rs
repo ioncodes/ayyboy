@@ -1,7 +1,7 @@
 use crate::error::AyyError;
 use crate::memory::mapper::Mapper;
 use crate::memory::{EXTERNAL_RAM_END, EXTERNAL_RAM_START};
-use log::{trace, warn};
+use log::{error, trace, warn};
 
 const RAM_ENABLE_START: u16 = 0x0000;
 const RAM_ENABLE_END: u16 = 0x1fff;
@@ -110,7 +110,7 @@ impl Mapper for Mbc1 {
                 warn!("MBC1: Attempted to write to disabled RAM");
             }
             _ => {
-                return Err(AyyError::OutOfBoundsMemoryAccess { address: addr });
+                error!("MBC1: Attempted to write to invalid address: {:#06x}", addr);
             }
         }
 

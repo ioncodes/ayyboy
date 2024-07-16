@@ -119,7 +119,7 @@ impl Mmu {
             }
             LCD_STATUS_REGISTER => Ok((self.memory[addr as usize] & 0b1111_1100) | self.last_ppu_state.as_u8()),
             HDMA_LENGTH_MODE_START_REGISTER if self.mode == Mode::Cgb => {
-                let remaining_length = (self.cgb_hdma_transfer_length / 0x10).wrapping_sub(1) as u8;
+                let remaining_length = ((self.cgb_hdma_transfer_length / 0x10).wrapping_sub(1) as u8) & 0b0111_1111;
                 Ok(((!self.cgb_hdma_started as u8) << 7) | remaining_length)
             }
             NR10
@@ -375,7 +375,6 @@ impl Mmu {
     }
 
     fn start_hdma_transfer(&mut self, data: u8) -> Result<(), AyyError> {
-        // TODO: add cycles
         self.cgb_hdma_transfer_length = ((data & 0b0111_1111) as u16).wrapping_add(1).wrapping_mul(0x10);
         self.cgb_hdma_started = true;
         self.cgb_hdma_is_hblank_mode = data & 0b1000_0000 != 0;
@@ -401,6 +400,7 @@ impl Mmu {
     pub fn tick_hdma(&mut self) {
         if self.cgb_hdma_started && !self.cgb_hdma_is_hblank_mode {
             // GDMA transfer
+
             for i in 0..self.cgb_hdma_transfer_length {
                 let data = self.read_unchecked(self.cgb_hdma_src + i);
                 self.write_unchecked(self.cgb_hdma_dst + i, data);
