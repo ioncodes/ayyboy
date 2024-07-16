@@ -10,16 +10,7 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
-
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-        include:
-          - os: ubuntu-latest
-            extension: tar.gz
-          - os: windows-latest
-            extension: zip
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout repository
@@ -31,6 +22,19 @@ jobs:
         toolchain: nightly
         profile: minimal
         override: true
+    
+    - name: Install dependencies
+      run: sudo apt-get update && sudo apt-get install -y libasound2-dev g++-mingw-w64-x86-64 g++-x86-64-linux-gnu zip
+
+    - name: Add Rust targets
+      run: |
+        rustup target add x86_64-pc-windows-gnu
+        rustup target add x86_64-unknown-linux-gnu
+
+    - name: Install Rust toolchains
+      run: |
+        rustup toolchain install stable-x86_64-pc-windows-gnu
+        rustup toolchain install stable-x86_64-unknown-linux-gnu
 
     - name: Cache Cargo registry
       uses: actions/cache@v3
@@ -56,13 +60,26 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-cargo-build-
 
-    - name: Build
-      run: cargo build --release
+    - name: Build for Linux
+      run: cargo build --release --target x86_64-unknown-linux-gnu
 
-    - name: Upload artifact
+    - name: Build for Windows
+      run: cargo build --release --target x86_64-pc-windows-gnu
+
+    - name: Create Linux zip
+      run: zip -j ayyboy-linux.zip target/x86_64-unknown-linux-gnu/release/ayyboy
+
+    - name: Create Windows zip
+      run: zip -j ayyboy-windows.zip target/x86_64-pc-windows-gnu/release/ayyboy.exe
+
+    - name: Upload Linux artifact
       uses: actions/upload-artifact@v3
       with:
-        name: ayyboy-${{ matrix.os }}
-        path: |
-          target/release/*
-        if-no-files-found: error
+        name: ayyboy-linux
+        path: ayyboy-linux.zip
+
+    - name: Upload Windows artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: ayyboy-windows
+        path: ayyboy-windows.zip
