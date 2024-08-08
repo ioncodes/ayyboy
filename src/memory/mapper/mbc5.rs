@@ -1,4 +1,7 @@
-use log::error;
+use btleplug::api::{Central, Manager as _, Peripheral as _, ScanFilter};
+use btleplug::platform::Manager;
+use log::{debug, error};
+use tokio::runtime::Runtime;
 
 use super::Mapper;
 
@@ -9,6 +12,7 @@ pub struct Mbc5 {
     rom_bank: u16,
     ram_bank: u8,
     ram_enabled: bool,
+    allow_rumble: bool,
 }
 
 impl Mbc5 {
@@ -19,6 +23,45 @@ impl Mbc5 {
             rom_bank: 1,
             ram_bank: 0,
             ram_enabled: false,
+            allow_rumble: false,
+        }
+    }
+
+    pub fn with_rumble(memory: Vec<u8>) -> Mbc5 {
+        let rt = Runtime::new().unwrap();
+
+        rt.block_on(async {
+            let manager = Manager::new().await.unwrap();
+            let adapters = manager.adapters().await.unwrap();
+            let central = adapters.into_iter().nth(0).expect("No adapters found");
+
+            central.start_scan(ScanFilter::default()).await.unwrap();
+
+            let peripherals = central.peripherals().await.unwrap();
+            if peripherals.is_empty() {
+                println!("No peripherals found");
+            } else {
+                for peripheral in peripherals {
+                    // Connect to the first discovered device
+                    if let Err(err) = peripheral.connect().await {
+                        println!("Error connecting to peripheral: {:?}", err);
+                    } else {
+                        println!("Connected to peripheral: {:?}", peripheral.id());
+                    }
+                }
+            }
+
+            // Stop scanning
+            central.stop_scan().await.unwrap();
+        });
+
+        Mbc5 {
+            rom: memory,
+            ram: vec![0; 0x8000],
+            rom_bank: 1,
+            ram_bank: 0,
+            ram_enabled: false,
+            allow_rumble: true,
         }
     }
 }
@@ -68,6 +111,11 @@ impl Mapper for Mbc5 {
             }
             0x4000..=0x5fff => {
                 self.ram_bank = data & 0x0f;
+                if self.ram_bank & 0b1000 != 0 && self.allow_rumble {
+                    debug!("Triggering vibration")
+                } else if self.allow_rumble {
+                    debug!("Stopping vibration")
+                }
                 Ok(())
             }
             0xa000..=0xbfff if self.ram_enabled => {
@@ -110,6 +158,10 @@ impl Mapper for Mbc5 {
 
     #[inline]
     fn name(&self) -> String {
-        String::from("MBC5")
+        if !self.allow_rumble {
+            String::from("MBC5")
+        } else {
+            String::from("MBC5+RUMBLE")
+        }
     }
 }
