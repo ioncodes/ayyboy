@@ -1,9 +1,6 @@
-use btleplug::api::{Central, Characteristic, Manager as _, Peripheral as _, ScanFilter, WriteType};
-use btleplug::platform::{Manager, Peripheral};
+use btleplug::api::Characteristic;
+use btleplug::platform::Peripheral;
 use log::{error, info};
-use regex::Regex;
-use tokio::runtime::Runtime;
-use tokio::time;
 
 use super::Mapper;
 
@@ -15,6 +12,7 @@ pub struct Mbc5 {
     ram_bank: u8,
     ram_enabled: bool,
     allow_rumble: bool,
+    #[allow(dead_code)]
     lovense_toy: Option<(Peripheral, Characteristic)>,
 }
 
@@ -45,7 +43,11 @@ impl Mbc5 {
         }
     }
 
+    #[cfg(feature = "nsfw")]
     fn queue_vibration(&self) {
+        use btleplug::api::{Peripheral as _, WriteType};
+        use tokio::runtime::Runtime;
+
         if let Some((peripheral, tx)) = &self.lovense_toy {
             let rt = Runtime::new().unwrap();
             rt.block_on(async {
@@ -57,7 +59,14 @@ impl Mbc5 {
         }
     }
 
+    #[cfg(not(feature = "nsfw"))]
+    fn queue_vibration(&self) {}
+
+    #[cfg(feature = "nsfw")]
     fn stop_vibration(&self) {
+        use btleplug::api::{Peripheral as _, WriteType};
+        use tokio::runtime::Runtime;
+
         if let Some((peripheral, tx)) = &self.lovense_toy {
             let rt = Runtime::new().unwrap();
             rt.block_on(async {
@@ -69,8 +78,17 @@ impl Mbc5 {
         }
     }
 
+    #[cfg(not(feature = "nsfw"))]
+    fn stop_vibration(&self) {}
+
     #[cfg(feature = "nsfw")]
     fn find_lovense_toy() -> Option<(Peripheral, Characteristic)> {
+        use btleplug::api::{Central, Manager as _, Peripheral as _, ScanFilter, WriteType};
+        use btleplug::platform::Manager;
+        use regex::Regex;
+        use tokio::runtime::Runtime;
+        use tokio::time;
+
         let rt = Runtime::new().unwrap();
 
         rt.block_on(async {

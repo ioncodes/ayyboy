@@ -72,6 +72,18 @@ jobs:
     - name: Create Windows zip
       run: zip -j ayyboy-windows.zip target/x86_64-pc-windows-gnu/release/ayyboy.exe
 
+    - name: Build NSFW for Linux
+      run: cargo build --release --features nsfw --target x86_64-unknown-linux-gnu
+
+    - name: Build NSFW for Windows
+      run: cargo build --release --features nsfw --target x86_64-pc-windows-gnu
+
+    - name: Create NSFW Linux zip
+      run: zip -j ayyboy-nsfw-linux.zip target/x86_64-unknown-linux-gnu/release/ayyboy
+
+    - name: Create NSFW Windows zip
+      run: zip -j ayyboy-nsfw-windows.zip target/x86_64-pc-windows-gnu/release/ayyboy.exe
+
     - name: Upload Linux artifact
       uses: actions/upload-artifact@v3
       with:
@@ -83,3 +95,15 @@ jobs:
       with:
         name: ayyboy-windows
         path: ayyboy-windows.zip
+
+    - name: Upload Linux artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: ayyboy-nsfw-linux
+        path: ayyboy-nsfw-linux.zip
+
+    - name: Upload Windows artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: ayyboy-nsfw-windows
+        path: ayyboy-nsfw-windows.zip
