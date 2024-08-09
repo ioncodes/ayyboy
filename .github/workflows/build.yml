@@ -24,7 +24,7 @@ jobs:
         override: true
     
     - name: Install dependencies
-      run: sudo apt-get update && sudo apt-get install -y libasound2-dev g++-mingw-w64-x86-64 g++-x86-64-linux-gnu zip
+      run: sudo apt-get update && sudo apt-get install -y libasound2-dev g++-mingw-w64-x86-64 g++-x86-64-linux-gnu zip libdbus-1-dev
 
     - name: Add Rust targets
       run: |
