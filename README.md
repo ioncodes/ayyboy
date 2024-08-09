@@ -9,12 +9,24 @@ The project is not in a perfect state but it works well with my childhood games.
 ## Features
 * DMG and GBC support (incl. double speed mode)
 * Support for ROM, MBC1, MBC3 and MBC5 (although none of the mappers I'd consder in a 100% functional state)
+* MBC5 rumble pak support through Lovense sex toys
 * Sound (mostly taken from [this blog](https://nightshade256.github.io/2021/03/27/gb-sound-emulation.html) and [this emulator](https://github.com/NightShade256/Argentum))
-* RAM-based save games (RAM is simply written to disk on emulator exit)
+* RAM-based save games (RAM is simply written to disk on emulator exit and loaded on startup if a `.sav` file exists)
 * Built-in open-source boot ROMs for [DMG](https://github.com/Hacktix/Bootix) and [GBC](https://github.com/LIJI32/SameBoy/tree/master/BootROMs)
 * Scanline based renderer (no pixel FIFO)
 * Various debug views
 * ZIP file support
+
+You might be wondering why I bothered implementing sex toy support. I do not have a clear answer to this question! I wondered how I could implement rumble support and since a PC cannot (usually?) vibrate, my brain came up with a vibrator feature.  
+
+Lovense support is not compiled-in by default, however, it is available through the `nsfw` feature flag during compilation. Enabling this flag will force the emulator to start searching for nearby Lovense BLE products and connect to the first that matches a specific regex if rumble support is detected for a game.  
+
+<details>
+<summary>Open me to see a demo of a game controlling the Lush 2</summary>  
+ 
+https://github.com/user-attachments/assets/eb051257-8fdc-421d-9159-86bf55ab8cbe
+
+</details>
 
 ## Testing
 * The CPU has been verified against the following tests and passes all of them:
