@@ -1,4 +1,6 @@
-use log::error;
+use btleplug::api::Characteristic;
+use btleplug::platform::Peripheral;
+use log::{error, info};
 
 use super::Mapper;
 
@@ -9,6 +11,9 @@ pub struct Mbc5 {
     rom_bank: u16,
     ram_bank: u8,
     ram_enabled: bool,
+    allow_rumble: bool,
+    #[allow(dead_code)]
+    lovense_toy: Option<(Peripheral, Characteristic)>,
 }
 
 impl Mbc5 {
@@ -19,7 +24,136 @@ impl Mbc5 {
             rom_bank: 1,
             ram_bank: 0,
             ram_enabled: false,
+            allow_rumble: false,
+            lovense_toy: None,
         }
+    }
+
+    pub fn with_rumble(memory: Vec<u8>) -> Mbc5 {
+        let lovense_toy = Mbc5::find_lovense_toy();
+
+        Mbc5 {
+            rom: memory,
+            ram: vec![0; 0x8000],
+            rom_bank: 1,
+            ram_bank: 0,
+            ram_enabled: false,
+            allow_rumble: true,
+            lovense_toy,
+        }
+    }
+
+    #[cfg(feature = "nsfw")]
+    fn queue_vibration(&self) {
+        use btleplug::api::{Peripheral as _, WriteType};
+        use tokio::runtime::Runtime;
+
+        if let Some((peripheral, tx)) = &self.lovense_toy {
+            let rt = Runtime::new().unwrap();
+            rt.block_on(async {
+                peripheral
+                    .write(&tx, "Vibrate:10;".as_bytes(), WriteType::WithoutResponse)
+                    .await
+                    .unwrap();
+            });
+        }
+    }
+
+    #[cfg(not(feature = "nsfw"))]
+    fn queue_vibration(&self) {}
+
+    #[cfg(feature = "nsfw")]
+    fn stop_vibration(&self) {
+        use btleplug::api::{Peripheral as _, WriteType};
+        use tokio::runtime::Runtime;
+
+        if let Some((peripheral, tx)) = &self.lovense_toy {
+            let rt = Runtime::new().unwrap();
+            rt.block_on(async {
+                peripheral
+                    .write(&tx, "Vibrate:0;".as_bytes(), WriteType::WithoutResponse)
+                    .await
+                    .unwrap();
+            });
+        }
+    }
+
+    #[cfg(not(feature = "nsfw"))]
+    fn stop_vibration(&self) {}
+
+    #[cfg(feature = "nsfw")]
+    fn find_lovense_toy() -> Option<(Peripheral, Characteristic)> {
+        use btleplug::api::{Central, Manager as _, Peripheral as _, ScanFilter, WriteType};
+        use btleplug::platform::Manager;
+        use regex::Regex;
+        use tokio::runtime::Runtime;
+        use tokio::time::{self, Duration};
+
+        let rt = Runtime::new().unwrap();
+
+        rt.block_on(async {
+            let manager = Manager::new().await.unwrap();
+            let adapters = manager.adapters().await.unwrap();
+            let central = adapters.into_iter().nth(0).expect("No adapters found");
+
+            info!("Scanning for Lovense toy");
+            central.start_scan(ScanFilter::default()).await.unwrap();
+
+            // Wait for a peripheral to be discovered
+            time::sleep(time::Duration::from_secs(5)).await;
+
+            let peripherals = central.peripherals().await.unwrap();
+            let service_regex = Regex::new(r"^..300001-002.-4bd4-bbd5-a6920e4c5653").unwrap(); // Regex from: @Acurisu
+            let tx_regex = Regex::new(r"^..300002-002.-4bd4-bbd5-a6920e4c5653").unwrap();
+
+            for peripheral in peripherals {
+                // Connect to all peripherals to discover the Lovense service
+                if let Ok(_) = peripheral.connect().await {
+                    // Discover services
+                    peripheral.discover_services().await.unwrap();
+
+                    let services = peripheral.services();
+                    let lovense_service = services
+                        .iter()
+                        .find(|&service| service_regex.is_match(&service.uuid.to_string()));
+
+                    // If the service is found, return the peripheral and the TX characteristic
+                    if let Some(service) = lovense_service {
+                        info!("Found Lovense toy");
+
+                        let tx_characteristic = service
+                            .characteristics
+                            .iter()
+                            .find(|&characteristic| tx_regex.is_match(&characteristic.uuid.to_string()))
+                            .unwrap();
+
+                        info!("Queuing vibration command to signal connection");
+                        peripheral
+                            .write(&tx_characteristic, "Vibrate:5;".as_bytes(), WriteType::WithoutResponse)
+                            .await
+                            .unwrap();
+                        time::sleep(Duration::from_secs(2)).await;
+                        peripheral
+                            .write(&tx_characteristic, "Vibrate:0;".as_bytes(), WriteType::WithoutResponse)
+                            .await
+                            .unwrap();
+
+                        central.stop_scan().await.unwrap();
+
+                        return Some((peripheral, tx_characteristic.clone()));
+                    }
+                }
+            }
+
+            central.stop_scan().await.unwrap();
+
+            None
+        })
+    }
+
+    #[cfg(not(feature = "nsfw"))]
+    fn find_lovense_toy() -> Option<(Peripheral, Characteristic)> {
+        None
     }
 }
 
@@ -68,6 +202,14 @@ impl Mapper for Mbc5 {
             }
             0x4000..=0x5fff => {
                 self.ram_bank = data & 0x0f;
+
+                if self.ram_bank & 0b1000 != 0 && self.allow_rumble {
+                    info!("Triggering vibration");
+                    self.queue_vibration();
+                } else if self.allow_rumble {
+                    info!("Stopping vibration");
+                    self.stop_vibration();
+                }
                 Ok(())
             }
             0xa000..=0xbfff if self.ram_enabled => {
@@ -110,6 +252,10 @@ impl Mapper for Mbc5 {
 
     #[inline]
     fn name(&self) -> String {
-        String::from("MBC5")
+        if !self.allow_rumble {
+            String::from("MBC5")
+        } else {
+            String::from("MBC5+RUMBLE")
+        }
     }
 }

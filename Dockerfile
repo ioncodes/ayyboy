@@ -5,6 +5,7 @@ RUN apt update && apt upgrade -y
 RUN apt install -y g++-mingw-w64-x86-64
 RUN apt install -y g++-x86-64-linux-gnu
 RUN apt install -y libasound2-dev:amd64 pkg-config
+RUN apt install -y libdbus-1-dev:amd64
 
 RUN rustup target add x86_64-pc-windows-gnu
 RUN rustup target add x86_64-unknown-linux-gnu
