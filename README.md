@@ -28,6 +28,21 @@ https://github.com/user-attachments/assets/eb051257-8fdc-421d-9159-86bf55ab8cbe
 
 </details>
 
+## Usage
+Compile the emulator yourself or download a [release](). Note that providing a bootrom is completely optional and that `--log-to-file` will enable instruction tracing be default.
+
+```
+Usage: ayyboy.exe [OPTIONS] <ROM>
+
+Arguments:
+  <ROM>
+
+Options:
+      --bios <BIOS>
+      --log-to-file
+  -h, --help         Print help
+```
+
 ## Testing
 * The CPU has been verified against the following tests and passes all of them:
   * [SM83 SingleStepTests](https://github.com/SingleStepTests/sm83)
