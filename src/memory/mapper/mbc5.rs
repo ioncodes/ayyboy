@@ -87,7 +87,7 @@ impl Mbc5 {
         use btleplug::platform::Manager;
         use regex::Regex;
         use tokio::runtime::Runtime;
-        use tokio::time;
+        use tokio::time::{self, Duration};
 
         let rt = Runtime::new().unwrap();
 
@@ -129,9 +129,10 @@ impl Mbc5 {
 
                         info!("Queuing vibration command to signal connection");
                         peripheral
-                            .write(&tx_characteristic, "Vibrate:1;".as_bytes(), WriteType::WithoutResponse)
+                            .write(&tx_characteristic, "Vibrate:5;".as_bytes(), WriteType::WithoutResponse)
                             .await
                             .unwrap();
+                        time::sleep(Duration::from_secs(2)).await;
                         peripheral
                             .write(&tx_characteristic, "Vibrate:0;".as_bytes(), WriteType::WithoutResponse)
                             .await
