@@ -29,7 +29,7 @@ https://github.com/user-attachments/assets/eb051257-8fdc-421d-9159-86bf55ab8cbe
 </details>
 
 ## Usage
-Compile the emulator yourself or download a [release](). Note that providing a bootrom is completely optional and that `--log-to-file` will enable instruction tracing be default.
+Compile the emulator yourself or download a [release](https://github.com/ioncodes/ayyboy/releases). Note that providing a bootrom is completely optional and that `--log-to-file` will enable instruction tracing be default.
 
 ```
 Usage: ayyboy.exe [OPTIONS] <ROM>
