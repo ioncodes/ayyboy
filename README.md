@@ -8,7 +8,7 @@ The project is not in a perfect state but it works well with my childhood games.
 
 ## Features
 * DMG and GBC support (incl. double speed mode)
-* Support for ROM, MBC1, MBC3 and MBC5 (although none of the mappers I'd consder in a 100% functional state)
+* Support for ROM, MBC1, MBC3 and MBC5 (although none of the mappers I'd consider to be in a 100% functional state)
 * MBC5 rumble pak support through Lovense sex toys
 * Sound (mostly taken from [this blog](https://nightshade256.github.io/2021/03/27/gb-sound-emulation.html) and [this emulator](https://github.com/NightShade256/Argentum))
 * RAM-based save games (RAM is simply written to disk on emulator exit and loaded on startup if a `.sav` file exists)
